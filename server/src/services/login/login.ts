@@ -16,10 +16,40 @@ interface LoginResult {
   email: string;
   avatar: string | null;
   token: string;
+  refreshToken: string;
 }
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+const REFRESH_SECRET = process.env.REFRESH_SECRET || 'your-refresh-secret-key';
+const REFRESH_EXPIRES_IN = '30d';
+
+// 生成 Token
+function generateToken(payload: object): string {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as any });
+}
+
+// 生成 Refresh Token
+function generateRefreshToken(payload: object): string {
+  return jwt.sign(payload, REFRESH_SECRET, { expiresIn: REFRESH_EXPIRES_IN });
+}
+
+// 验证 Refresh Token
+export function verifyRefreshToken(token: string): any {
+  return jwt.verify(token, REFRESH_SECRET);
+}
+
+// 刷新 Token
+export function refreshToken(refreshToken: string): { token: string; refreshToken: string } {
+  try {
+    const decoded = verifyRefreshToken(refreshToken);
+    const newToken = generateToken({ id: decoded.id, email: decoded.email, username: decoded.username });
+    const newRefreshToken = generateRefreshToken({ id: decoded.id, email: decoded.email, username: decoded.username });
+    return { token: newToken, refreshToken: newRefreshToken };
+  } catch {
+    throw new Error('Refresh token 无效或已过期');
+  }
+}
 
 export async function loginUser({ email, password }: LoginParams): Promise<LoginResult> {
   // 1. 查找用户
@@ -49,12 +79,20 @@ export async function loginUser({ email, password }: LoginParams): Promise<Login
     { expiresIn: JWT_EXPIRES_IN as any }
   );
 
-  // 4. 返回用户信息（不含密码）
+  // 4. 生成 Refresh Token
+  const refreshToken = jwt.sign(
+    { id: user.id, email: user.email, username: user.username },
+    REFRESH_SECRET,
+    { expiresIn: REFRESH_EXPIRES_IN }
+  );
+
+  // 5. 返回用户信息（不含密码）
   return {
     id: user.id,
     username: user.username,
     email: user.email,
     avatar: user.avatar,
     token,
+    refreshToken,
   };
 }

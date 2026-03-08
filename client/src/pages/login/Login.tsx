@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 import { login, register } from "../../api/login";
+import { useLoginStore } from "../../store/Login";
 
 interface LoginForm {
   email: string;
@@ -19,6 +20,7 @@ export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const { login: storeLogin } = useLoginStore();
 
   const loginForm = useForm<LoginForm>();
   const registerForm = useForm<RegisterForm>();
@@ -28,8 +30,7 @@ export default function AuthPage() {
     setIsLoading(true);
     try {
       const res = await login(data);
-      localStorage.setItem("token", res.token);
-      localStorage.setItem("user", JSON.stringify(res));
+      storeLogin(res);
       console.log("登录成功:", res);
       // 跳转首页
       window.location.href = "/";

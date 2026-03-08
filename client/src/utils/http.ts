@@ -1,4 +1,6 @@
-import axios, { type AxiosInstance, type AxiosError } from "axios";
+import axios, { type AxiosInstance, type AxiosError, type InternalAxiosRequestConfig } from "axios";
+import { refreshToken as refreshTokenApi } from "../api/login";
+import { useLoginStore } from "../store/Login";
 
 // 1. 基础配置（从环境变量取基础URL，兜底本地服务）
 const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
@@ -13,8 +15,8 @@ const request: AxiosInstance = axios.create({
 // 3. 请求拦截器：携带token
 request.interceptors.request.use(
     (config) => {
-        // 从localStorage取token，添加到请求头
-        const token = localStorage.getItem("token");
+        // 从 zustand store 取 token
+        const token = useLoginStore.getState().token;
         if (token && config.headers) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -35,21 +37,46 @@ request.interceptors.response.use(
         return Promise.reject(new Error(res.data.message || "请求失败"));
     },
     // 失败响应：分类处理HTTP错误
-    (err: AxiosError) => {
+    async (err: AxiosError) => {
+        const originalRequest = err.config as InternalAxiosRequestConfig & { _retry?: boolean };
+        
         let errorMsg = "网络异常，请稍后重试";
 
-        // 401：token过期/未登录，跳转登录页
-        if (err.response?.status === 401) {
-            errorMsg = "登录已过期，请重新登录";
-            localStorage.removeItem("token"); // 清除无效token
-            window.location.href = "/login"; // 跳登录页
+        // 401：token过期，尝试刷新token
+        if (err.response?.status === 401 && !originalRequest._retry) {
+            originalRequest._retry = true;
+            
+            const { refreshToken, logout } = useLoginStore.getState();
+            
+            if (refreshToken) {
+                try {
+                    // 调用刷新token接口
+                    const res = await refreshTokenApi(refreshToken);
+                    // 更新 token
+                    useLoginStore.getState().setTokens(res.token, res.refreshToken);
+                    // 重新设置请求头
+                    originalRequest.headers.Authorization = `Bearer ${res.token}`;
+                    // 重新发起请求
+                    return request(originalRequest);
+                } catch {
+                    // 刷新失败，清除登录状态
+                    errorMsg = "登录已过期，请重新登录";
+                    logout();
+                    window.location.href = "/login";
+                }
+            } else {
+                // 没有 refreshToken，直接跳转登录页
+                errorMsg = "登录已过期，请重新登录";
+                logout();
+                window.location.href = "/login";
+            }
         }
         // 403：权限不足
         else if (err.response?.status === 403) {
             errorMsg = "暂无权限访问该资源";
         }
         // 5xx：服务器错误
-        else if (err.response?.status >= 500) {
+        else if (err.response && err.response.status >= 500) {
             errorMsg = "服务器内部错误，请稍后重试";
         }
         // 超时错误

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import type { Router as RouterType } from 'express';
-import { loginUser } from '../services/login/login.js';
+import { loginUser, refreshToken } from '../services/login/login.js';
 import { registerUser } from '../services/login/register.js';
 
 const router: RouterType = Router();
@@ -52,6 +52,33 @@ router.post('/register', validate(['username', 'email', 'password']), async (req
     const message = err instanceof Error ? err.message : '注册失败';
     res.status(400).json({
       code: 400,
+      message,
+    });
+  }
+});
+
+// 刷新 Token
+router.post('/refresh', async (req: Request, res: Response) => {
+  try {
+    const { refreshToken: token } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({
+        code: 400,
+        message: '缺少 refreshToken'
+      });
+    }
+    
+    const result = refreshToken(token);
+    
+    res.status(200).json({
+      code: 200,
+      data: result,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Token 刷新失败';
+    res.status(401).json({
+      code: 401,
       message,
     });
   }

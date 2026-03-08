@@ -17,6 +17,12 @@ interface RegisterData {
     email: string;
     password: string;
 }
+
+export interface RefreshTokenResponse {
+    token: string;
+    refreshToken: string;
+}
+
 export const login = async (data: LoginData): Promise<UserInfo> => {
     return instance.post('/v1/login', data);
 };
@@ -25,3 +31,6 @@ export const register = async (data: RegisterData) => {
     return instance.post('/v1/register', data);
 };
 
+export const refreshToken = async (refreshToken: string): Promise<RefreshTokenResponse> => {
+    return instance.post('/v1/refresh', { refreshToken });
+};

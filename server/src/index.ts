@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { testConnection } from './db/index.js';
-import router from './routes/index.js';
+
 import loginRouter from './routes/login.js';
 const app: Application = express();
 const PORT = process.env.PORT || 3000;
@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 // route
-app.use('/api', router);
+
 app.use('/v1', loginRouter);
 // Express 全局错误处理中间件
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
