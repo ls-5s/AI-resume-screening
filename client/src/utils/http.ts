@@ -30,7 +30,7 @@ request.interceptors.response.use(
     // 成功响应：只返回业务数据（适配常见的{code, message, data}结构）
     (res) => {
         // 业务成功（code为0/200都算成功，可根据你的后端调整）
-        if ([0, 200].includes(res.data.code)) {
+        if ([0, 200,201].includes(res.data.code)) {
             return res.data.data; // 只返回核心数据，简化业务层调用
         }
         // 业务失败：抛出错误（让业务层catch处理）
