@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Modal } from "../../components/Modal";
 import { 
   getEmailConfigs, 
   createEmailConfig, 
@@ -211,122 +212,123 @@ export default function Settings() {
       </div>
 
       {/* 添加/编辑邮箱弹窗 */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              {editingConfig ? "编辑邮箱配置" : "添加邮箱配置"}
-            </h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  邮箱地址
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="example@qq.com"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  授权码 {editingConfig && "(留空则不修改)"}
-                </label>
-                <input
-                  type="password"
-                  value={formData.authCode}
-                  onChange={(e) => setFormData({ ...formData, authCode: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="邮箱授权码"
-                  required={!editingConfig}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    IMAP 服务器
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.imapHost}
-                    onChange={(e) => setFormData({ ...formData, imapHost: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="imap.qq.com"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    IMAP 端口
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.imapPort}
-                    onChange={(e) => setFormData({ ...formData, imapPort: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="993"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    SMTP 服务器
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.smtpHost}
-                    onChange={(e) => setFormData({ ...formData, smtpHost: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="smtp.qq.com"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    SMTP 端口
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.smtpPort}
-                    onChange={(e) => setFormData({ ...formData, smtpPort: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="465"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="isDefault"
-                  checked={formData.isDefault}
-                  onChange={(e) => setFormData({ ...formData, isDefault: e.target.checked })}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <label htmlFor="isDefault" className="ml-2 text-sm text-gray-700">
-                  设为默认发件邮箱
-                </label>
-              </div>
-              <div className="flex justify-end gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-                >
-                  取消
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700"
-                >
-                  保存
-                </button>
-              </div>
-            </form>
+      <Modal
+        isOpen={showModal}
+        onClose={closeModal}
+        title={editingConfig ? "编辑邮箱配置" : "添加邮箱配置"}
+        size="md"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={closeModal}
+              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+            >
+              取消
+            </button>
+            <button
+              type="submit"
+              form="email-config-form"
+              className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+            >
+              保存
+            </button>
+          </>
+        }
+      >
+        <form id="email-config-form" onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              邮箱地址
+            </label>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="example@qq.com"
+              required
+            />
           </div>
-        </div>
-      )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              授权码 {editingConfig && "(留空则不修改)"}
+            </label>
+            <input
+              type="password"
+              value={formData.authCode}
+              onChange={(e) => setFormData({ ...formData, authCode: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="邮箱授权码"
+              required={!editingConfig}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                IMAP 服务器
+              </label>
+              <input
+                type="text"
+                value={formData.imapHost}
+                onChange={(e) => setFormData({ ...formData, imapHost: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="imap.qq.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                IMAP 端口
+              </label>
+              <input
+                type="number"
+                value={formData.imapPort}
+                onChange={(e) => setFormData({ ...formData, imapPort: parseInt(e.target.value) })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="993"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                SMTP 服务器
+              </label>
+              <input
+                type="text"
+                value={formData.smtpHost}
+                onChange={(e) => setFormData({ ...formData, smtpHost: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="smtp.qq.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                SMTP 端口
+              </label>
+              <input
+                type="number"
+                value={formData.smtpPort}
+                onChange={(e) => setFormData({ ...formData, smtpPort: parseInt(e.target.value) })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="465"
+              />
+            </div>
+          </div>
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="isDefault"
+              checked={formData.isDefault}
+              onChange={(e) => setFormData({ ...formData, isDefault: e.target.checked })}
+              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <label htmlFor="isDefault" className="ml-2 text-sm text-gray-700">
+              设为默认发件邮箱
+            </label>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

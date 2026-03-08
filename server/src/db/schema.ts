@@ -28,7 +28,7 @@ export const resumes = mysqlTable('resumes', {
 // 邮箱配置表
 export const emailConfigs = mysqlTable('email_configs', {
   id: serial('id').primaryKey(),
-  userId: serial('user_id').notNull().references(() => users.id),
+  userId: int('user_id').notNull().references(() => users.id),
   email: varchar('email', { length: 255 }).notNull(), // QQ 邮箱地址（明文）
   authCode: varchar('auth_code', { length: 500 }).notNull(), // 16位授权码（AES加密后存储）
   imapHost: varchar('imap_host', { length: 100 }).default('imap.qq.com'), // IMAP 服务器
@@ -41,14 +41,35 @@ export const emailConfigs = mysqlTable('email_configs', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// 邮件模板表
+export const emailTemplates = mysqlTable('email_templates', {
+  id: serial('id').primaryKey(),
+  userId: int('user_id').notNull().references(() => users.id),
+  name: varchar('name', { length: 255 }).notNull(), // 模板名称
+  subject: varchar('subject', { length: 500 }).notNull(), // 邮件主题
+  body: longtext('body').notNull(), // 邮件正文
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (emailTemplates) => ({
+  userIdIdx: index('email_template_user_id_idx').on(emailTemplates.userId),
+}));
+
 // 表关系定义
 export const usersRelations = relations(users, ({ many }) => ({
   emailConfigs: many(emailConfigs),
+  emailTemplates: many(emailTemplates),
 }));
 
 export const emailConfigsRelations = relations(emailConfigs, ({ one }) => ({
   user: one(users, {
     fields: [emailConfigs.userId],
+    references: [users.id],
+  }),
+}));
+
+export const emailTemplatesRelations = relations(emailTemplates, ({ one }) => ({
+  user: one(users, {
+    fields: [emailTemplates.userId],
     references: [users.id],
   }),
 }));
@@ -60,3 +81,5 @@ export type Resume = typeof resumes.$inferSelect;
 export type NewResume = typeof resumes.$inferInsert;
 export type EmailConfig = typeof emailConfigs.$inferSelect;
 export type NewEmailConfig = typeof emailConfigs.$inferInsert;
+export type EmailTemplate = typeof emailTemplates.$inferSelect;
+export type NewEmailTemplate = typeof emailTemplates.$inferInsert;

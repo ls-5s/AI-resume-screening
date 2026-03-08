@@ -12,6 +12,7 @@ const Resumes = lazy(() => import("../pages/resumes/Resumes"));
 const Candidates = lazy(() => import("../pages/candidates/Candidates"));
 const Jobs = lazy(() => import("../pages/jobs/Jobs"));
 const Settings = lazy(() => import("../pages/settings/Settings"));
+const EmailTemplates = lazy(() => import("../pages/emails/EmailTemplates"));
 
 // 路由守卫：检查是否已登录
 const requireAuth = () => {
@@ -73,6 +74,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<PageLoader />}>
             <Settings />
+          </Suspense>
+        ),
+      },
+      {
+        path: "emails",
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <EmailTemplates />
           </Suspense>
         ),
       },
