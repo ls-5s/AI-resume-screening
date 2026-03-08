@@ -1,6 +1,7 @@
 import { db } from '../../db/index.js';
-import { emailTemplates, emailConfigs } from '../../db/schema.js';
+import { emailTemplates, emailConfigs, users } from '../../db/schema.js';
 import { eq, and } from 'drizzle-orm';
+import nodemailer from 'nodemailer';
 
 export interface EmailTemplateInput {
   name: string;
@@ -153,6 +154,8 @@ export async function getEmailConfigById(
   smtpHost: string;
   smtpPort: number;
 } | null> {
+  console.log('getEmailConfigById - userId:', userId, 'configId:', configId);
+  
   const [config] = await db
     .select({
       id: emailConfigs.id,
@@ -168,5 +171,137 @@ export async function getEmailConfigById(
       eq(emailConfigs.isDeleted, false)
     ));
 
+  console.log('getEmailConfigById - config:', config);
   return config || null;
+}
+
+// 发送邮件接口
+export interface SendEmailInput {
+  candidateIds: number[];
+  subject: string;
+  body: string;
+  fromEmailId: number;
+}
+
+export interface SendEmailResult {
+  success: boolean;
+  message: string;
+  sentCount: number;
+  failedCount: number;
+}
+
+// 变量替换函数
+function replaceVariables(text: string, variables: Record<string, string>): string {
+  let result = text;
+  for (const [key, value] of Object.entries(variables)) {
+    result = result.replace(new RegExp(`{{${key}}}`, 'g'), value);
+  }
+  return result;
+}
+
+// 收件人类型
+export interface EmailRecipient {
+  id: number;
+  username: string;
+  email: string;
+  avatar: string | null;
+}
+
+// 获取收件人列表（从 users 表）
+export async function getEmailRecipients(): Promise<EmailRecipient[]> {
+  const rows = await db
+    .select({
+      id: users.id,
+      username: users.username,
+      email: users.email,
+      avatar: users.avatar,
+    })
+    .from(users);
+
+  return rows;
+}
+
+// 发送邮件
+export async function sendEmails(
+  userId: number,
+  data: SendEmailInput
+): Promise<SendEmailResult> {
+  console.log('sendEmails - userId:', userId, 'data:', data);
+  
+  // 获取发件邮箱配置
+  const emailConfig = await getEmailConfigById(userId, data.fromEmailId);
+  console.log('sendEmails - emailConfig:', emailConfig);
+  
+  if (!emailConfig) {
+    throw new Error('邮箱配置不存在，请检查是否选择了正确的发件邮箱');
+  }
+
+  // 从 users 表获取收件人列表
+  const allRecipients = await getEmailRecipients();
+
+  // 过滤需要发送的收件人
+  const targetCandidates = allRecipients.filter(c => data.candidateIds.includes(c.id));
+
+  if (targetCandidates.length === 0) {
+    // 如果没有指定收件人，发送给所有人
+    targetCandidates.push(...allRecipients);
+  }
+
+  if (targetCandidates.length === 0) {
+    return {
+      success: false,
+      message: '没有可发送的收件人',
+      sentCount: 0,
+      failedCount: 0,
+    };
+  }
+
+  // 创建 nodemailer transporter
+  const transporter = nodemailer.createTransport({
+    host: emailConfig.smtpHost,
+    port: emailConfig.smtpPort,
+    secure: emailConfig.smtpPort === 465, // SSL
+    auth: {
+      user: emailConfig.email,
+      pass: emailConfig.authCode,
+    },
+  });
+
+  let sentCount = 0;
+  let failedCount = 0;
+
+  // 逐个发送邮件
+  for (const candidate of targetCandidates) {
+    try {
+      const variables = {
+        name: candidate.username || candidate.email,
+        email: candidate.email,
+        phone: '',
+        position: '应聘职位',
+      };
+
+      const subject = replaceVariables(data.subject, variables);
+      const body = replaceVariables(data.body, variables);
+
+      await transporter.sendMail({
+        from: emailConfig.email,
+        to: candidate.email,
+        subject: subject,
+        text: body,
+        html: body.replace(/\n/g, '<br>'),
+      });
+
+      sentCount++;
+    } catch (error) {
+      console.error(`发送邮件给 ${candidate.email} 失败:`, error);
+      failedCount++;
+    }
+  }
+
+  return {
+    success: sentCount > 0,
+    message: `发送完成：成功 ${sentCount} 封，失败 ${failedCount} 封`,
+    sentCount,
+    failedCount,
+  };
 }

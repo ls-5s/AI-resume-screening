@@ -37,3 +37,11 @@ export interface SendEmailResult {
   sentCount: number;
   failedCount: number;
 }
+
+// 收件人类型
+export interface EmailRecipient {
+  id: number;
+  username: string;
+  email: string;
+  avatar: string | null;
+}

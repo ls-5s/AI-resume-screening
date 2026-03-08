@@ -5,16 +5,18 @@ import {
   createEmailTemplate, 
   updateEmailTemplate, 
   deleteEmailTemplate,
-  sendEmails
+  sendEmails,
+  getEmailRecipients
 } from "../../api/email-template";
 import { getEmailConfigs } from "../../api/email";
-import type { EmailTemplate, CreateEmailTemplateData } from "../../types/email-template";
+import type { EmailTemplate, CreateEmailTemplateData, EmailRecipient } from "../../types/email-template";
 import type { EmailConfig } from "../../types/email";
 import { Send, Plus, Edit, Trash2, Mail, Users } from "lucide-react";
 
 export default function EmailTemplates() {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [emailConfigs, setEmailConfigs] = useState<EmailConfig[]>([]);
+  const [recipients, setRecipients] = useState<EmailRecipient[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"templates" | "send">("templates");
   
@@ -47,12 +49,14 @@ export default function EmailTemplates() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [templatesData, configsData] = await Promise.all([
+      const [templatesData, configsData, recipientsData] = await Promise.all([
         getEmailTemplates(),
         getEmailConfigs(),
+        getEmailRecipients(),
       ]);
       setTemplates(templatesData);
       setEmailConfigs(configsData);
+      setRecipients(recipientsData);
       // 设置默认发件邮箱
       const defaultConfig = configsData.find(c => c.isDefault) || configsData[0];
       if (defaultConfig) {
@@ -391,14 +395,61 @@ export default function EmailTemplates() {
                     收件人
                   </label>
                   <div className="border border-gray-300 rounded-lg p-4 min-h-[120px] bg-gray-50">
-                    <p className="text-sm text-gray-500 text-center">
-                      <Users className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                      候选人列表功能开发中...
-                    </p>
-                    {/* TODO: 后续接入候选人列表 */}
-                    <p className="text-xs text-gray-400 mt-2 text-center">
-                      当前已选择: {sendForm.candidateIds.length} 人
-                    </p>
+                    {recipients.length === 0 ? (
+                      <p className="text-sm text-gray-500 text-center">
+                        暂无收件人数据
+                      </p>
+                    ) : (
+                      <>
+                        <div className="flex justify-between items-center text-sm text-gray-600 mb-2">
+                          <span>当前已选择: {sendForm.candidateIds.length} 人</span>
+                          <button
+                            type="button"
+                            className="text-blue-600 hover:underline text-xs"
+                            onClick={() =>
+                              setSendForm(prev => ({
+                                ...prev,
+                                candidateIds:
+                                  prev.candidateIds.length === recipients.length
+                                    ? []
+                                    : recipients.map(r => r.id),
+                              }))
+                            }
+                          >
+                            {sendForm.candidateIds.length === recipients.length ? "清空" : "全选"}
+                          </button>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto space-y-1">
+                          {recipients.map(r => {
+                            const checked = sendForm.candidateIds.includes(r.id);
+                            return (
+                              <label
+                                key={r.id}
+                                className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100 cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="w-4 h-4"
+                                  checked={checked}
+                                  onChange={() => {
+                                    setSendForm(prev => ({
+                                      ...prev,
+                                      candidateIds: checked
+                                        ? prev.candidateIds.filter(x => x !== r.id)
+                                        : [...prev.candidateIds, r.id],
+                                    }));
+                                  }}
+                                />
+                                <span className="text-sm text-gray-900">
+                                  {r.username || r.email}
+                                </span>
+                                <span className="text-xs text-gray-500">({r.email})</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 

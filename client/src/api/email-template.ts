@@ -4,7 +4,8 @@ import type {
   CreateEmailTemplateData, 
   UpdateEmailTemplateData,
   SendEmailData,
-  SendEmailResult 
+  SendEmailResult,
+  EmailRecipient
 } from "../types/email-template";
 
 // 获取邮件模板列表
@@ -35,4 +36,9 @@ export const deleteEmailTemplate = async (id: number): Promise<void> => {
 // 发送邮件
 export const sendEmails = async (data: SendEmailData): Promise<SendEmailResult> => {
     return instance.post('/v1/emails/send', data);
+};
+
+// 获取收件人列表
+export const getEmailRecipients = async (): Promise<EmailRecipient[]> => {
+    return instance.get('/v1/email-recipients');
 };

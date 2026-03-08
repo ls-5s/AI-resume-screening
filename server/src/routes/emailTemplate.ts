@@ -7,6 +7,8 @@ import {
   createEmailTemplate,
   updateEmailTemplate,
   deleteEmailTemplate,
+  sendEmails,
+  getEmailRecipients,
 } from '../services/email/template.js';
 
 const router: RouterType = Router();
@@ -154,6 +156,62 @@ router.delete('/email-templates/:id', authenticate, async (req: Request, res: Re
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : '删除邮件模板失败';
+    res.status(400).json({
+      code: 400,
+      message,
+    });
+  }
+});
+
+// ============ 发送邮件相关接口 ============
+
+// 获取收件人列表
+router.get('/email-recipients', authenticate, async (req: Request, res: Response) => {
+  try {
+    const recipients = await getEmailRecipients();
+    
+    res.status(200).json({
+      code: 200,
+      data: recipients,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '获取收件人列表失败';
+    res.status(400).json({
+      code: 400,
+      message,
+    });
+  }
+});
+
+// 发送邮件
+router.post('/emails/send', authenticate, async (req: Request, res: Response) => {
+  try {
+    const userId = Number((req as any).user.id);
+    console.log('发送邮件 - userId:', userId, 'body:', req.body);
+    const { candidateIds, subject, body, fromEmailId } = req.body;
+    
+    if (!fromEmailId || !subject || !body) {
+      return res.status(400).json({
+        code: 400,
+        message: '发件邮箱、主题和内容不能为空',
+      });
+    }
+    
+    const result = await sendEmails(userId, {
+      candidateIds: candidateIds || [],
+      subject,
+      body,
+      fromEmailId,
+    });
+    
+    console.log('发送结果:', result);
+    res.status(200).json({
+      code: result.success ? 200 : 400,
+      data: result,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '发送邮件失败';
+    console.error('发送邮件错误:', err);
     res.status(400).json({
       code: 400,
       message,
