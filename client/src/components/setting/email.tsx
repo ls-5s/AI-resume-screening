@@ -52,7 +52,7 @@ export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
       setEditingConfig(config);
       setFormData({
         email: config.email,
-        authCode: "",
+        authCode:config.authCode || "",
         imapHost: config.imapHost || "imap.qq.com",
         imapPort: config.imapPort || 993,
         smtpHost: config.smtpHost || "smtp.qq.com",

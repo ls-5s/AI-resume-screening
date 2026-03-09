@@ -1,30 +1,10 @@
 import { db } from '../../db/index.js';
 import { emailConfigs, users } from '../../db/schema.js';
 import { eq, and } from 'drizzle-orm';
+import type { EmailConfigInput, EmailConfigResponse } from '../../types/setting.js';
 
-export interface EmailConfigInput {
-  email: string;
-  authCode: string;
-  imapHost?: string;
-  imapPort?: number;
-  smtpHost?: string;
-  smtpPort?: number;
-  isDefault?: boolean;
-}
-
-export interface EmailConfigResponse {
-  id: number;
-  userId: number;
-  email: string;
-  imapHost: string | null;
-  imapPort: number | null;
-  smtpHost: string | null;
-  smtpPort: number | null;
-  isDefault: boolean | null;
-  isDeleted: boolean | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
+// 重新导出类型
+export type { EmailConfigInput, EmailConfigResponse };
 
 // 获取用户的邮箱配置列表
 export async function getEmailConfigs(userId: number): Promise<EmailConfigResponse[]> {
@@ -33,6 +13,7 @@ export async function getEmailConfigs(userId: number): Promise<EmailConfigRespon
       id: emailConfigs.id,
       userId: emailConfigs.userId,
       email: emailConfigs.email,
+      authCode: emailConfigs.authCode,
       imapHost: emailConfigs.imapHost,
       imapPort: emailConfigs.imapPort,
       smtpHost: emailConfigs.smtpHost,
@@ -58,6 +39,7 @@ export async function getEmailConfigById(userId: number, configId: number): Prom
       id: emailConfigs.id,
       userId: emailConfigs.userId,
       email: emailConfigs.email,
+      authCode: emailConfigs.authCode,
       imapHost: emailConfigs.imapHost,
       imapPort: emailConfigs.imapPort,
       smtpHost: emailConfigs.smtpHost,
@@ -138,6 +120,7 @@ export async function createEmailConfig(
       id: emailConfigs.id,
       userId: emailConfigs.userId,
       email: emailConfigs.email,
+      authCode: emailConfigs.authCode,
       imapHost: emailConfigs.imapHost,
       imapPort: emailConfigs.imapPort,
       smtpHost: emailConfigs.smtpHost,

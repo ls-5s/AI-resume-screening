@@ -145,8 +145,8 @@ export async function getEmailConfigById(
   id: number;
   email: string;
   authCode: string;
-  smtpHost: string;
-  smtpPort: number;
+  smtpHost: string | null;
+  smtpPort: number | null;
 } | null> {
   console.log('getEmailConfigById - userId:', userId, 'configId:', configId);
   
@@ -225,6 +225,11 @@ export async function sendEmails(
       sentCount: 0,
       failedCount: 0,
     };
+  }
+
+  // 验证 SMTP 配置
+  if (!emailConfig.smtpHost || !emailConfig.smtpPort) {
+    throw new Error('邮箱配置的 SMTP 服务器或端口未设置');
   }
 
   // 创建 nodemailer transporter

@@ -2,6 +2,7 @@ export interface EmailConfig {
   id: number;
   userId: number;
   email: string;
+  authCode?: string; // 授权码
   imapHost: string | null;
   imapPort: number | null;
   smtpHost: string | null;
