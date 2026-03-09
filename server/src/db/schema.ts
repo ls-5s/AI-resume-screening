@@ -79,6 +79,20 @@ export const aiConfigs = mysqlTable('ai_configs', {
   userIdIdx: index('ai_config_user_id_idx').on(aiConfigs.userId),
 }));
 
+// 活动日志表
+export const activities = mysqlTable('activities', {
+  id: serial('id').primaryKey(),
+  userId: int('user_id').notNull().references(() => users.id),
+  type: varchar('type', { length: 50 }).notNull(), // activity 类型: upload(上传简历), screening(AI筛选), pass(通过筛选), reject(拒绝), interview(发送面试邀请)
+  resumeId: int('resume_id'), // 关联的简历ID
+  resumeName: varchar('resume_name', { length: 255 }), // 简历名称（冗余存储，避免删除后丢失）
+  description: varchar('description', { length: 500 }), // 活动描述
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (activities) => ({
+  userIdIdx: index('activity_user_id_idx').on(activities.userId),
+  createdAtIdx: index('activity_created_at_idx').on(activities.createdAt),
+}));
+
 // 表关系定义
 export const usersRelations = relations(users, ({ many }) => ({
   emailConfigs: many(emailConfigs),
@@ -115,6 +129,13 @@ export const aiConfigsRelations = relations(aiConfigs, ({ one }) => ({
   }),
 }));
 
+export const activitiesRelations = relations(activities, ({ one }) => ({
+  user: one(users, {
+    fields: [activities.userId],
+    references: [users.id],
+  }),
+}));
+
 // 导出类型
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -126,3 +147,5 @@ export type EmailTemplate = typeof emailTemplates.$inferSelect;
 export type NewEmailTemplate = typeof emailTemplates.$inferInsert;
 export type AiConfig = typeof aiConfigs.$inferSelect;
 export type NewAiConfig = typeof aiConfigs.$inferInsert;
+export type Activity = typeof activities.$inferSelect;
+export type NewActivity = typeof activities.$inferInsert;

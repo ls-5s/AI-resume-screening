@@ -1,6 +1,10 @@
 import { Router, Request, Response } from 'express';
 import type { Router as RouterType } from 'express';
 import { authenticate } from '../middleware/auth.js';
+import { db } from '../db/index.js';
+import { activities, resumes } from '../db/schema.js';
+import { eq } from 'drizzle-orm';
+import { getDashboardStats, createActivity } from '../services/dashboard/dashboard.js';
 import {
   getEmailTemplates,
   getEmailTemplateById,
@@ -213,6 +217,26 @@ router.post('/emails/send', authenticate, async (req: Request, res: Response) =>
     });
     
     console.log('发送结果:', result);
+
+    // 记录活动日志（发送面试邀请）
+    if (result.success && result.sentCount > 0) {
+      // 获取发送的候选人对应的简历信息
+      if (candidateIds && candidateIds.length > 0) {
+        for (const candidateId of candidateIds) {
+          const [resume] = await db.select().from(resumes).where(eq(resumes.id, candidateId));
+          if (resume) {
+            await createActivity({
+              userId,
+              type: 'interview',
+              resumeId: resume.id,
+              resumeName: resume.name,
+              description: `发送面试邀请: ${subject}`,
+            });
+          }
+        }
+      }
+    }
+    
     res.status(200).json({
       code: result.success ? 200 : 400,
       data: result,

@@ -2,12 +2,13 @@ import express, { Request, Response, Router } from 'express';
 import path from 'path';
 import fs from 'fs';
 import { db } from '../db/index.js';
-import { resumes, emailConfigs } from '../db/schema.js';
+import { resumes, emailConfigs, activities } from '../db/schema.js';
 import { parseDocument, getFileType } from '../services/resume/parser.js';
 import { eq, desc } from 'drizzle-orm';
 import { extractContactInfo, upload } from '../utils/resume.js';
 import { authenticate } from '../middleware/auth.js';
 import { fetchEmailsWithAttachments, saveAttachmentToResume } from '../services/resume/fetcher.js';
+import { createActivity } from '../services/dashboard/dashboard.js';
 
 // 简历状态类型
 type ResumeStatus = 'pending' | 'rejected' | 'passed';
@@ -89,6 +90,17 @@ router.post('/resume/upload', upload.single('file'), async (req: Request, res: R
     const [newResume] = await db.select().from(resumes)
       .orderBy(desc(resumes.id))
       .limit(1);
+
+    // 记录活动日志
+    if (newResume) {
+      await createActivity({
+        userId,
+        type: 'upload',
+        resumeId: newResume.id,
+        resumeName: newResume.name,
+        description: `上传了简历: ${originalFileName}`,
+      });
+    }
 
     res.json({
       code: 200,
@@ -217,6 +229,16 @@ router.put('/resume/:id/status', async (req: Request, res: Response) => {
     // 更新状态
     await db.update(resumes).set({ status }).where(eq(resumes.id, id));
 
+    // 记录活动日志
+    const activityType = status === 'passed' ? 'pass' : status === 'rejected' ? 'reject' : 'screening';
+    await createActivity({
+      userId: existingResume.userId,
+      type: activityType,
+      resumeId: existingResume.id,
+      resumeName: existingResume.name,
+      description: `简历状态更新为: ${status === 'passed' ? '通过' : status === 'rejected' ? '拒绝' : '待筛选'}`,
+    });
+
     res.json({
       code: 200,
       message: '状态更新成功'
@@ -320,6 +342,17 @@ router.post('/resume/import-from-email', authenticate, async (req: Request, res:
           const [newResume] = await db.select().from(resumes)
             .orderBy(desc(resumes.id))
             .limit(1);
+
+          // 记录活动日志
+          if (newResume) {
+            await createActivity({
+              userId: effectiveUserId,
+              type: 'upload',
+              resumeId: newResume.id,
+              resumeName: newResume.name,
+              description: `从邮箱导入简历: ${originalFileName}`,
+            });
+          }
 
           importedResumes.push(newResume);
           console.log('成功导入简历:', originalFileName);
