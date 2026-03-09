@@ -55,10 +55,12 @@ function detectApiType(url: string): 'aliyun-native' | 'aliyun-compatible' | 'ot
     const isAliyun = url.includes('dashscope.aliyuncs.com');
     if (!isAliyun) return 'other';
 
-    if (url.includes('/text-generation/generation')) {
-        return 'aliyun-native';
+    // 兼容模式 API (类似 OpenAI 格式)
+    if (url.includes('/compatible-mode/')) {
+        return 'aliyun-compatible';
     }
-    return 'aliyun-compatible';
+    // 原生 API
+    return 'aliyun-native';
 }
 
 /**
@@ -73,11 +75,13 @@ function buildRequestBody(apiType: string, model: string, task?: string): Record
             return {
                 ...basePayload,
                 task: task || 'text-generation',
-                input: { messages: [{ role: 'user', content: 'Hi' }] },
+                input: {
+                    messages: [{ role: 'user', content: 'Hi' }]
+                },
                 parameters: { result_format: 'message' },
             };
         case 'aliyun-compatible':
-            // 阿里云兼容 API，task 是可选的
+            // 阿里云兼容 API（类似 OpenAI 格式），使用顶层 messages
             const payload: Record<string, unknown> = {
                 ...basePayload,
                 messages: [{ role: 'user', content: 'Hi' }],
