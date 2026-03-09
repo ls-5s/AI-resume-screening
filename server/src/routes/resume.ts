@@ -7,6 +7,9 @@ import { parseDocument, getFileType } from '../services/resume/parser.js';
 import { eq, desc } from 'drizzle-orm';
 import { extractContactInfo, upload } from '../utils/resume.js';
 
+// 简历状态类型
+type ResumeStatus = 'pending' | 'rejected' | 'passed';
+
 const router: Router = express.Router();
 
 /**
@@ -69,7 +72,8 @@ router.post('/resume/upload', upload.single('file'), async (req: Request, res: R
       originalFileName,
       fileType,
       fileSize,
-      parsedContent: parseResult.content
+      parsedContent: parseResult.content,
+      status: 'pending' // 初始化为待筛选状态
     });
 
     // 获取刚插入的记录（按创建时间排序取最新的）
@@ -171,6 +175,48 @@ router.delete('/resume/:id', async (req: Request, res: Response) => {
     res.status(500).json({
       code: 500,
       message: error.message || '删除失败'
+    });
+  }
+});
+
+/**
+ * 更新简历状态
+ */
+router.put('/resume/:id/status', async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const { status } = req.body;
+
+    // 验证状态值
+    const validStatuses: ResumeStatus[] = ['pending', 'rejected', 'passed'];
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({
+        code: 400,
+        message: '无效的状态值，应为 pending、rejected 或 passed'
+      });
+    }
+
+    const [existingResume] = await db.select().from(resumes).where(eq(resumes.id, id));
+    
+    if (!existingResume) {
+      return res.status(404).json({
+        code: 404,
+        message: '简历不存在'
+      });
+    }
+
+    // 更新状态
+    await db.update(resumes).set({ status }).where(eq(resumes.id, id));
+
+    res.json({
+      code: 200,
+      message: '状态更新成功'
+    });
+  } catch (error: any) {
+    console.error('更新简历状态失败:', error);
+    res.status(500).json({
+      code: 500,
+      message: error.message || '更新失败'
     });
   }
 });
