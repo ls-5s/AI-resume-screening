@@ -9,12 +9,14 @@ export const formatFileSize = (bytes: number | null): string => {
 };
 
 /**
- * 格式化日期
+ * 格式化日期（精确到分钟）
  */
 export const formatDate = (dateStr: string): string => {
-  return new Date(dateStr).toLocaleDateString('zh-CN', {
+  return new Date(dateStr).toLocaleString('zh-CN', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 };

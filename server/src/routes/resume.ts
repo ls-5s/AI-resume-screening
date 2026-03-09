@@ -2,10 +2,12 @@ import express, { Request, Response, Router } from 'express';
 import path from 'path';
 import fs from 'fs';
 import { db } from '../db/index.js';
-import { resumes } from '../db/schema.js';
+import { resumes, emailConfigs } from '../db/schema.js';
 import { parseDocument, getFileType } from '../services/resume/parser.js';
 import { eq, desc } from 'drizzle-orm';
 import { extractContactInfo, upload } from '../utils/resume.js';
+import { authenticate } from '../middleware/auth.js';
+import { fetchEmailsWithAttachments, saveAttachmentToResume } from '../services/resume/fetcher.js';
 
 // 简历状态类型
 type ResumeStatus = 'pending' | 'rejected' | 'passed';
@@ -217,6 +219,122 @@ router.put('/resume/:id/status', async (req: Request, res: Response) => {
     res.status(500).json({
       code: 500,
       message: error.message || '更新失败'
+    });
+  }
+});
+
+/**
+ * 从邮箱导入简历
+ */
+router.post('/resume/import-from-email', authenticate, async (req: Request, res: Response) => {
+  try {
+    // 优先使用请求体中的 userId，否则使用 token 中的用户 ID
+    const tokenUserId = (req as any).user.id;
+    const { configId, userId, since, limit } = req.body;
+    const effectiveUserId = userId || tokenUserId;
+
+    if (!configId) {
+      return res.status(400).json({
+        code: 400,
+        message: '请选择邮箱配置'
+      });
+    }
+
+    console.log('开始从邮箱导入简历:', { configId, userId: effectiveUserId, since, limit });
+
+    // 从邮箱获取邮件（包含简历附件）
+    const emails = await fetchEmailsWithAttachments({
+      configId,
+      userId: effectiveUserId,
+      since: since ? new Date(since) : undefined,
+      limit: limit || 10,
+    });
+
+    if (emails.length === 0) {
+      return res.json({
+        code: 200,
+        message: '未找到包含简历附件的邮件',
+        data: { imported: 0, resumes: [] },
+      });
+    }
+
+    const importedResumes: any[] = [];
+
+    // 遍历每封邮件，保存附件为简历
+    for (const email of emails) {
+      for (const attachment of email.attachments) {
+        try {
+          // 保存附件到简历目录
+          const { filePath, originalFileName } = saveAttachmentToResume(
+            attachment.content,
+            attachment.filename,
+            effectiveUserId
+          );
+
+          const fileType = getFileType(originalFileName);
+          const fileSize = attachment.content.length;
+
+          // 解析文档内容
+          const parseResult = await parseDocument(filePath, originalFileName);
+
+          if (parseResult.error) {
+            console.error('解析文档失败:', parseResult.error);
+            continue;
+          }
+
+          // 从解析内容中提取联系信息
+          const extractedInfo = extractContactInfo(parseResult.content);
+
+          // 从邮件发件人提取邮箱
+          const emailMatch = email.from.match(/<(.+)>/) || email.from.match(/([^\s]+@[^\s]+)/);
+          const fromEmail = emailMatch ? emailMatch[1] : '';
+
+          // 使用邮件主题作为简历名称（去掉 Re: , Fw: 等前缀）
+          const name = email.subject
+            .replace(/^(Re:|Fw:|转发:|回复:)\s*/i, '')
+            .replace(/\.(pdf|docx?|doc)$/i, '')
+            .trim() || originalFileName.replace(/\.(pdf|docx?|doc)$/i, '');
+
+          // 插入数据库
+          await db.insert(resumes).values({
+            userId: effectiveUserId,
+            name,
+            email: fromEmail || extractedInfo.email || '',
+            phone: extractedInfo.phone || '',
+            resumeFile: filePath,
+            originalFileName,
+            fileType,
+            fileSize,
+            parsedContent: parseResult.content,
+            status: 'pending',
+          });
+
+          // 获取刚插入的记录
+          const [newResume] = await db.select().from(resumes)
+            .orderBy(desc(resumes.id))
+            .limit(1);
+
+          importedResumes.push(newResume);
+          console.log('成功导入简历:', originalFileName);
+        } catch (saveErr) {
+          console.error('保存简历失败:', saveErr);
+        }
+      }
+    }
+
+    res.json({
+      code: 200,
+      message: `成功导入 ${importedResumes.length} 份简历`,
+      data: {
+        imported: importedResumes.length,
+        resumes: importedResumes,
+      },
+    });
+  } catch (error: any) {
+    console.error('从邮箱导入简历失败:', error);
+    res.status(500).json({
+      code: 500,
+      message: error.message || '导入失败'
     });
   }
 });

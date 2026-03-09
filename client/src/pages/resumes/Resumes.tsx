@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
-import { Upload, FileText, Trash2, X, Loader2, Eye, File, ExternalLink } from 'lucide-react';
-import { getResumes, uploadResume, deleteResume, getResume } from '../../api/resume';
+import { Upload, FileText, Trash2, X, Loader2, Eye, File, ExternalLink, Mail } from 'lucide-react';
+import { getResumes, uploadResume, deleteResume, getResume, importResumesFromEmail } from '../../api/resume';
+import { getEmailConfigs } from '../../api/email';
 import type { Resume } from '../../types/resume';
+import type { EmailConfig } from '../../types/email';
 import { formatFileSize, formatDate } from '../../utils/format';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '../../components/Drawer';
 import { Modal } from '../../components/Modal';
@@ -19,6 +21,13 @@ export default function Resumes() {
   const [viewLoading, setViewLoading] = useState(false);
   const [pdfPreview, setPdfPreview] = useState<{ url: string; fileName: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 从邮箱导入相关状态
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [emailConfigs, setEmailConfigs] = useState<EmailConfig[]>([]);
+  const [selectedConfigId, setSelectedConfigId] = useState<number | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [loadingConfigs, setLoadingConfigs] = useState(false);
 
   // 加载简历列表
   const loadResumes = async () => {
@@ -37,6 +46,54 @@ export default function Resumes() {
   useEffect(() => {
     loadResumes();
   }, []);
+
+  // 加载邮箱配置列表
+  const loadEmailConfigs = async () => {
+    setLoadingConfigs(true);
+    try {
+      const data = await getEmailConfigs();
+      setEmailConfigs(data);
+      // 默认选择第一个配置
+      if (data.length > 0 && !selectedConfigId) {
+        setSelectedConfigId(data[0].id);
+      }
+    } catch (error) {
+      console.error('加载邮箱配置失败:', error);
+      toast.error('加载邮箱配置失败');
+    } finally {
+      setLoadingConfigs(false);
+    }
+  };
+
+  // 打开导入弹窗
+  const handleOpenImportModal = async () => {
+    setShowImportModal(true);
+    await loadEmailConfigs();
+  };
+
+  // 从邮箱导入简历
+  const handleImportFromEmail = async () => {
+    if (!selectedConfigId) {
+      toast.error('请选择邮箱配置');
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const result = await importResumesFromEmail({
+        configId: selectedConfigId,
+      });
+      toast.success(`成功导入 ${result.imported} 份简历`);
+      setShowImportModal(false);
+      setSelectedConfigId(null);
+      loadResumes();
+    } catch (error) {
+      console.error('从邮箱导入失败:', error);
+      toast.error('从邮箱导入失败');
+    } finally {
+      setImporting(false);
+    }
+  };
 
   // 处理文件选择
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,6 +177,13 @@ export default function Resumes() {
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-medium text-gray-900">简历列表</h2>
+            <button 
+              onClick={handleOpenImportModal}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            >
+              <Mail size={18} />
+              从邮箱导入
+            </button>
             <button 
               onClick={() => setShowModal(true)}
               className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors flex items-center gap-2"
@@ -375,6 +439,70 @@ export default function Resumes() {
             </a>
           </div>
         )}
+      </Modal>
+
+      {/* 从邮箱导入弹窗 */}
+      <Modal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        title="从邮箱导入简历"
+        size="md"
+      >
+        <div className="space-y-4">
+          {loadingConfigs ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="animate-spin text-gray-400" size={32} />
+            </div>
+          ) : emailConfigs.length === 0 ? (
+            <div className="text-center py-8">
+              <Mail className="mx-auto text-gray-400 mb-3" size={40} />
+              <p className="text-gray-500 mb-4">暂无邮箱配置</p>
+              <p className="text-sm text-gray-400">请先在设置中添加邮箱配置</p>
+            </div>
+          ) : (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  选择邮箱账号
+                </label>
+                <select
+                  value={selectedConfigId || ''}
+                  onChange={(e) => setSelectedConfigId(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">请选择邮箱</option>
+                  {emailConfigs.map((config) => (
+                    <option key={config.id} value={config.id}>
+                      {config.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="bg-blue-50 rounded-lg p-4">
+                <p className="text-sm text-blue-700">
+                  系统将自动扫描该邮箱最近7天的邮件，查找包含 PDF 或 Word 格式简历附件的邮件并导入。
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 mt-6">
+          <button
+            onClick={() => setShowImportModal(false)}
+            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            取消
+          </button>
+          <button
+            onClick={handleImportFromEmail}
+            disabled={!selectedConfigId || importing || emailConfigs.length === 0}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {importing && <Loader2 className="animate-spin" size={18} />}
+            {importing ? '导入中...' : '开始导入'}
+          </button>
+        </div>
       </Modal>
     </div>
   );
