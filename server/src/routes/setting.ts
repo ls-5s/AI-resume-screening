@@ -10,7 +10,7 @@ import {
   deleteEmailConfig,
   testEmailConfig,
 } from '../services/setting/email.js';
-import { getAiConfig, getAiConfigs, getAiConfigById, createAiConfig, updateAiConfigFull, deleteAiConfig, testAiConfig } from '../services/setting/ai.js';
+import { getAiConfig, getAiConfigs, getAiConfigById, createAiConfig, updateAiConfigFull, deleteAiConfig, testAiConfig, screenResumeWithAi, batchScreenResumesWithAi } from '../services/setting/ai.js';
 
 const router: RouterType = Router();
 
@@ -401,6 +401,85 @@ router.delete('/ai/:id', authenticate, async (req: Request, res: Response) => {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : '删除 AI 配置失败';
+    res.status(400).json({
+      code: 400,
+      message,
+    });
+  }
+});
+
+// ============ AI 筛选简历相关接口 ============
+
+// 使用 AI 筛选单个简历
+router.post('/ai/screen', authenticate, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    const { resumeId, jobRequirements, aiConfigId } = req.body;
+    
+    if (!resumeId) {
+      return res.status(400).json({
+        code: 400,
+        message: '请提供简历 ID',
+      });
+    }
+    
+    if (!jobRequirements) {
+      return res.status(400).json({
+        code: 400,
+        message: '请提供岗位要求',
+      });
+    }
+    
+    const result = await screenResumeWithAi(userId, resumeId, jobRequirements, aiConfigId);
+    
+    if (!result.success) {
+      return res.status(400).json({
+        code: 400,
+        message: result.error,
+      });
+    }
+    
+    res.status(200).json({
+      code: 200,
+      data: result.result,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'AI 筛选简历失败';
+    res.status(400).json({
+      code: 400,
+      message,
+    });
+  }
+});
+
+// 批量使用 AI 筛选简历
+router.post('/ai/batch-screen', authenticate, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    const { resumeIds, jobRequirements, aiConfigId } = req.body;
+    
+    if (!resumeIds || !Array.isArray(resumeIds) || resumeIds.length === 0) {
+      return res.status(400).json({
+        code: 400,
+        message: '请提供简历 ID 列表',
+      });
+    }
+    
+    if (!jobRequirements) {
+      return res.status(400).json({
+        code: 400,
+        message: '请提供岗位要求',
+      });
+    }
+    
+    const result = await batchScreenResumesWithAi(userId, resumeIds, jobRequirements, aiConfigId);
+    
+    res.status(200).json({
+      code: 200,
+      data: result.results,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '批量 AI 筛选简历失败';
     res.status(400).json({
       code: 400,
       message,

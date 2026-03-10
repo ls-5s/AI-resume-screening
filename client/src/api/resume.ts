@@ -45,3 +45,17 @@ export const getResume = async (id: number): Promise<Resume> => {
 export const deleteResume = async (id: number): Promise<void> => {
   return instance.delete(`/v1/resume/${id}`);
 };
+
+/**
+ * 更新简历状态
+ */
+export const updateResumeStatus = async (id: number, status: 'pending' | 'passed' | 'rejected'): Promise<Resume> => {
+  return instance.put(`/v1/resume/${id}/status`, { status });
+};
+
+/**
+ * 批量更新简历状态
+ */
+export const batchUpdateResumeStatus = async (ids: number[], status: 'pending' | 'passed' | 'rejected'): Promise<void> => {
+  return instance.post('/v1/resume/batch-status', { ids, status });
+};

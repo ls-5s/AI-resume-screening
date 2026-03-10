@@ -10,7 +10,7 @@ const Login = lazy(() => import("../pages/login/Login"));
 const Dashboard = lazy(() => import("../pages/dashboard/Dashboard"));
 const Resumes = lazy(() => import("../pages/resumes/Resumes"));
 const Candidates = lazy(() => import("../pages/candidates/Candidates"));
-const Jobs = lazy(() => import("../pages/jobs/Jobs"));
+const Aiscreening = lazy(() => import("../pages/aiscreening/aiscreening"));
 const Settings = lazy(() => import("../pages/settings/Settings"));
 const EmailTemplates = lazy(() => import("../pages/emails/EmailTemplates"));
 
@@ -62,18 +62,10 @@ const router = createBrowserRouter([
         ),
       },
       {
-        path: "jobs",
+        path: "aiscreening",
         element: (
           <Suspense fallback={<PageLoader />}>
-            <Jobs />
-          </Suspense>
-        ),
-      },
-      {
-        path: "settings",
-        element: (
-          <Suspense fallback={<PageLoader />}>
-            <Settings />
+            <Aiscreening />
           </Suspense>
         ),
       },
@@ -84,7 +76,15 @@ const router = createBrowserRouter([
             <EmailTemplates />
           </Suspense>
         ),
-      },
+        
+      },{
+        path: "settings",
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <Settings />
+          </Suspense>
+        ),
+      }
     ],
     errorElement: <NotFound />,
   },

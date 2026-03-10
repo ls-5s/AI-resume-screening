@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
-import { Upload, Mail, Search, Filter } from 'lucide-react';
-import { getResumes, uploadResume, deleteResume, getResume, importResumesFromEmail } from '../../api/resume';
+import { Upload, Mail, Search, Filter, Bot, Sparkles } from 'lucide-react';
+import { getResumes, uploadResume, deleteResume, getResume, importResumesFromEmail, batchUpdateResumeStatus } from '../../api/resume';
 import { getEmailConfigs } from '../../api/email';
+import { getAiConfigs, batchScreenResumesWithAi } from '../../api/ai';
 import type { Resume } from '../../types/resume';
 import type { EmailConfig } from '../../types/email';
+import type { AiConfig } from '../../types/ai';
 import {
   ResumeList,
   ResumeUploadModal,
@@ -35,6 +37,14 @@ export default function Resumes() {
   const [selectedConfigId, setSelectedConfigId] = useState<number | null>(null);
   const [importing, setImporting] = useState(false);
   const [loadingConfigs, setLoadingConfigs] = useState(false);
+
+  // AI 筛选相关状态
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [aiConfigs, setAiConfigs] = useState<AiConfig[]>([]);
+  const [selectedAiConfigId, setSelectedAiConfigId] = useState<number | null>(null);
+  const [jobRequirements, setJobRequirements] = useState('');
+  const [screening, setScreening] = useState(false);
+  const [screeningResumeIds, setScreeningResumeIds] = useState<number[]>([]);
 
   // 加载简历列表
   const loadResumes = async () => {
@@ -130,6 +140,87 @@ export default function Resumes() {
       toast.error('从邮箱导入失败');
     } finally {
       setImporting(false);
+    }
+  };
+
+  // 加载 AI 配置列表
+  const loadAiConfigs = async () => {
+    try {
+      const data = await getAiConfigs();
+      setAiConfigs(data);
+      // 默认选择第一个配置
+      if (data.length > 0) {
+        setSelectedAiConfigId(data[0].id);
+      }
+    } catch (error) {
+      console.error('加载 AI 配置失败:', error);
+      toast.error('加载 AI 配置失败');
+    }
+  };
+
+  // 打开 AI 筛选弹窗
+  const handleOpenAiModal = async () => {
+    setShowAiModal(true);
+    await loadAiConfigs();
+  };
+
+  // AI 筛选简历
+  const handleAiScreen = async () => {
+    if (!jobRequirements.trim()) {
+      toast.error('请输入岗位要求');
+      return;
+    }
+
+    if (screeningResumeIds.length === 0) {
+      toast.error('请选择要筛选的简历');
+      return;
+    }
+
+    setScreening(true);
+    try {
+      const result = await batchScreenResumesWithAi({
+        resumeIds: screeningResumeIds,
+        jobRequirements: jobRequirements,
+        aiConfigId: selectedAiConfigId || undefined,
+      });
+
+      // 处理筛选结果并更新简历状态
+      const passedIds: number[] = [];
+      const rejectedIds: number[] = [];
+      let failed = 0;
+
+      result.forEach((r) => {
+        if (r.success && r.result) {
+          if (r.result.recommendation === 'pass') {
+            passedIds.push(r.resumeId);
+          } else if (r.result.recommendation === 'reject') {
+            rejectedIds.push(r.resumeId);
+          }
+        } else {
+          failed++;
+        }
+      });
+
+      // 批量更新通过的简历状态
+      if (passedIds.length > 0) {
+        await batchUpdateResumeStatus(passedIds, 'passed');
+      }
+
+      // 批量更新拒绝的简历状态
+      if (rejectedIds.length > 0) {
+        await batchUpdateResumeStatus(rejectedIds, 'rejected');
+      }
+
+      toast.success(`筛选完成：通过 ${passedIds.length}份，拒绝 ${rejectedIds.length}份${failed > 0 ? `，失败 ${failed}份` : ''}`);
+      setShowAiModal(false);
+      setScreeningResumeIds([]);
+      setJobRequirements('');
+      loadResumes();
+    } catch (error) {
+      console.error('AI 筛选失败:', error);
+      toast.error('AI 筛选失败');
+    } finally {
+      setScreening(false);
     }
   };
 
@@ -286,6 +377,13 @@ export default function Resumes() {
           </div>
           <div className="flex gap-3">
             <button
+              onClick={handleOpenAiModal}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+            >
+              <Bot size={18} />
+              AI 筛选
+            </button>
+            <button
               onClick={handleOpenImportModal}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
             >
@@ -307,6 +405,9 @@ export default function Resumes() {
           loading={loading}
           onView={handleView}
           onDelete={handleDelete}
+          selectable={true}
+          selectedIds={screeningResumeIds}
+          onSelectionChange={setScreeningResumeIds}
         />
       </div>
 
@@ -353,6 +454,126 @@ export default function Resumes() {
         onImport={handleImportFromEmail}
         importing={importing}
       />
+
+      {/* AI 筛选弹窗 */}
+      {showAiModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* 背景遮罩 */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => !screening && setShowAiModal(false)}
+          />
+
+          {/* 弹窗内容 */}
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg mx-4">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Bot className="w-5 h-5 text-purple-600" />
+                  <h3 className="text-lg font-semibold">AI 简历筛选</h3>
+                </div>
+                <button
+                  onClick={() => !screening && setShowAiModal(false)}
+                  disabled={screening}
+                  className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                  title="关闭"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* AI 配置选择 */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  选择 AI 配置
+                </label>
+                <select
+                  value={selectedAiConfigId || ''}
+                  onChange={(e) => setSelectedAiConfigId(Number(e.target.value))}
+                  disabled={screening}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  title="选择 AI 配置"
+                >
+                  {aiConfigs.length === 0 ? (
+                    <option value="">暂无 AI 配置</option>
+                  ) : (
+                    aiConfigs.map((config) => (
+                      <option key={config.id} value={config.id!}>
+                        {config.name} ({config.model})
+                      </option>
+                    ))
+                  )}
+                </select>
+                {aiConfigs.length === 0 && (
+                  <p className="text-xs text-red-500 mt-1">
+                    请先在设置页面配置 AI
+                  </p>
+                )}
+              </div>
+
+              {/* 岗位要求输入 */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  岗位要求
+                </label>
+                <textarea
+                  value={jobRequirements}
+                  onChange={(e) => setJobRequirements(e.target.value)}
+                  disabled={screening}
+                  placeholder="请输入岗位要求，例如：&#10;1. 计算机相关专业本科及以上学历&#10;2. 3年以上前端开发经验&#10;3. 熟悉 React、Vue 等主流框架&#10;4. 具备良好的代码规范和团队协作能力"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                  rows={6}
+                />
+              </div>
+
+              {/* 已选简历数量 */}
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">已选简历数量</span>
+                  <span className="text-sm font-medium text-purple-600">
+                    {screeningResumeIds.length} 份
+                  </span>
+                </div>
+                {screeningResumeIds.length === 0 && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    请在简历列表中勾选要筛选的简历
+                  </p>
+                )}
+              </div>
+
+              {/* 操作按钮 */}
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowAiModal(false)}
+                  disabled={screening}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleAiScreen}
+                  disabled={screening || aiConfigs.length === 0 || !jobRequirements.trim() || screeningResumeIds.length === 0}
+                  className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                >
+                  {screening ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      筛选中...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      开始筛选
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

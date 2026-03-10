@@ -8,7 +8,7 @@ const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 // 2. 创建Axios实例
 const request: AxiosInstance = axios.create({
     baseURL,
-    timeout: 10000, // 10秒超时
+    timeout: 100000, // 10秒超时
     headers: { "Content-Type": "application/json" },
 });
 

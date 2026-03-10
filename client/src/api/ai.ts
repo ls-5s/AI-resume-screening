@@ -47,3 +47,39 @@ export const updateAiConfig = async (id: number, data: UpdateAiConfigData): Prom
 export const deleteAiConfig = async (id: number): Promise<void> => {
   return instance.delete(`/v1/ai/${id}`);
 };
+
+/**
+ * AI 筛选简历结果
+ */
+export interface AiScreeningResult {
+  recommendation: 'pass' | 'reject' | 'pending';
+  score: number;
+  reasoning: string;
+}
+
+/**
+ * 使用 AI 筛选单个简历
+ */
+export const screenResumeWithAi = async (data: {
+  resumeId: number;
+  jobRequirements: string;
+  aiConfigId?: number;
+}): Promise<AiScreeningResult> => {
+  return instance.post('/v1/ai/screen', data);
+};
+
+/**
+ * 批量使用 AI 筛选简历
+ */
+export const batchScreenResumesWithAi = async (data: {
+  resumeIds: number[];
+  jobRequirements: string;
+  aiConfigId?: number;
+}): Promise<Array<{
+  resumeId: number;
+  success: boolean;
+  result?: AiScreeningResult;
+  error?: string;
+}>> => {
+  return instance.post('/v1/ai/batch-screen', data);
+};

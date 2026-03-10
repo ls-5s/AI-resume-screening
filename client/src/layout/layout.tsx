@@ -25,7 +25,7 @@ const menuItems: MenuItem[] = [
   { path: "/app", label: "仪表盘", icon: <LayoutDashboard className="w-5 h-5" /> },
   { path: "/app/resumes", label: "简历管理", icon: <FileText className="w-5 h-5" /> },
   { path: "/app/candidates", label: "候选人", icon: <Users className="w-5 h-5" /> },
-  { path: "/app/jobs", label: "职位管理", icon: <Briefcase className="w-5 h-5" /> },
+  { path: "/app/aiscreening", label: "AI简历筛选", icon: <Briefcase className="w-5 h-5" /> },
   { path: "/app/emails", label: "邮件群发", icon: <Mail className="w-5 h-5" /> },
   { path: "/app/settings", label: "设置", icon: <Settings className="w-5 h-5" /> },
 ];

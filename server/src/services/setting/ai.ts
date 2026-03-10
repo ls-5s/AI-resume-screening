@@ -349,3 +349,163 @@ export async function deleteAiConfig(userId: number, configId: number) {
   
   return true;
 }
+
+/**
+ * 使用 AI 筛选简历
+ */
+export async function screenResumeWithAi(
+  userId: number,
+  resumeId: number,
+  jobRequirements: string,
+  aiConfigId?: number
+): Promise<{
+  success: boolean;
+  result?: {
+    recommendation: 'pass' | 'reject' | 'pending';
+    score: number;
+    reasoning: string;
+  };
+  error?: string;
+}> {
+  // 获取 AI 配置
+  let config: Awaited<ReturnType<typeof getAiConfig>> | Awaited<ReturnType<typeof getAiConfigById>>;
+  
+  if (aiConfigId) {
+    config = await getAiConfigById(userId, aiConfigId);
+    if (!config) {
+      return { success: false, error: 'AI 配置不存在' };
+    }
+  } else {
+    config = await getAiConfig(userId);
+  }
+
+  if (!config || !config.apiKey) {
+    return { success: false, error: '请先配置 AI API Key' };
+  }
+
+  // 获取简历内容
+  const { db } = await import('../../db/index.js');
+  const { resumes } = await import('../../db/schema.js');
+  const { eq } = await import('drizzle-orm');
+  
+  const [resume] = await db.select().from(resumes).where((eq as any)(resumes.id, resumeId));
+  // console.log('resume', resume.parsedContent);
+  if (!resume) {
+    return { success: false, error: '简历不存在' };
+  }
+
+
+  
+  // 关键：用反引号，且明确拼接“指令+简历内容”，无需多余拼接符
+  const prompt = `根据提示词分析：${config.prompt}。简历内容：${resume.parsedContent}`;
+  // console.log('config.prompt:', config.prompt);
+
+  // 调用 AI API
+  const url = config.apiUrl.replace(/\/$/, '');
+  const apiType = detectApiType(config.apiUrl);
+
+  try {
+    const response = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 2000,
+      }),
+    }, 60000);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({})) as Record<string, any>;
+      const message = parseApiError(response.status, errorData, apiType);
+      return { success: false, error: message };
+    }
+
+    const data = await response.json() as Record<string, any>;
+    const aiResponse = data.choices?.[0]?.message?.content || '';
+
+    // 解析 AI 响应，提取评估结果
+    const result = parseAiResponse(aiResponse);
+    console.log('result:', result);
+
+    return {
+      success: true,
+      result,
+    };
+  } catch (error) {
+    return handleRequestError(error);
+  }
+}
+
+/**
+ * 解析 AI 响应，提取评估结果
+ */
+function parseAiResponse(aiResponse: string): {
+  recommendation: 'pass' | 'reject' | 'pending';
+  score: number;
+  reasoning: string;
+} {
+  const lowerResponse = aiResponse.toLowerCase();
+  
+  // 尝试识别推荐结果
+  let recommendation: 'pass' | 'reject' | 'pending' = 'pending';
+  if (lowerResponse.includes('推荐') || lowerResponse.includes('通过') || lowerResponse.includes('合适') || lowerResponse.includes('符合')) {
+    recommendation = 'pass';
+  } else if (lowerResponse.includes('不推荐') || lowerResponse.includes('拒绝') || lowerResponse.includes('不合适') || lowerResponse.includes('不符合')) {
+    recommendation = 'reject';
+  }
+
+  // 尝试提取评分 (0-100)
+  let score = 50; // 默认分数
+  const scoreMatch = aiResponse.match(/(\d{1,3})\s*[分分]/);
+  if (scoreMatch) {
+    score = Math.min(100, Math.max(0, parseInt(scoreMatch[1])));
+  }
+
+  return {
+    recommendation,
+    score,
+    reasoning: aiResponse,
+  };
+}
+
+/**
+ * 批量使用 AI 筛选简历
+ */
+export async function batchScreenResumesWithAi(
+  userId: number,
+  resumeIds: number[],
+  jobRequirements: string,
+  aiConfigId?: number
+): Promise<{
+  success: boolean;
+  results?: Array<{
+    resumeId: number;
+    success: boolean;
+    result?: {
+      recommendation: 'pass' | 'reject' | 'pending';
+      score: number;
+      reasoning: string;
+    };
+    error?: string;
+  }>;
+  error?: string;
+}> {
+  const results = [];
+  
+  for (const resumeId of resumeIds) {
+    const result = await screenResumeWithAi(userId, resumeId, jobRequirements, aiConfigId);
+    results.push({
+      resumeId,
+      ...result,
+    });
+  }
+
+  return {
+    success: true,
+    results,
+  };
+}

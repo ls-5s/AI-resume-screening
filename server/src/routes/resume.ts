@@ -4,7 +4,7 @@ import fs from 'fs';
 import { db } from '../db/index.js';
 import { resumes, emailConfigs, activities } from '../db/schema.js';
 import { parseDocument, getFileType } from '../services/resume/parser.js';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, inArray } from 'drizzle-orm';
 import { extractContactInfo, upload } from '../utils/resume.js';
 import { authenticate } from '../middleware/auth.js';
 import { fetchEmailsWithAttachments, saveAttachmentToResume } from '../services/resume/fetcher.js';
@@ -375,6 +375,47 @@ router.post('/resume/import-from-email', authenticate, async (req: Request, res:
     res.status(500).json({
       code: 500,
       message: error.message || '导入失败'
+    });
+  }
+});
+
+/**
+ * 批量更新简历状态
+ */
+router.post('/resume/batch-status', async (req: Request, res: Response) => {
+  try {
+    const { ids, status } = req.body;
+
+    // 验证状态值
+    const validStatuses: ResumeStatus[] = ['pending', 'rejected', 'passed'];
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({
+        code: 400,
+        message: '无效的状态值，应为 pending、rejected 或 passed'
+      });
+    }
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({
+        code: 400,
+        message: '请提供简历 ID 列表'
+      });
+    }
+
+    // 批量更新状态 - 使用 inArray 查询
+    await db.update(resumes)
+      .set({ status })
+      .where(inArray(resumes.id, ids));
+
+    res.json({
+      code: 200,
+      message: '批量状态更新成功'
+    });
+  } catch (error: any) {
+    console.error('批量更新简历状态失败:', error);
+    res.status(500).json({
+      code: 500,
+      message: error.message || '更新失败'
     });
   }
 });
