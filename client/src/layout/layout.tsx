@@ -4,12 +4,9 @@ import {
   Users, 
   FileText, 
   Settings, 
-  Menu,
-  X,
   Briefcase,
   Mail
 } from "lucide-react";
-import { useState } from "react";
 import { useLoginStore } from "../store/Login";
 import { UserInfo } from "../components/UserInfo";
 
@@ -31,80 +28,55 @@ const menuItems: MenuItem[] = [
 ];
 
 export default function Layout() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const { user } = useLoginStore();
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* 顶部导航栏 */}
-      <header className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-200 z-40">
-        <div className="flex items-center justify-between h-full px-4 lg:px-6">
-          {/* 左侧 - Logo 和汉堡菜单 */}
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-            <Link to="/app" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">AI</span>
-              </div>
-              <span className="text-lg font-semibold text-gray-900 hidden sm:block">
-                AI 简历筛选
-              </span>
-            </Link>
-          </div>
+      {/* 顶部横向导航栏 */}
+      <header className="fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-40">
+        <div className="h-16 grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 lg:px-6">
+          <Link to="/app" className="flex items-center gap-2 justify-self-start shrink-0 whitespace-nowrap">
+            <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">AI</span>
+            </div>
+            <span className="text-lg font-semibold text-gray-900 whitespace-nowrap">
+              AI 简历筛选
+            </span>
+          </Link>
 
-          {/* 右侧 - 用户信息 */}
-          <UserInfo username={user?.username} />
+          <nav className="justify-self-center max-w-full">
+            <div className="flex items-center gap-1 overflow-x-auto">
+              {menuItems.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`
+                      flex items-center gap-2 px-3 py-2 rounded-lg transition-colors whitespace-nowrap
+                      ${isActive 
+                        ? "bg-slate-900 text-white" 
+                        : "text-gray-600 hover:bg-gray-100"
+                      }
+                    `}
+                  >
+                    {item.icon}
+                    <span className="font-medium">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
+
+          <div className="justify-self-end">
+            <UserInfo username={user?.username} />
+          </div>
         </div>
       </header>
 
-      {/* 左侧边栏 */}
-      <aside
-        className={`
-          fixed top-16 left-0 bottom-0 w-64 bg-white border-r border-gray-200 
-          transform transition-transform duration-300 z-30
-          lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-        `}
-      >
-        <nav className="p-4 space-y-1">
-          {menuItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setSidebarOpen(false)}
-                className={`
-                  flex items-center gap-3 px-4 py-3 rounded-lg transition-colors
-                  ${isActive 
-                    ? "bg-slate-900 text-white" 
-                    : "text-gray-600 hover:bg-gray-100"
-                  }
-                `}
-              >
-                {item.icon}
-                <span className="font-medium">{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-      </aside>
-
-      {/* 遮罩层 - 移动端侧边栏打开时显示 */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
       {/* 主内容区域 */}
-      <main className="pt-16 lg:pl-64">
+      <main className="pt-16">
         <div className="p-6">
           <Outlet />
         </div>

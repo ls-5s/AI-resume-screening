@@ -1,14 +1,36 @@
-import { useState, useEffect } from 'react';
-import { Loader2, FileText, Sparkles, ChevronRight, CheckCircle, XCircle, Clock, Send, Briefcase, User, MessageSquare, Star, Settings } from 'lucide-react';
-import { getResumes } from '../../api/resume';
-import { batchScreenResumesWithAi, screenResumeWithAi, getAiConfigs, updateAiConfig } from '../../api/ai';
-import type { Resume } from '../../types/resume';
-import type { AiConfig } from '../../types/ai';
+import { useState, useEffect } from "react";
+import {
+  Loader2,
+  FileText,
+  Sparkles,
+  ChevronRight,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Send,
+  Briefcase,
+  User,
+  MessageSquare,
+  Star,
+  Settings,
+} from "lucide-react";
+import { getResumes } from "../../api/resume";
+import {
+  batchScreenResumesWithAi,
+  screenResumeWithAi,
+  getAiConfigs,
+  updateAiConfig,
+} from "../../api/ai";
+import type { Resume } from "../../types/resume";
+import type { AiConfig } from "../../types/ai";
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 // AI 筛选结果类型
 interface ScreeningResult {
   resumeId: number;
-  recommendation: 'pass' | 'reject' | 'pending';
+  recommendation: "pass" | "reject" | "pending";
   score: number;
   reasoning: string;
   resume?: Resume;
@@ -16,28 +38,50 @@ interface ScreeningResult {
 
 // 推荐结果颜色
 const recommendationColors = {
-  pass: 'bg-green-500',
-  reject: 'bg-red-500',
-  pending: 'bg-yellow-500',
+  pass: "bg-green-500",
+  reject: "bg-red-500",
+  pending: "bg-yellow-500",
 };
 
 // 推荐结果标签
 const recommendationLabels = {
-  pass: '推荐通过',
-  reject: '建议淘汰',
-  pending: '待定',
+  pass: "推荐通过",
+  reject: "建议淘汰",
+  pending: "待定",
+};
+
+const mapRecommendationToStatus = (
+  recommendation: "pass" | "reject" | "pending",
+): Resume["status"] => {
+  if (recommendation === "pass") return "passed";
+  if (recommendation === "reject") return "rejected";
+  return "pending";
+};
+
+const mapStatusToRecommendation = (
+  status: Resume["status"],
+): "pass" | "reject" | "pending" => {
+  if (status === "passed") return "pass";
+  if (status === "rejected") return "reject";
+  return "pending";
 };
 
 export default function Jobs() {
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedResumeId, setSelectedResumeId] = useState<number | null>(null);
-  const [screeningResults, setScreeningResults] = useState<Map<number, ScreeningResult>>(new Map());
-  const [screeningResumeId, setScreeningResumeId] = useState<number | null>(null);
-  const [jobRequirements, setJobRequirements] = useState('');
+  const [screeningResults, setScreeningResults] = useState<
+    Map<number, ScreeningResult>
+  >(new Map());
+  const [screeningResumeId, setScreeningResumeId] = useState<number | null>(
+    null,
+  );
+  const [jobRequirements, setJobRequirements] = useState("");
   const [screeningAll, setScreeningAll] = useState(false);
   const [aiConfigs, setAiConfigs] = useState<AiConfig[]>([]);
-  const [selectedAiConfigId, setSelectedAiConfigId] = useState<number | null>(null);
+  const [selectedAiConfigId, setSelectedAiConfigId] = useState<number | null>(
+    null,
+  );
   const [loadingAiConfigs, setLoadingAiConfigs] = useState(true);
 
   // 加载简历列表和AI配置
@@ -53,7 +97,7 @@ export default function Jobs() {
       setAiConfigs(configs);
       // 默认选择第一个或默认配置
       if (configs.length > 0) {
-        const defaultConfig = configs.find(c => c.isDefault) || configs[0];
+        const defaultConfig = configs.find((c) => c.isDefault) || configs[0];
         setSelectedAiConfigId(defaultConfig.id);
         // 如果默认配置有 prompt，则自动填充岗位要求
         if (defaultConfig.prompt) {
@@ -61,7 +105,7 @@ export default function Jobs() {
         }
       }
     } catch (error) {
-      console.error('加载AI配置失败:', error);
+      console.error("加载AI配置失败:", error);
     } finally {
       setLoadingAiConfigs(false);
     }
@@ -73,7 +117,7 @@ export default function Jobs() {
       const data = await getResumes();
       setResumes(data);
     } catch (error) {
-      console.error('加载简历失败:', error);
+      console.error("加载简历失败:", error);
     } finally {
       setLoading(false);
     }
@@ -84,15 +128,30 @@ export default function Jobs() {
     setSelectedResumeId(resumeId);
   };
 
+  const getResumeFileUrl = (resume: Resume) => {
+    if (!resume.resumeFile) return;
+    const fullPath = resume.resumeFile;
+    const relativePath = fullPath
+      .replace(/^.*[\\/]uploads[\\/]/, "uploads/")
+      .replace(/\\/g, "/");
+    return `${API_BASE_URL}/${relativePath}`;
+  };
+
+  const openResumeInNewWindow = (resume: Resume) => {
+    const url = getResumeFileUrl(resume);
+    if (!url) return;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   // 筛选单个简历
   const handleScreenResume = async (resumeId: number) => {
     if (!jobRequirements.trim()) {
-      alert('请输入岗位要求');
+      alert("请输入岗位要求");
       return;
     }
 
     if (!selectedAiConfigId) {
-      alert('请选择AI配置');
+      alert("请选择AI配置");
       return;
     }
 
@@ -103,27 +162,49 @@ export default function Jobs() {
         jobRequirements,
         aiConfigId: selectedAiConfigId,
       });
-      
-      const resume = resumes.find(r => r.id === resumeId);
-      setScreeningResults(prev => {
+
+      const resume = resumes.find((r) => r.id === resumeId);
+
+      if (resume) {
+        // 把 AI 结果写回本地简历列表，保持与后端 summary/status 对齐
+        setResumes((prev) =>
+          prev.map((r) =>
+            r.id === resumeId
+              ? {
+                  ...r,
+                  summary: result.reasoning,
+                  status: mapRecommendationToStatus(result.recommendation),
+                }
+              : r,
+          ),
+        );
+      }
+
+      setScreeningResults((prev) => {
         const newMap = new Map(prev);
         newMap.set(resumeId, { ...result, resumeId, resume });
         return newMap;
       });
 
+      await loadResumes();
+
       // 保存岗位要求到 AI 配置
       try {
         await updateAiConfig(selectedAiConfigId!, { prompt: jobRequirements });
         // 更新本地配置列表中的 prompt
-        setAiConfigs(prev => prev.map(config => 
-          config.id === selectedAiConfigId ? { ...config, prompt: jobRequirements } : config
-        ));
+        setAiConfigs((prev) =>
+          prev.map((config) =>
+            config.id === selectedAiConfigId
+              ? { ...config, prompt: jobRequirements }
+              : config,
+          ),
+        );
       } catch (saveError) {
-        console.error('保存岗位要求到AI配置失败:', saveError);
+        console.error("保存岗位要求到AI配置失败:", saveError);
       }
     } catch (error) {
-      console.error('AI筛选失败:', error);
-      alert('AI筛选失败，请重试');
+      console.error("AI筛选失败:", error);
+      alert("AI筛选失败，请重试");
     } finally {
       setScreeningResumeId(null);
     }
@@ -132,59 +213,97 @@ export default function Jobs() {
   // 批量筛选
   const handleBatchScreen = async () => {
     if (!jobRequirements.trim()) {
-      alert('请输入岗位要求');
+      alert("请输入岗位要求");
       return;
     }
 
     if (!selectedAiConfigId) {
-      alert('请选择AI配置');
+      alert("请选择AI配置");
       return;
     }
 
     if (resumes.length === 0) {
-      alert('暂无简历可筛选');
+      alert("暂无简历可筛选");
       return;
     }
 
     try {
       setScreeningAll(true);
       const results = await batchScreenResumesWithAi({
-        resumeIds: resumes.map(r => r.id),
+        resumeIds: resumes.map((r) => r.id),
         jobRequirements,
         aiConfigId: selectedAiConfigId,
       });
 
-      setScreeningResults(prev => {
+      // 批量更新本地简历列表中的 summary/status，保持与后端一致
+      setResumes((prev) =>
+        prev.map((r) => {
+          const item = results.find(
+            (res) => res.resumeId === r.id && res.success && res.result,
+          );
+          if (!item || !item.result) return r;
+          return {
+            ...r,
+            summary: item.result.reasoning,
+            status: mapRecommendationToStatus(item.result.recommendation),
+          };
+        }),
+      );
+
+      setScreeningResults((prev) => {
         const newMap = new Map(prev);
-        results.forEach(item => {
+        results.forEach((item) => {
           if (item.success && item.result) {
-            const resume = resumes.find(r => r.id === item.resumeId);
-            newMap.set(item.resumeId, { ...item.result, resumeId: item.resumeId, resume });
+            const resume = resumes.find((r) => r.id === item.resumeId);
+            newMap.set(item.resumeId, {
+              ...item.result,
+              resumeId: item.resumeId,
+              resume,
+            });
           }
         });
         return newMap;
       });
 
+      await loadResumes();
+
       // 保存岗位要求到 AI 配置
       try {
         await updateAiConfig(selectedAiConfigId!, { prompt: jobRequirements });
         // 更新本地配置列表中的 prompt
-        setAiConfigs(prev => prev.map(config => 
-          config.id === selectedAiConfigId ? { ...config, prompt: jobRequirements } : config
-        ));
+        setAiConfigs((prev) =>
+          prev.map((config) =>
+            config.id === selectedAiConfigId
+              ? { ...config, prompt: jobRequirements }
+              : config,
+          ),
+        );
       } catch (saveError) {
-        console.error('保存岗位要求到AI配置失败:', saveError);
+        console.error("保存岗位要求到AI配置失败:", saveError);
       }
     } catch (error) {
-      console.error('批量筛选失败:', error);
-      alert('批量筛选失败，请重试');
+      console.error("批量筛选失败:", error);
+      alert("批量筛选失败，请重试");
     } finally {
       setScreeningAll(false);
     }
   };
 
-  const selectedResume = resumes.find(r => r.id === selectedResumeId);
-  const selectedResult = selectedResumeId ? screeningResults.get(selectedResumeId) : null;
+  const selectedResume = resumes.find((r) => r.id === selectedResumeId);
+  let selectedResult: ScreeningResult | null = null;
+  if (selectedResumeId && selectedResume) {
+    selectedResult =
+      screeningResults.get(selectedResumeId) ||
+      (selectedResume.summary
+        ? {
+            resumeId: selectedResume.id,
+            recommendation: mapStatusToRecommendation(selectedResume.status),
+            score: 50,
+            reasoning: selectedResume.summary,
+            resume: selectedResume,
+          }
+        : null);
+  }
 
   return (
     <div className="h-full flex flex-col">
@@ -228,23 +347,27 @@ export default function Jobs() {
                 ) : (
                   <select
                     title="选择AI配置"
-                    value={selectedAiConfigId ?? ''}
+                    value={selectedAiConfigId ?? ""}
                     onChange={(e) => {
                       const configId = Number(e.target.value);
                       setSelectedAiConfigId(configId);
                       // 自动填充岗位要求
-                      const selectedConfig = aiConfigs.find(c => c.id === configId);
+                      const selectedConfig = aiConfigs.find(
+                        (c) => c.id === configId,
+                      );
                       if (selectedConfig?.prompt) {
                         setJobRequirements(selectedConfig.prompt);
                       }
                     }}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
                   >
-                    {aiConfigs.filter(config => config.id !== null).map((config) => (
-                      <option key={config.id} value={config.id!}>
-                        {config.name} ({config.model})
-                      </option>
-                    ))}
+                    {aiConfigs
+                      .filter((config) => config.id !== null)
+                      .map((config) => (
+                        <option key={config.id} value={config.id!}>
+                          {config.name} ({config.model})
+                        </option>
+                      ))}
                   </select>
                 )}
               </div>
@@ -253,7 +376,12 @@ export default function Jobs() {
           <div className="flex flex-col gap-2 pt-7">
             <button
               onClick={handleBatchScreen}
-              disabled={screeningAll || resumes.length === 0 || !selectedAiConfigId || !jobRequirements.trim()}
+              disabled={
+                screeningAll ||
+                resumes.length === 0 ||
+                !selectedAiConfigId ||
+                !jobRequirements.trim()
+              }
               className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             >
               {screeningAll ? (
@@ -275,10 +403,12 @@ export default function Jobs() {
             <h2 className="font-semibold text-gray-900 flex items-center gap-2">
               <FileText className="w-5 h-5 text-gray-500" />
               简历列表
-              <span className="text-sm font-normal text-gray-500">({resumes.length})</span>
+              <span className="text-sm font-normal text-gray-500">
+                ({resumes.length})
+              </span>
             </h2>
           </div>
-          
+
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="flex items-center justify-center py-16">
@@ -299,28 +429,40 @@ export default function Jobs() {
                     key={resume.id}
                     onClick={() => handleSelectResume(resume.id)}
                     className={`p-4 cursor-pointer transition-all duration-200 hover:bg-gray-50 ${
-                      selectedResumeId === resume.id ? 'bg-purple-50 border-l-4 border-purple-500' : 'border-l-4 border-transparent'
+                      selectedResumeId === resume.id
+                        ? "bg-purple-50 border-l-4 border-purple-500"
+                        : "border-l-4 border-transparent"
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                          selectedResumeId === resume.id 
-                            ? 'bg-gradient-to-br from-purple-500 to-indigo-600' 
-                            : 'bg-gradient-to-br from-blue-500 to-indigo-600'
-                        }`}>
+                        <div
+                          className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                            selectedResumeId === resume.id
+                              ? "bg-linear-to-br from-purple-500 to-indigo-600"
+                              : "bg-linear-to-br from-blue-500 to-indigo-600"
+                          }`}
+                        >
                           <User className="text-white" size={20} />
                         </div>
                         <div className="min-w-0">
-                          <p className="font-medium text-gray-900 truncate">{resume.name}</p>
-                          <p className="text-sm text-gray-500 truncate">{resume.email || '未填写邮箱'}</p>
+                          <p className="font-medium text-gray-900 truncate">
+                            {resume.name}
+                          </p>
+                          <p className="text-sm text-gray-500 truncate">
+                            {resume.email || "未填写邮箱"}
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         {screeningResults.has(resume.id) ? (
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium border ${
-                            recommendationColors[screeningResults.get(resume.id)!.recommendation]
-                          } text-white`}>
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium border ${
+                              recommendationColors[
+                                screeningResults.get(resume.id)!.recommendation
+                              ]
+                            } text-white`}
+                          >
                             {screeningResults.get(resume.id)!.score}分
                           </span>
                         ) : (
@@ -328,9 +470,11 @@ export default function Jobs() {
                             未筛选
                           </span>
                         )}
-                        <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${
-                          selectedResumeId === resume.id ? 'rotate-90' : ''
-                        }`} />
+                        <ChevronRight
+                          className={`w-4 h-4 text-gray-400 transition-transform ${
+                            selectedResumeId === resume.id ? "rotate-90" : ""
+                          }`}
+                        />
                       </div>
                     </div>
                   </div>
@@ -350,7 +494,10 @@ export default function Jobs() {
             {selectedResumeId && (
               <button
                 onClick={() => handleScreenResume(selectedResumeId)}
-                disabled={screeningResumeId === selectedResumeId || !jobRequirements.trim()}
+                disabled={
+                  screeningResumeId === selectedResumeId ||
+                  !jobRequirements.trim()
+                }
                 className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
               >
                 {screeningResumeId === selectedResumeId ? (
@@ -382,22 +529,31 @@ export default function Jobs() {
                   </h3>
                   <div className="space-y-2">
                     <p className="text-gray-700">
-                      <span className="font-medium">姓名：</span>{selectedResume.name}
+                      <span className="font-medium">姓名：</span>
+                      {selectedResume.name}
                     </p>
                     {selectedResume.email && (
                       <p className="text-gray-700">
-                        <span className="font-medium">邮箱：</span>{selectedResume.email}
+                        <span className="font-medium">邮箱：</span>
+                        {selectedResume.email}
                       </p>
                     )}
                     {selectedResume.phone && (
                       <p className="text-gray-700">
-                        <span className="font-medium">电话：</span>{selectedResume.phone}
+                        <span className="font-medium">电话：</span>
+                        {selectedResume.phone}
                       </p>
                     )}
-                    {selectedResume.summary && (
-                      <p className="text-gray-600 text-sm mt-3 pt-3 border-t border-gray-200">
-                        <span className="font-medium">摘要：</span>{selectedResume.summary}
-                      </p>
+                    {selectedResume.resumeFile && (
+                      <div className="pt-3 mt-3 border-t border-gray-200">
+                        <button
+                          onClick={() => openResumeInNewWindow(selectedResume)}
+                          className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors inline-flex items-center gap-2"
+                        >
+                          <FileText className="w-4 h-4 text-gray-500" />
+                          新窗口打开原文件
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -406,27 +562,39 @@ export default function Jobs() {
                 {selectedResult ? (
                   <>
                     {/* 推荐结果卡片 */}
-                    <div className={`rounded-xl p-5 text-white ${
-                      selectedResult.recommendation === 'pass' ? 'bg-gradient-to-r from-green-500 to-emerald-600' :
-                      selectedResult.recommendation === 'reject' ? 'bg-gradient-to-r from-red-500 to-rose-600' :
-                      'bg-gradient-to-r from-yellow-500 to-orange-500'
-                    }`}>
+                    <div
+                      className={`rounded-xl p-5 text-white ${
+                        selectedResult.recommendation === "pass"
+                          ? "bg-linear-to-r from-green-500 to-emerald-600"
+                          : selectedResult.recommendation === "reject"
+                            ? "bg-linear-to-r from-red-500 to-rose-600"
+                            : "bg-linear-to-r from-yellow-500 to-orange-500"
+                      }`}
+                    >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          {selectedResult.recommendation === 'pass' ? (
+                          {selectedResult.recommendation === "pass" ? (
                             <CheckCircle className="w-8 h-8" />
-                          ) : selectedResult.recommendation === 'reject' ? (
+                          ) : selectedResult.recommendation === "reject" ? (
                             <XCircle className="w-8 h-8" />
                           ) : (
                             <Clock className="w-8 h-8" />
                           )}
                           <div>
-                            <p className="text-lg font-semibold">{recommendationLabels[selectedResult.recommendation]}</p>
+                            <p className="text-lg font-semibold">
+                              {
+                                recommendationLabels[
+                                  selectedResult.recommendation
+                                ]
+                              }
+                            </p>
                             <p className="text-white/80 text-sm">AI 推荐结果</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-4xl font-bold">{selectedResult.score}</p>
+                          <p className="text-4xl font-bold">
+                            {selectedResult.score}
+                          </p>
                           <p className="text-white/80 text-sm">综合评分</p>
                         </div>
                       </div>
@@ -438,7 +606,9 @@ export default function Jobs() {
                         <div className="flex items-center justify-center mb-2">
                           <Star className="w-5 h-5 text-yellow-500" />
                         </div>
-                        <p className="text-2xl font-bold text-gray-900">{selectedResult.score}</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {selectedResult.score}
+                        </p>
                         <p className="text-sm text-gray-500">综合评分</p>
                       </div>
                       <div className="bg-gray-50 rounded-lg p-4 text-center">
@@ -446,7 +616,11 @@ export default function Jobs() {
                           <CheckCircle className="w-5 h-5 text-green-500" />
                         </div>
                         <p className="text-2xl font-bold text-gray-900">
-                          {selectedResult.recommendation === 'pass' ? '推荐' : selectedResult.recommendation === 'reject' ? '淘汰' : '待定'}
+                          {selectedResult.recommendation === "pass"
+                            ? "推荐"
+                            : selectedResult.recommendation === "reject"
+                              ? "淘汰"
+                              : "待定"}
                         </p>
                         <p className="text-sm text-gray-500">推荐结果</p>
                       </div>
@@ -455,7 +629,9 @@ export default function Jobs() {
                           <MessageSquare className="w-5 h-5 text-blue-500" />
                         </div>
                         <p className="text-2xl font-bold text-gray-900">
-                          {selectedResult.reasoning.length > 20 ? '已生成' : '待生成'}
+                          {selectedResult.reasoning.length > 20
+                            ? "已生成"
+                            : "待生成"}
                         </p>
                         <p className="text-sm text-gray-500">评估详情</p>
                       </div>
@@ -468,7 +644,7 @@ export default function Jobs() {
                         评估理由
                       </h3>
                       <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                        {selectedResult.reasoning || '暂无评估理由'}
+                        {selectedResult.reasoning || "暂无评估理由"}
                       </p>
                     </div>
                   </>
@@ -477,11 +653,20 @@ export default function Jobs() {
                     <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4">
                       <Sparkles className="text-purple-400" size={28} />
                     </div>
-                    <p className="text-gray-500 font-medium">该简历尚未进行 AI 筛选</p>
-                    <p className="text-gray-400 text-sm mt-1 mb-4">点击上方"重新筛选"按钮开始筛选</p>
+                    <p className="text-gray-500 font-medium">
+                      该简历尚未进行 AI 筛选
+                    </p>
+                    <p className="text-gray-400 text-sm mt-1 mb-4">
+                      点击上方"重新筛选"按钮开始筛选
+                    </p>
                     <button
-                      onClick={() => selectedResumeId && handleScreenResume(selectedResumeId)}
-                      disabled={screeningResumeId === selectedResumeId || !jobRequirements.trim()}
+                      onClick={() =>
+                        selectedResumeId && handleScreenResume(selectedResumeId)
+                      }
+                      disabled={
+                        screeningResumeId === selectedResumeId ||
+                        !jobRequirements.trim()
+                      }
                       className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                     >
                       {screeningResumeId === selectedResumeId ? (
@@ -498,6 +683,7 @@ export default function Jobs() {
           </div>
         </div>
       </div>
+
     </div>
   );
 }
