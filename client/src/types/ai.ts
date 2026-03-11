@@ -28,3 +28,16 @@ export interface CreateAiConfigData {
   prompt?: string;
   isDefault?: boolean;
 }
+
+export interface AiScreeningResult {
+  recommendation: 'pass' | 'reject' | 'pending';
+  score: number;
+  reasoning: string;
+}
+
+export interface BatchScreenResult {
+  resumeId: number;
+  success: boolean;
+  result?: AiScreeningResult;
+  error?: string;
+}

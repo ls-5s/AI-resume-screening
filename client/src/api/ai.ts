@@ -1,5 +1,5 @@
 import instance from "../utils/http";
-import type { AiConfig, UpdateAiConfigData, CreateAiConfigData } from "../types/ai";
+import type { AiConfig, UpdateAiConfigData, CreateAiConfigData, AiScreeningResult, BatchScreenResult } from "../types/ai";
 
 /**
  * 测试 AI 配置
@@ -49,15 +49,6 @@ export const deleteAiConfig = async (id: number): Promise<void> => {
 };
 
 /**
- * AI 筛选简历结果
- */
-export interface AiScreeningResult {
-  recommendation: 'pass' | 'reject' | 'pending';
-  score: number;
-  reasoning: string;
-}
-
-/**
  * 使用 AI 筛选单个简历
  */
 export const screenResumeWithAi = async (data: {
@@ -75,11 +66,6 @@ export const batchScreenResumesWithAi = async (data: {
   resumeIds: number[];
   jobRequirements: string;
   aiConfigId?: number;
-}): Promise<Array<{
-  resumeId: number;
-  success: boolean;
-  result?: AiScreeningResult;
-  error?: string;
-}>> => {
+}): Promise<BatchScreenResult[]> => {
   return instance.post('/v1/ai/batch-screen', data);
 };

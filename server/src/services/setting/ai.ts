@@ -422,7 +422,7 @@ export async function screenResumeWithAi(
       },
       body: JSON.stringify(requestBody),
     }, 600000);
-// console.log('response:', response);
+ console.log('response:', response);
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({})) as Record<string, any>;
       const message = parseApiError(response.status, errorData, apiType);
