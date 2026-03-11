@@ -397,12 +397,21 @@ export async function screenResumeWithAi(
 
   
   // 关键：用反引号，且明确拼接“指令+简历内容”，无需多余拼接符
-  const prompt = `根据提示词分析：${config.prompt}。简历内容：${resume.parsedContent}`;
-  // console.log('config.prompt:', config.prompt);
-
+  const prompt = `根据提示词分析：${config.prompt}。简历内容：${resume.parsedContent}来筛选简历，请给出筛选结果和建议。`;
+  console.log('config.prompt:', config.prompt);
+  console.log('model:', config.model);
   // 调用 AI API
   const url = config.apiUrl.replace(/\/$/, '');
   const apiType = detectApiType(config.apiUrl);
+
+  // 根据 API 类型构建请求体
+  const requestBody = buildRequestBody(apiType, config.model, 'text-generation');
+  //替换 messages 内容 为实际的 prompt
+  if ('messages' in requestBody) {
+    (requestBody as any).messages = [{ role: 'user', content: prompt }];
+  } else if ('input' in requestBody) {
+    (requestBody as any).input = { messages: [{ role: 'user', content: prompt }] };
+  }
 
   try {
     const response = await fetchWithTimeout(url, {
@@ -411,13 +420,9 @@ export async function screenResumeWithAi(
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${config.apiKey}`,
       },
-      body: JSON.stringify({
-        model: config.model,
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 2000,
-      }),
-    }, 60000);
-
+      body: JSON.stringify(requestBody),
+    }, 600000);
+// console.log('response:', response);
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({})) as Record<string, any>;
       const message = parseApiError(response.status, errorData, apiType);
@@ -425,11 +430,20 @@ export async function screenResumeWithAi(
     }
 
     const data = await response.json() as Record<string, any>;
-    const aiResponse = data.choices?.[0]?.message?.content || '';
+    
+    // 根据 API 类型解析响应
+    let aiResponse = '';
+    if (apiType === 'aliyun-native') {
+      // 阿里云原生 API 响应格式
+      aiResponse = data.output?.choices?.[0]?.message?.content || '';
+    } else {
+      // OpenAI 兼容格式 (包括阿里云兼容模式)
+      aiResponse = data.choices?.[0]?.message?.content || '';
+    }
 
     // 解析 AI 响应，提取评估结果
     const result = parseAiResponse(aiResponse);
-    console.log('result:', result);
+     console.log('result:', result);
 
     return {
       success: true,
