@@ -1,4 +1,4 @@
-import { Loader2, FileText, Eye, Trash2, Mail, Phone, Calendar, HardDrive, Check, CheckCircle } from 'lucide-react';
+import { Loader2, FileText, Eye, Trash2, Mail, Phone, Calendar, HardDrive } from 'lucide-react';
 import type { Resume } from '../../types/resume';
 import { formatFileSize, formatDate } from '../../utils/format';
 
@@ -7,9 +7,6 @@ interface ResumeListProps {
   loading: boolean;
   onView: (id: number) => void;
   onDelete: (id: number) => void;
-  selectedIds?: number[];
-  onSelectionChange?: (ids: number[]) => void;
-  selectable?: boolean;
 }
 
 // 状态颜色映射
@@ -26,31 +23,7 @@ const statusLabels = {
   passed: '已通过',
 };
 
-// 处理单个简历的选择
-const handleResumeSelect = (resumeId: number, currentSelected: number[], onChange?: (ids: number[]) => void) => {
-  if (!onChange) return;
-  
-  if (currentSelected.includes(resumeId)) {
-    onChange(currentSelected.filter(id => id !== resumeId));
-  } else {
-    onChange([...currentSelected, resumeId]);
-  }
-};
-
-// 处理全选
-const handleSelectAll = (resumeIds: number[], currentSelected: number[], onChange?: (ids: number[]) => void) => {
-  if (!onChange) return;
-  
-  // 如果已全部选中，则取消全选；否则全选
-  const allSelected = resumeIds.every(id => currentSelected.includes(id));
-  if (allSelected) {
-    onChange([]);
-  } else {
-    onChange(resumeIds);
-  }
-};
-
-export function ResumeList({ resumes, loading, onView, onDelete, selectedIds = [], onSelectionChange, selectable = false }: ResumeListProps) {
+export function ResumeList({ resumes, loading, onView, onDelete }: ResumeListProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -73,44 +46,12 @@ export function ResumeList({ resumes, loading, onView, onDelete, selectedIds = [
 
   return (
     <div className="divide-y divide-slate-100">
-      {/* 全选行 */}
-      {selectable && resumes.length > 0 && (
-        <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center gap-3">
-          <button
-            onClick={() => handleSelectAll(resumes.map(r => r.id), selectedIds, onSelectionChange)}
-            className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900"
-          >
-            {resumes.length > 0 && resumes.every(r => selectedIds.includes(r.id)) ? (
-              <CheckCircle className="w-5 h-5 text-purple-600" />
-            ) : (
-              <div className="w-5 h-5 border-2 border-slate-300 rounded" />
-            )}
-            <span>全选</span>
-          </button>
-          <span className="text-sm text-slate-400">
-            已选 {selectedIds.length} / {resumes.length} 项
-          </span>
-        </div>
-      )}
       {resumes.map((resume) => (
         <div 
           key={resume.id} 
           className="p-5 hover:bg-slate-50 transition-all duration-200 group"
         >
           <div className="flex items-start gap-4">
-            {/* 选择框 */}
-            {selectable && (
-              <button
-                onClick={() => handleResumeSelect(resume.id, selectedIds, onSelectionChange)}
-                className="mt-2 flex-shrink-0"
-              >
-                {selectedIds.includes(resume.id) ? (
-                  <CheckCircle className="w-5 h-5 text-purple-600" />
-                ) : (
-                  <div className="w-5 h-5 border-2 border-slate-300 rounded hover:border-purple-400" />
-                )}
-              </button>
-            )}
             {/* 文件图标 */}
             <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
               <FileText className="text-white" size={24} />
