@@ -10,17 +10,18 @@ interface UserInfoProps {
 
 export function UserInfo({ username: propsUsername }: UserInfoProps) {
   const logout = useLoginStore((state) => state.logout);
+  const user = useLoginStore((state) => state.user);
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
-  const [profile, setProfile] = useState<{ username: string; avatar: string | null } | null>(null);
+  const [avatar, setAvatar] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // 获取用户信息
+  // 获取最新头像信息（只获取头像，其他信息从 store 获取）
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         const data = await getProfile();
-        setProfile(data);
+        setAvatar(data.avatar);
       } catch (error) {
         console.error("Failed to fetch profile:", error);
       }
@@ -28,9 +29,9 @@ export function UserInfo({ username: propsUsername }: UserInfoProps) {
     fetchProfile();
   }, []);
 
-  // 优先使用 props传入的用户名，其次使用接口返回的用户名
-  const displayUsername = propsUsername || profile?.username || "用户";
-  const displayAvatar = profile?.avatar;
+  // 优先使用 props传入的用户名，其次使用 store 中的用户名
+  const displayUsername = propsUsername || user?.username || "用户";
+  const displayAvatar = avatar || user?.avatar || null;
 
   const handleLogout = () => {
     logout();

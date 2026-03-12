@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import { Modal } from "../Modal";
 import { getProfile, updateProfile } from "../../api/profile";
 import { User, Mail, Pencil, Save, X, Camera } from "lucide-react";
 import toast from "../Toast";
+import { useLoginStore } from "../../store/Login";
 
 export function ProfileSettings() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [profile, setProfile] = useState<{ username: string; email: string; avatar: string | null } | null>(null);
@@ -90,6 +89,10 @@ export function ProfileSettings() {
       setNewAvatar(null);
       setIsEditing(false);
       toast.success("个人信息更新成功");
+
+      // 同步更新全局 store
+      const setUser = useLoginStore.getState().setUser;
+      setUser({ username: updated.username, avatar: updated.avatar });
     } catch (error: unknown) {
       console.error("Failed to update profile:", error);
       const err = error as { response?: { data?: { message?: string } } };

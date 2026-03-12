@@ -307,7 +307,7 @@ export function EmailSender({
               />
             </div>
 
-            {/* 邮件正文 */}
+            {/* 邮件正文：固定高度，内部滚动 */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 邮件正文 <span className="text-rose-500">*</span>
@@ -317,8 +317,7 @@ export function EmailSender({
                 onChange={(e) =>
                   setSendForm({ ...sendForm, body: e.target.value })
                 }
-                rows={8}
-                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none text-sm font-mono"
+                className="w-full min-h-[280px] max-h-[280px] h-[280px] px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none text-sm font-mono overflow-y-auto"
                 placeholder="请输入邮件内容，支持变量替换"
               />
             </div>
@@ -401,8 +400,8 @@ export function EmailSender({
                 )}
               </div>
 
-              {/* 收件人列表：占据剩余空间，内部可滚动 */}
-              <div className="border border-slate-200 rounded-xl bg-slate-50 xl:flex-1 xl:min-h-0 xl:overflow-y-auto min-h-[200px]">
+              {/* 收件人列表：固定高度，内部可滚动 */}
+              <div className="border border-slate-200 rounded-xl bg-slate-50 h-[360px] min-h-[200px] overflow-y-auto">
                 {filteredRecipients.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10">
                     <User className="text-slate-300 mb-3" size={40} />

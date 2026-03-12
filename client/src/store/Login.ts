@@ -6,6 +6,7 @@ interface User {
   refreshToken?: string;
   username?: string;
   email?: string;
+  avatar?: string | null;
 }
 
 interface LoginState {
@@ -15,6 +16,7 @@ interface LoginState {
   isLoggedIn: boolean;
   login: (userData: User) => void;
   setTokens: (token: string, refreshToken: string) => void;
+  setUser: (userData: Partial<User>) => void;
   logout: () => void;
 }
 
@@ -37,6 +39,12 @@ export const useLoginStore = create<LoginState>()(
 
       setTokens: (token: string, refreshToken: string) => {
         set({ token, refreshToken });
+      },
+
+      setUser: (userData: Partial<User>) => {
+        set((state) => ({
+          user: state.user ? { ...state.user, ...userData } : null,
+        }));
       },
 
       logout: () => {
