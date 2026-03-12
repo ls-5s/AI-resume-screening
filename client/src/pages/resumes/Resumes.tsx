@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Upload, Mail, Search, Filter } from 'lucide-react';
 import { getResumes, uploadResume, deleteResume, getResume, importResumesFromEmail } from '../../api/resume';
@@ -8,15 +9,15 @@ import type { Resume } from '../../types/resume';
 import type { EmailConfig } from '../../types/email';
 import {
   ResumeList,
-  ResumeUploadModal,
+  ResumeModal,
   ResumeDetailDrawer,
   PdfPreviewModal,
-  EmailImportModal,
 } from '../../components/resumes';
 
 type ResumeStatus = 'all' | 'pending' | 'passed' | 'rejected';
 
 export default function Resumes() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -25,6 +26,15 @@ export default function Resumes() {
   const [viewResume, setViewResume] = useState<Resume | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
   const [pdfPreview, setPdfPreview] = useState<{ url: string; fileName: string } | null>(null);
+
+  // 根据 URL 参数自动打开上传弹窗
+  useEffect(() => {
+    if (searchParams.get('action') === 'upload') {
+      setShowModal(true);
+      searchParams.delete('action');
+      setSearchParams(searchParams);
+    }
+  }, [searchParams, setSearchParams]);
 
   // 筛选和搜索状态
   const [statusFilter, setStatusFilter] = useState<ResumeStatus>('all');
@@ -317,12 +327,13 @@ export default function Resumes() {
       </div>
 
       {/* 上传弹窗 */}
-      <ResumeUploadModal
+      <ResumeModal
         isOpen={showModal}
         onClose={() => {
           setShowModal(false);
           setSelectedFile(null);
         }}
+        type="upload"
         selectedFile={selectedFile}
         onFileChange={handleFileChange}
         onUpload={handleUpload}
@@ -346,12 +357,13 @@ export default function Resumes() {
       />
 
       {/* 从邮箱导入弹窗 */}
-      <EmailImportModal
+      <ResumeModal
         isOpen={showImportModal}
         onClose={() => {
           setShowImportModal(false);
           setSelectedConfigId(null);
         }}
+        type="import"
         emailConfigs={emailConfigs}
         loadingConfigs={loadingConfigs}
         selectedConfigId={selectedConfigId}

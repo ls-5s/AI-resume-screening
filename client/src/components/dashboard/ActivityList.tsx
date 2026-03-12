@@ -33,6 +33,14 @@ const actionText: Record<string, string> = {
   interview: "收到面试邀请",
 };
 
+const activityColorMap: Record<string, string> = {
+  blue: "bg-blue-100 text-blue-600",
+  emerald: "bg-emerald-100 text-emerald-600",
+  red: "bg-red-100 text-red-600",
+  purple: "bg-purple-100 text-purple-600",
+  violet: "bg-violet-100 text-violet-600",
+};
+
 // ==================== 活动列表项组件 ====================
 function ActivityItem({ activity }: ActivityItemProps) {
   const navigate = useNavigate();
@@ -45,19 +53,7 @@ function ActivityItem({ activity }: ActivityItemProps) {
       className="flex items-center gap-4 p-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
       onClick={() => navigate("/resumes")}
     >
-      <div
-        className={`w-10 h-10 rounded-full flex items-center justify-center ${
-          config.color === "blue"
-            ? "bg-blue-100 text-blue-600"
-            : config.color === "emerald"
-              ? "bg-emerald-100 text-emerald-600"
-              : config.color === "red"
-                ? "bg-red-100 text-red-600"
-                : config.color === "purple"
-                  ? "bg-purple-100 text-purple-600"
-                  : "bg-violet-100 text-violet-600"
-        }`}
-      >
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${activityColorMap[config.color]}`}>
         <Icon className="w-5 h-5" />
       </div>
       <div className="flex-1">

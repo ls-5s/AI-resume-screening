@@ -1,6 +1,18 @@
 import { TrendingUp, FileText, Clock, CheckCircle, X, Bot } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import type { DashboardStats } from '../../types/dashboard';
+
+// ==================== 颜色映射 ====================
+const colorMap: Record<string, { bg: string; icon: string; border: string }> = {
+  blue: { bg: 'bg-blue-50', icon: 'text-blue-600', border: 'bg-blue-500' },
+  amber: { bg: 'bg-amber-50', icon: 'text-amber-600', border: 'bg-amber-500' },
+  emerald: { bg: 'bg-emerald-50', icon: 'text-emerald-600', border: 'bg-emerald-500' },
+  red: { bg: 'bg-red-50', icon: 'text-red-600', border: 'bg-red-500' },
+  violet: { bg: 'bg-violet-50', icon: 'text-violet-600', border: 'bg-violet-500' },
+};
+
+const colorClasses: Record<string, string> = Object.fromEntries(
+  Object.entries(colorMap).map(([k, v]) => [k, `${v.bg} ${v.icon}`])
+);
 
 // ==================== 类型定义 ====================
 interface StatCardProps {
@@ -31,14 +43,12 @@ const calculateTrend = (field: 'total' | 'pending' | 'passed' | 'rejected', stat
 
 // ==================== 单个统计卡片 ====================
 function StatCard({ label, value, icon: Icon, color, trend, trendUp }: StatCardProps) {
-  const navigate = useNavigate();
-  const colorClasses: Record<string, string> = { blue: 'bg-blue-50 text-blue-600', amber: 'bg-amber-50 text-amber-600', emerald: 'bg-emerald-50 text-emerald-600', violet: 'bg-violet-50 text-violet-600', red: 'bg-red-50 text-red-600' };
-  const iconBgClass = colorClasses[color];
+  const colors = colorMap[color];
 
   return (
-    <div className="group relative bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 cursor-pointer" onClick={() => navigate('/resumes')}>
+    <div className="group relative bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1">
       <div className="flex items-start justify-between">
-        <div className={`p-3 rounded-xl ${iconBgClass} transition-transform group-hover:scale-110 duration-300`}>
+        <div className={`p-3 rounded-xl ${colorClasses[color]} transition-transform group-hover:scale-110 duration-300`}>
           <Icon className="w-6 h-6" />
         </div>
         <div className={`flex items-center gap-1 text-sm font-medium ${trendUp ? 'text-emerald-600' : 'text-amber-600'}`}>
@@ -50,7 +60,7 @@ function StatCard({ label, value, icon: Icon, color, trend, trendUp }: StatCardP
         <div className="text-3xl font-bold text-gray-900">{value}</div>
         <div className="text-sm text-gray-500 mt-1">{label}</div>
       </div>
-      <div className={`absolute bottom-0 left-0 h-1 w-0 group-hover:w-full transition-all duration-300 rounded-b-2xl ${color === 'blue' ? 'bg-blue-500' : color === 'amber' ? 'bg-amber-500' : color === 'emerald' ? 'bg-emerald-500' : color === 'red' ? 'bg-red-500' : 'bg-violet-500'}`}></div>
+      <div className={`absolute bottom-0 left-0 h-1 w-0 group-hover:w-full transition-all duration-300 rounded-b-2xl ${colors.border}`}></div>
     </div>
   );
 }

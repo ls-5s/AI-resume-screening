@@ -39,18 +39,18 @@ export function ResumeDetailDrawer({ resume, loading, onOpenChange, onPreview }:
   return (
     <Drawer open={!!resume} onOpenChange={onOpenChange}>
       <DrawerContent className="w-full max-w-3xl">
-        <DrawerHeader className="border-b border-slate-200 pb-4">
-          <DrawerTitle className="text-xl font-semibold text-slate-900">简历详情</DrawerTitle>
+        <DrawerHeader>
+          <DrawerTitle>简历详情</DrawerTitle>
         </DrawerHeader>
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="animate-spin text-slate-400" size={36} />
             </div>
           ) : resume ? (
-            <div className="p-6 space-y-6">
+            <div className="space-y-6">
               {/* 头部信息卡片 */}
-              <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-2xl p-6 text-white">
+              <div className="bg-slate-800 text-white rounded-2xl p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
@@ -119,7 +119,7 @@ export function ResumeDetailDrawer({ resume, loading, onOpenChange, onPreview }:
 
               {/* AI 摘要 */}
               {resume.summary && (
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100 p-5">
+                <div className="bg-linear-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100 p-5">
                   <div className="flex items-center gap-2 mb-3">
                     <Sparkles className="text-blue-600" size={20} />
                     <h3 className="text-lg font-semibold text-slate-900">AI 解析摘要</h3>
