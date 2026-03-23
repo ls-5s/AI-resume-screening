@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { register as registerApi } from "../../api/login";
 import toast from "../../utils/toast";
 
@@ -13,12 +13,22 @@ interface RegisterFormData {
 
 export function RegisterForm({ onSuccess }: { onSuccess?: () => void }) {
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const form = useForm<RegisterFormData>();
 
   const onSubmit = async (data: RegisterFormData) => {
+    if (data.password !== data.confirmPassword) {
+      form.setError("confirmPassword", { message: "两次密码输入不一致" });
+      return;
+    }
     setIsLoading(true);
     try {
-      await registerApi({ username: data.username, email: data.email, password: data.password });
+      await registerApi({
+        username: data.username,
+        email: data.email,
+        password: data.password,
+      });
       toast.success("注册成功，请登录！");
       onSuccess?.();
       form.reset();
@@ -29,68 +39,115 @@ export function RegisterForm({ onSuccess }: { onSuccess?: () => void }) {
     }
   };
 
-  const handleSubmit = (data: RegisterFormData) => {
-    if (data.password !== data.confirmPassword) {
-      form.setError("confirmPassword", { message: "两次密码输入不一致" });
-      return;
-    }
-    onSubmit(data);
-  };
-
   return (
-    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-5">
+    <form onSubmit={form.handleSubmit(onSubmit)} className="auth-form-stack">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">用户名</label>
+        <label className="auth-label" htmlFor="reg-username">
+          用户名 <span className="text-red-500">*</span>
+        </label>
         <input
+          id="reg-username"
           type="text"
+          autoComplete="username"
           placeholder="请输入用户名"
-          {...form.register("username", { required: "请输入用户名", minLength: { value: 2, message: "用户名至少2位" } })}
-          className="w-full px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-colors"
+          {...form.register("username", {
+            required: "请输入用户名",
+            minLength: { value: 2, message: "用户名至少2位" },
+          })}
+          className="auth-input-field input-field"
         />
-        {form.formState.errors.username && <p className="mt-1 text-sm text-red-500">{form.formState.errors.username.message}</p>}
+        {form.formState.errors.username && (
+          <p className="err-text">{form.formState.errors.username.message}</p>
+        )}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">邮箱</label>
+        <label className="auth-label" htmlFor="reg-email">
+          邮箱 <span className="text-red-500">*</span>
+        </label>
         <input
+          id="reg-email"
           type="email"
-          placeholder="your@email.com"
-          {...form.register("email", { required: "请输入邮箱", pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "请输入有效的邮箱地址" } })}
-          className="w-full px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-colors"
+          autoComplete="email"
+          placeholder="请输入邮箱"
+          {...form.register("email", {
+            required: "请输入邮箱",
+            pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "请输入有效的邮箱地址" },
+          })}
+          className="auth-input-field input-field"
         />
-        {form.formState.errors.email && <p className="mt-1 text-sm text-red-500">{form.formState.errors.email.message}</p>}
+        {form.formState.errors.email && (
+          <p className="err-text">{form.formState.errors.email.message}</p>
+        )}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">密码</label>
-        <input
-          type="password"
-          placeholder="••••••••"
-          {...form.register("password", { required: "请输入密码", minLength: { value: 6, message: "密码至少6位" } })}
-          className="w-full px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-colors"
-        />
-        {form.formState.errors.password && <p className="mt-1 text-sm text-red-500">{form.formState.errors.password.message}</p>}
+        <label className="auth-label" htmlFor="reg-password">
+          密码 <span className="text-red-500">*</span>
+        </label>
+        <div className="auth-relative">
+          <input
+            id="reg-password"
+            type={showPassword ? "text" : "password"}
+            autoComplete="new-password"
+            placeholder="请输入密码"
+            {...form.register("password", {
+              required: "请输入密码",
+              minLength: { value: 6, message: "密码至少6位" },
+            })}
+            className="auth-input-field auth-input-with-icon input-field"
+          />
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={() => setShowPassword((v) => !v)}
+            className="auth-eye-btn"
+            aria-label={showPassword ? "隐藏密码" : "显示密码"}
+          >
+            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        </div>
+        {form.formState.errors.password && (
+          <p className="err-text">{form.formState.errors.password.message}</p>
+        )}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">确认密码</label>
-        <input
-          type="password"
-          placeholder="再次输入密码"
-          {...form.register("confirmPassword", { required: "请再次输入密码" })}
-          className="w-full px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-colors"
-        />
-        {form.formState.errors.confirmPassword && <p className="mt-1 text-sm text-red-500">{form.formState.errors.confirmPassword.message}</p>}
+        <label className="auth-label" htmlFor="reg-confirm">
+          确认密码 <span className="text-red-500">*</span>
+        </label>
+        <div className="auth-relative">
+          <input
+            id="reg-confirm"
+            type={showConfirm ? "text" : "password"}
+            autoComplete="new-password"
+            placeholder="再次输入密码"
+            {...form.register("confirmPassword", { required: "请再次输入密码" })}
+            className="auth-input-field auth-input-with-icon input-field"
+          />
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={() => setShowConfirm((v) => !v)}
+            className="auth-eye-btn"
+            aria-label={showConfirm ? "隐藏确认密码" : "显示确认密码"}
+          >
+            {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        </div>
+        {form.formState.errors.confirmPassword && (
+          <p className="err-text">{form.formState.errors.confirmPassword.message}</p>
+        )}
       </div>
 
       <button
         type="submit"
         disabled={isLoading}
-        className="w-full py-2.5 bg-slate-900 text-white rounded-lg font-medium hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="submit-btn w-full rounded-lg py-3 text-sm font-medium text-white disabled:cursor-not-allowed"
       >
         {isLoading ? (
-          <span className="flex items-center justify-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin" />
+          <span className="inline-flex items-center justify-center gap-2">
+            <Loader2 size={16} className="animate-spin" aria-hidden />
             处理中...
           </span>
         ) : (
