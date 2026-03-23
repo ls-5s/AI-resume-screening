@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { EmailTemplateList } from "../../components/emails/EmailTemplateList";
 import { EmailSender } from "../../components/emails/EmailSender";
 import { Send, Layers, Zap, Clock } from "lucide-react";
+import { getEmailSendStats } from "../../api/email-template";
 
 export default function EmailTemplates() {
   const [activeTab, setActiveTab] = useState<"templates" | "send">("templates");
@@ -9,10 +10,25 @@ export default function EmailTemplates() {
     null,
   );
   const [totalTemplates, setTotalTemplates] = useState(0);
+  const [emailSendStats, setEmailSendStats] = useState({
+    totalSent: 0,
+    todaySent: 0,
+    monthSent: 0,
+  });
+
+  const refreshEmailSendStats = useCallback(async () => {
+    try {
+      const s = await getEmailSendStats();
+      setEmailSendStats(s);
+    } catch (e) {
+      console.error("加载邮件发送统计失败:", e);
+    }
+  }, []);
 
   const handleUseTemplate = (template: { id: number }) => {
     setInitialTemplateId(template.id);
     setActiveTab("send");
+    void refreshEmailSendStats();
   };
 
   const tabs = [
@@ -70,12 +86,12 @@ export default function EmailTemplates() {
             </h1>
           </div>
 
-          <div className="flex shrink-0 justify-end">
-            {/* Tab 切换：分段控件贴页面最右侧 */}
+          <div className="flex w-full shrink-0 justify-end lg:w-auto">
+            {/* Tab：浅灰轨道 + 选中白底浮起；激活态图标为渐变实心 */}
             <div
               role="group"
               aria-label="邮件功能切换"
-              className="flex w-full max-w-md items-stretch gap-0 overflow-hidden rounded-2xl border border-zinc-200/70 bg-zinc-100/60 p-1 shadow-[inset_0_1px_2px_rgba(15,23,42,0.06)] sm:ml-auto sm:w-auto sm:max-w-none"
+              className="flex w-full max-w-md items-stretch gap-1 rounded-2xl border border-zinc-200/80 bg-zinc-200/45 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] sm:ml-auto sm:w-auto sm:max-w-none"
             >
               {tabs.map((tab) => {
                 const Icon = tab.icon;
@@ -84,29 +100,33 @@ export default function EmailTemplates() {
                   <button
                     key={tab.id}
                     type="button"
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      if (tab.id === "send") void refreshEmailSendStats();
+                    }}
+                    title={tab.sub}
                     aria-label={
                       isActive ? `${tab.label}（当前）` : `切换到${tab.label}`
                     }
+                    aria-current={isActive ? "page" : undefined}
                     className={`
-                      relative flex flex-1 items-center justify-center gap-2.5 rounded-xl px-4 py-2.5
-                      text-sm font-medium transition-all duration-200 sm:flex-none sm:justify-start
+                      group/tab flex flex-1 items-center justify-center gap-2 rounded-[0.875rem] px-3 py-2.5
+                      text-sm font-medium transition-all duration-200 sm:flex-none sm:justify-start sm:px-4
                       ${
                         isActive
-                          ? `bg-white text-zinc-900 shadow-[0_1px_3px_rgba(15,23,42,0.12),0_1px_2px_rgba(15,23,42,0.08)] ring-1 ring-zinc-950/4`
-                          : "text-zinc-500 hover:text-zinc-700"
+                          ? "bg-white text-zinc-900 shadow-[0_2px_10px_-3px_rgba(15,23,42,0.14),0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-zinc-950/[0.06]"
+                          : "text-zinc-500 hover:bg-white/55 hover:text-zinc-800"
                       }
                     `}
                   >
                     <span
-                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors ${
-                        isActive ? tab.iconBg : "bg-zinc-200/60"
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-all duration-200 ${
+                        isActive
+                          ? `bg-linear-to-br ${tab.accent} text-white shadow-[0_2px_8px_-2px_rgba(14,165,233,0.4)]`
+                          : "bg-zinc-300/40 text-zinc-500 group-hover/tab:bg-zinc-300/55 group-hover/tab:text-zinc-600"
                       }`}
                     >
-                      <Icon
-                        className={`h-[14px] w-[14px] ${isActive ? tab.iconColor : "text-zinc-400"}`}
-                        strokeWidth={1.75}
-                      />
+                      <Icon className="h-[15px] w-[15px]" strokeWidth={1.85} />
                     </span>
                     <span className="hidden sm:inline">{tab.label}</span>
                   </button>
@@ -134,7 +154,7 @@ export default function EmailTemplates() {
               {
                 icon: Send,
                 desc: "已发送",
-                value: 0,
+                value: emailSendStats.totalSent,
                 accent: "text-sky-600",
                 iconBg: "bg-sky-500/12",
                 bar: "border-t-sky-500/90",
@@ -142,7 +162,7 @@ export default function EmailTemplates() {
               {
                 icon: Clock,
                 desc: "今日发送",
-                value: 0,
+                value: emailSendStats.todaySent,
                 accent: "text-amber-600",
                 iconBg: "bg-amber-500/12",
                 bar: "border-t-amber-500/90",
@@ -150,7 +170,7 @@ export default function EmailTemplates() {
               {
                 icon: Zap,
                 desc: "本月发送",
-                value: 0,
+                value: emailSendStats.monthSent,
                 accent: "text-emerald-600",
                 iconBg: "bg-emerald-500/12",
                 bar: "border-t-emerald-500/90",
@@ -207,6 +227,7 @@ export default function EmailTemplates() {
               initialTemplateId={initialTemplateId}
               onInitialTemplateApplied={() => setInitialTemplateId(null)}
               onTemplateCount={(count) => setTotalTemplates(count)}
+              onRefresh={refreshEmailSendStats}
             />
           )}
         </div>

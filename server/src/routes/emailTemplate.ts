@@ -16,6 +16,7 @@ import {
   deleteEmailTemplate,
   sendEmails,
   getEmailRecipients,
+  getEmailSendStats,
 } from "../services/email/template.js";
 
 const router: RouterType = Router();
@@ -192,6 +193,23 @@ router.delete(
 
 // ============ 发送邮件相关接口 ============
 
+// 群发邮件发送统计（活动表：成功投递条数）
+router.get(
+  "/email-send-stats",
+  authenticate,
+  async (req: Request, res: Response) => {
+    try {
+      const userId = Number((req as any).user.id);
+      const stats = await getEmailSendStats(userId);
+      res.status(200).json({ code: 200, data: stats });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "获取邮件发送统计失败";
+      res.status(400).json({ code: 400, message });
+    }
+  },
+);
+
 // 获取收件人列表（支持按状态筛选）
 router.get(
   "/email-recipients",
@@ -251,24 +269,22 @@ router.post(
 
       console.log("发送结果:", result);
 
-      // 记录活动日志（发送面试邀请）
-      if (result.success && result.sentCount > 0) {
-        // 获取发送的候选人对应的简历信息
-        if (candidateIds && candidateIds.length > 0) {
-          for (const candidateId of candidateIds) {
-            const [resume] = await db
-              .select()
-              .from(resumes)
-              .where(eq(resumes.id, candidateId));
-            if (resume) {
-              await createActivity({
-                userId,
-                type: "interview",
-                resumeId: resume.id,
-                resumeName: resume.name,
-                description: `发送面试邀请: ${subject}`,
-              });
-            }
+      // 仅对实际发送成功的候选人记活动（用于统计「已发送 / 今日 / 本月」）
+      const succeededIds = result.successfulCandidateIds ?? [];
+      if (succeededIds.length > 0) {
+        for (const candidateId of succeededIds) {
+          const [resume] = await db
+            .select()
+            .from(resumes)
+            .where(eq(resumes.id, candidateId));
+          if (resume) {
+            await createActivity({
+              userId,
+              type: "interview",
+              resumeId: resume.id,
+              resumeName: resume.name,
+              description: `发送面试邀请: ${subject}`,
+            });
           }
         }
       }

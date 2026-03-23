@@ -26,6 +26,13 @@ export interface SendEmailInput {
   fromEmailId: number;
 }
 
+/** 邮件发送统计（按活动表「发送面试邀请」成功条数） */
+export interface EmailSendStats {
+  totalSent: number;
+  todaySent: number;
+  monthSent: number;
+}
+
 // 发送邮件结果
 export interface SendEmailResult {
   success: boolean;

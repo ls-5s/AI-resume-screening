@@ -1,6 +1,6 @@
 import { db } from '../../db/index.js';
-import { emailTemplates, emailConfigs, users, resumes } from '../../db/schema.js';
-import { eq, and, desc, isNotNull, inArray } from 'drizzle-orm';
+import { emailTemplates, emailConfigs, resumes, activities } from '../../db/schema.js';
+import { eq, and, desc, isNotNull, inArray, like, gte, lt, sql } from 'drizzle-orm';
 import nodemailer from 'nodemailer';
 import type {
   EmailTemplateInput,
@@ -8,10 +8,73 @@ import type {
   SendEmailInput,
   SendEmailResult,
   EmailRecipient,
+  EmailSendStats,
 } from '../../types/email-template.js';
 
 // 重新导出类型供外部使用
-export type { EmailTemplateInput, EmailTemplateResponse, SendEmailInput, SendEmailResult, EmailRecipient };
+export type {
+  EmailTemplateInput,
+  EmailTemplateResponse,
+  SendEmailInput,
+  SendEmailResult,
+  EmailRecipient,
+  EmailSendStats,
+};
+
+/** 与群发成功时写入活动表的 description 前缀一致，用于统计「封」数 */
+const EMAIL_SENT_ACTIVITY_PREFIX = '发送面试邀请:';
+
+/**
+ * 按活动流水统计群发成功次数（每条成功投递对应一条 interview 活动）
+ */
+export async function getEmailSendStats(userId: number): Promise<EmailSendStats> {
+  const activityMatch = and(
+    eq(activities.userId, userId),
+    eq(activities.type, 'interview'),
+    like(activities.description, `${EMAIL_SENT_ACTIVITY_PREFIX}%`),
+  );
+
+  const [totalRow] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(activities)
+    .where(activityMatch);
+
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfDay = new Date(startOfDay);
+  endOfDay.setDate(endOfDay.getDate() + 1);
+
+  const [todayRow] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(activities)
+    .where(
+      and(
+        activityMatch,
+        gte(activities.createdAt, startOfDay),
+        lt(activities.createdAt, endOfDay),
+      ),
+    );
+
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+  const [monthRow] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(activities)
+    .where(
+      and(
+        activityMatch,
+        gte(activities.createdAt, monthStart),
+        lt(activities.createdAt, monthEnd),
+      ),
+    );
+
+  return {
+    totalSent: Number(totalRow?.count ?? 0),
+    todaySent: Number(todayRow?.count ?? 0),
+    monthSent: Number(monthRow?.count ?? 0),
+  };
+}
 
 // 获取用户的邮件模板列表
 export async function getEmailTemplates(userId: number): Promise<EmailTemplateResponse[]> {

@@ -1,11 +1,12 @@
 import instance from "../utils/http";
-import type { 
-  EmailTemplate, 
-  CreateEmailTemplateData, 
+import type {
+  EmailTemplate,
+  CreateEmailTemplateData,
   UpdateEmailTemplateData,
   SendEmailData,
   SendEmailResult,
-  EmailRecipient
+  EmailRecipient,
+  EmailSendStats,
 } from "../types/email-template";
 
 // 获取邮件模板列表
@@ -36,6 +37,11 @@ export const deleteEmailTemplate = async (id: number): Promise<void> => {
 // 发送邮件
 export const sendEmails = async (data: SendEmailData): Promise<SendEmailResult> => {
   return instance.post("/v1/emails/send", data);
+};
+
+/** 群发成功次数统计（活动表，按当前用户） */
+export const getEmailSendStats = async (): Promise<EmailSendStats> => {
+  return instance.get("/v1/email-send-stats");
 };
 
 // 获取收件人列表（支持按状态筛选；sent = 曾群发邮件成功过）

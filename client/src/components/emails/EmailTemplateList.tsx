@@ -265,10 +265,11 @@ export function EmailTemplateList({
               </span>
             </div>
             <button
+              type="button"
               onClick={() => openModal()}
-              className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/80 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm ring-1 ring-zinc-950/[0.04] transition-all hover:-translate-y-px hover:border-zinc-300 hover:shadow-md"
+              className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-sky-600 to-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_2px_12px_-2px_rgba(14,165,233,0.45)] transition-all hover:brightness-105 hover:shadow-[0_4px_16px_-4px_rgba(14,165,233,0.5)] active:scale-[0.98]"
             >
-              <Plus className="h-4 w-4" strokeWidth={2} />
+              <Plus className="h-4 w-4" strokeWidth={2.25} />
               新建模板
             </button>
           </div>

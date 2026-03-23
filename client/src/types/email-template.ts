@@ -31,6 +31,13 @@ export interface SendEmailData {
   fromEmailId: number;
 }
 
+/** 群发邮件发送统计（与 GET /v1/email-send-stats 一致） */
+export interface EmailSendStats {
+  totalSent: number;
+  todaySent: number;
+  monthSent: number;
+}
+
 export interface SendEmailResult {
   success: boolean;
   message: string;

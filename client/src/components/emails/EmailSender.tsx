@@ -18,7 +18,6 @@ import {
   getEmailRecipients,
 } from "../../api/email-template";
 import { getEmailConfigs } from "../../api/email";
-import { logActivity } from "../../api/dashboard";
 import toast from "../../utils/toast";
 import type { EmailTemplate, EmailRecipient } from "../../types/email-template";
 import type { EmailConfig } from "../../types/email";
@@ -469,11 +468,6 @@ export function EmailSender({
         subject: sendForm.subject,
         body: sendForm.body,
         fromEmailId: sendForm.fromEmailId,
-      });
-
-      await logActivity({
-        type: "interview",
-        description: `发送邮件给 ${result.sentCount} 位候选人`,
       });
 
       toast.success(result.success ? result.message : `发送完成：成功 ${result.sentCount} 封`);
