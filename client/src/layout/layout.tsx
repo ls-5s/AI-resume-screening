@@ -29,7 +29,7 @@ export default function Layout() {
   );
 
   return (
-    <div className="flex min-h-screen bg-[#f8f9fc]">
+    <div className="flex min-h-screen bg-[var(--app-page-bg,#f8f9fc)]">
       {/* Sidebar */}
       <aside
         className={`

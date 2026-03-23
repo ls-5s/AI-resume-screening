@@ -12,6 +12,21 @@
     system-ui,
     -apple-system,
     sans-serif;
+
+  /* 应用主色：与侧栏 Logo、导航选中、登录页一致 */
+  --app-primary: #0ea5e9;
+  --app-accent: #3b82f6;
+  --app-primary-hover: #0284c7;
+  --app-page-bg: #f8f9fc;
+  --app-primary-soft: rgb(14 165 233 / 0.1);
+  --app-accent-soft: rgb(59 130 246 / 0.1);
+}
+
+/* Tailwind v4：主题色工具类，便于组件统一引用 */
+@theme {
+  --color-app-primary: #0ea5e9;
+  --color-app-primary-hover: #0284c7;
+  --color-app-accent: #3b82f6;
 }
 
 body {

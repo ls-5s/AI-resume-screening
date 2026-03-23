@@ -15,13 +15,6 @@ export default function EmailTemplates() {
     setActiveTab("send");
   };
 
-  const now = new Date();
-  const dateStr = now.toLocaleDateString("zh-CN", {
-    month: "long",
-    day: "numeric",
-    weekday: "long",
-  });
-
   const tabs = [
     {
       id: "templates" as const,
@@ -38,10 +31,10 @@ export default function EmailTemplates() {
       label: "发送邮件",
       sub: "选择模板与收件人",
       icon: Send,
-      accent: "from-violet-500 to-purple-500",
-      ring: "ring-violet-500/25",
-      iconColor: "text-violet-600",
-      iconBg: "bg-violet-500/12",
+      accent: "from-blue-500 to-sky-500",
+      ring: "ring-blue-500/25",
+      iconColor: "text-blue-600",
+      iconBg: "bg-blue-500/12",
     },
   ];
 
@@ -54,8 +47,8 @@ export default function EmailTemplates() {
       />
 
       <div className="mx-auto max-w-[1360px] px-4 pb-12 pt-6 sm:px-6 lg:px-8">
-        {/* 页面头部 */}
-        <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        {/* 页面头部：标题在左，分段控件靠右 */}
+        <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">
               Email Hub
@@ -64,49 +57,52 @@ export default function EmailTemplates() {
               邮件管理
             </h1>
           </div>
-          <time
-            dateTime={now.toISOString()}
-            className="text-sm tabular-nums text-zinc-500"
-          >
-            {dateStr}
-          </time>
-        </header>
 
-        {/* Tab 切换：Dashboard 风格的 Segmented Control */}
-        <div className="mb-6 flex items-stretch gap-0 overflow-hidden rounded-2xl border border-zinc-200/70 bg-zinc-100/60 p-1 shadow-[inset_0_1px_2px_rgba(15,23,42,0.06)] sm:rounded-2xl sm:inline-flex sm:w-auto sm:self-start">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`
-                  relative flex flex-1 items-center gap-2.5 rounded-xl px-4 py-2.5
-                  text-sm font-medium transition-all duration-200 sm:flex-none
-                  ${
-                    isActive
-                      ? `bg-white text-zinc-900 shadow-[0_1px_3px_rgba(15,23,42,0.12),0_1px_2px_rgba(15,23,42,0.08)] ring-1 ring-zinc-950/[0.04]`
-                      : "text-zinc-500 hover:text-zinc-700"
-                  }
-                `}
-              >
-                <span
-                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors ${
-                    isActive ? tab.iconBg : "bg-zinc-200/60"
-                  }`}
-                >
-                  <Icon
-                    className={`h-[14px] w-[14px] ${isActive ? tab.iconColor : "text-zinc-400"}`}
-                    strokeWidth={1.75}
-                  />
-                </span>
-                <span className="hidden sm:inline">{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
+          <div className="flex shrink-0 justify-end">
+            {/* Tab 切换：分段控件贴页面最右侧 */}
+            <div
+              role="group"
+              aria-label="邮件功能切换"
+              className="flex w-full max-w-md items-stretch gap-0 overflow-hidden rounded-2xl border border-zinc-200/70 bg-zinc-100/60 p-1 shadow-[inset_0_1px_2px_rgba(15,23,42,0.06)] sm:ml-auto sm:w-auto sm:max-w-none"
+            >
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    aria-label={
+                      isActive ? `${tab.label}（当前）` : `切换到${tab.label}`
+                    }
+                    className={`
+                      relative flex flex-1 items-center justify-center gap-2.5 rounded-xl px-4 py-2.5
+                      text-sm font-medium transition-all duration-200 sm:flex-none sm:justify-start
+                      ${
+                        isActive
+                          ? `bg-white text-zinc-900 shadow-[0_1px_3px_rgba(15,23,42,0.12),0_1px_2px_rgba(15,23,42,0.08)] ring-1 ring-zinc-950/4`
+                          : "text-zinc-500 hover:text-zinc-700"
+                      }
+                    `}
+                  >
+                    <span
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                        isActive ? tab.iconBg : "bg-zinc-200/60"
+                      }`}
+                    >
+                      <Icon
+                        className={`h-[14px] w-[14px] ${isActive ? tab.iconColor : "text-zinc-400"}`}
+                        strokeWidth={1.75}
+                      />
+                    </span>
+                    <span className="hidden sm:inline">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </header>
 
         {/* 发送页统计 Strip（仅发送页显示） */}
         {activeTab === "send" && (
@@ -119,9 +115,9 @@ export default function EmailTemplates() {
                 icon: Layers,
                 desc: "可用模板",
                 value: totalTemplates,
-                accent: "text-violet-600",
-                iconBg: "bg-violet-500/12",
-                bar: "border-t-violet-500/90",
+                accent: "text-sky-600",
+                iconBg: "bg-sky-500/12",
+                bar: "border-t-sky-500/90",
               },
               {
                 icon: Send,
@@ -141,7 +137,7 @@ export default function EmailTemplates() {
               },
               {
                 icon: Zap,
-                desc: "本周发送",
+                desc: "本月发送",
                 value: 0,
                 accent: "text-emerald-600",
                 iconBg: "bg-emerald-500/12",

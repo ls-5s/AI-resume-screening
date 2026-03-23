@@ -36,6 +36,8 @@ export interface SendEmailResult {
   message: string;
   sentCount: number;
   failedCount: number;
+  /** 实际发送成功的候选人 ID（与后端一致） */
+  successfulCandidateIds?: number[];
 }
 
 // 收件人类型（从简历表获取）

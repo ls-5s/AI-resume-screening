@@ -34,13 +34,6 @@ interface EmailTemplateListProps {
   onUseTemplate?: (template: EmailTemplate) => void;
 }
 
-const VARIABLES = [
-  { key: "{{name}}", desc: "候选人姓名" },
-  { key: "{{email}}", desc: "候选人邮箱" },
-  { key: "{{phone}}", desc: "候选人电话" },
-  { key: "{{position}}", desc: "应聘职位" },
-];
-
 function SkeletonCard({ index }: { index: number }) {
   return (
     <div
@@ -244,7 +237,7 @@ export function EmailTemplateList({
             </p>
             <button
               onClick={() => openModal()}
-              className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800"
+              className="inline-flex items-center gap-2 rounded-full bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-sky-700"
             >
               <Plus className="h-4 w-4" strokeWidth={2} />
               创建第一个模板
@@ -289,8 +282,8 @@ export function EmailTemplateList({
                     group relative text-left rounded-2xl border p-5 transition-all duration-200
                     ${
                       isSelected
-                        ? "border-zinc-300 bg-white shadow-[0_4px_16px_-4px_rgba(15,23,42,0.12)] ring-2 ring-zinc-400/30"
-                        : "border-zinc-200/70 bg-white shadow-[0_1px_3px_-1px_rgba(15,23,42,0.08)] ring-1 ring-zinc-950/[0.03] hover:-translate-y-px hover:border-zinc-300 hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)]"
+                        ? "border-sky-200/90 bg-white shadow-[0_4px_16px_-4px_rgba(14,165,233,0.14)] ring-2 ring-sky-300/45"
+                        : "border-zinc-200/70 bg-white shadow-[0_1px_3px_-1px_rgba(15,23,42,0.08)] ring-1 ring-zinc-950/3 hover:-translate-y-px hover:border-sky-200/70 hover:shadow-[0_8px_24px_-8px_rgba(14,165,233,0.1)]"
                     }
                   `}
                   style={{ animationDelay: `${index * 40}ms` }}
@@ -301,7 +294,7 @@ export function EmailTemplateList({
                       <div
                         className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
                           isSelected
-                            ? "bg-zinc-900 shadow-sm"
+                            ? "bg-linear-to-br from-[var(--app-primary)] to-[var(--app-accent)] shadow-[0_2px_8px_rgba(14,165,233,0.35)]"
                             : "bg-zinc-100 ring-1 ring-zinc-200/80"
                         }`}
                       >
@@ -386,7 +379,7 @@ export function EmailTemplateList({
                           e.stopPropagation();
                           onUseTemplate(template);
                         }}
-                        className="inline-flex items-center gap-1 rounded-full bg-zinc-900 px-3 py-1 text-[11px] font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800"
+                        className="inline-flex items-center gap-1 rounded-full bg-sky-600 px-3 py-1 text-[11px] font-semibold text-white shadow-sm transition-colors hover:bg-sky-700"
                       >
                         <Send className="h-3 w-3" strokeWidth={2} />
                         去使用
@@ -396,7 +389,7 @@ export function EmailTemplateList({
 
                   {/* 选中指示器 */}
                   {isSelected && (
-                    <div className="absolute -right-px -top-px h-3 w-3 rounded-bl-lg rounded-tr-2xl bg-zinc-900 shadow-sm" />
+                    <div className="absolute -right-px -top-px h-3 w-3 rounded-bl-lg rounded-tr-2xl bg-sky-500 shadow-sm" />
                   )}
                 </button>
               );
@@ -427,7 +420,7 @@ export function EmailTemplateList({
                     aria-label={`第 ${i + 1} 页`}
                     className={`flex h-8 min-w-8 items-center justify-center rounded-xl px-2 text-sm font-medium transition-all ${
                       currentPage === i + 1
-                        ? "bg-zinc-900 text-white shadow-sm"
+                        ? "bg-sky-600 text-white shadow-sm"
                         : "border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"
                     }`}
                   >
@@ -458,8 +451,8 @@ export function EmailTemplateList({
           <div className="border-b border-zinc-100/80 px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 ring-1 ring-zinc-200/80">
-                  <Eye className="h-[16px] w-[16px] text-zinc-500" strokeWidth={1.75} />
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500/10 ring-1 ring-sky-200/80">
+                  <Eye className="h-[16px] w-[16px] text-sky-600" strokeWidth={1.75} />
                 </div>
                 <div>
                   <h2 className="text-sm font-semibold tracking-tight text-zinc-900">
@@ -473,7 +466,7 @@ export function EmailTemplateList({
                   <button
                     type="button"
                     onClick={() => onUseTemplate(previewTemplate)}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-zinc-900 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-sky-700"
                   >
                     <Send className="h-3.5 w-3.5" strokeWidth={2} />
                     使用此模板
@@ -513,24 +506,24 @@ export function EmailTemplateList({
           <div className="p-6">
             {/* 邮件信息摘要 */}
             <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className="rounded-xl bg-zinc-50 px-4 py-3 ring-1 ring-inset ring-zinc-200/60">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400 mb-1.5">
+              <div className="rounded-xl bg-sky-50/60 px-4 py-3 ring-1 ring-inset ring-sky-100/80">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-600/80 mb-1.5">
                   模板名称
                 </p>
                 <p className="truncate text-sm font-semibold text-zinc-900">
                   {previewTemplate.name}
                 </p>
               </div>
-              <div className="rounded-xl bg-zinc-50 px-4 py-3 ring-1 ring-inset ring-zinc-200/60">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400 mb-1.5">
+              <div className="rounded-xl bg-sky-50/60 px-4 py-3 ring-1 ring-inset ring-sky-100/80">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-600/80 mb-1.5">
                   创建时间
                 </p>
                 <p className="text-sm font-medium text-zinc-700">
                   {formatDate(previewTemplate.createdAt)}
                 </p>
               </div>
-              <div className="rounded-xl bg-zinc-50 px-4 py-3 ring-1 ring-inset ring-zinc-200/60">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400 mb-1.5">
+              <div className="rounded-xl bg-sky-50/60 px-4 py-3 ring-1 ring-inset ring-sky-100/80">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-600/80 mb-1.5">
                   最近更新
                 </p>
                 <p className="text-sm font-medium text-zinc-700">
@@ -544,9 +537,9 @@ export function EmailTemplateList({
               <label className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
                 邮件主题
               </label>
-              <div className="mt-2 flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm ring-1 ring-inset ring-zinc-100">
+              <div className="mt-2 flex items-center gap-3 rounded-xl border border-sky-100/90 bg-white px-4 py-3 shadow-sm ring-1 ring-inset ring-sky-100/60">
                 <AtSign
-                  className="h-4 w-4 shrink-0 text-zinc-400"
+                  className="h-4 w-4 shrink-0 text-sky-500"
                   strokeWidth={1.75}
                 />
                 <p className="text-sm font-medium text-zinc-900">
@@ -560,7 +553,7 @@ export function EmailTemplateList({
               <label className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
                 邮件正文
               </label>
-              <div className="mt-2 min-h-[200px] rounded-xl border border-zinc-200 bg-white p-5 text-sm text-zinc-700 leading-relaxed shadow-sm ring-1 ring-inset ring-zinc-100 whitespace-pre-wrap">
+              <div className="mt-2 max-h-[min(22rem,42vh)] min-h-[8rem] overflow-y-auto overscroll-contain rounded-xl border border-zinc-200 bg-white p-5 text-sm text-zinc-700 leading-relaxed shadow-sm ring-1 ring-inset ring-zinc-100 whitespace-pre-wrap [overflow-wrap:anywhere]">
                 {previewTemplate.body}
               </div>
             </div>
@@ -574,8 +567,8 @@ export function EmailTemplateList({
         onClose={closeModal}
         title={
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 ring-1 ring-zinc-200/80">
-              <FileText className="h-4 w-4 text-zinc-600" strokeWidth={1.75} />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500/10 ring-1 ring-sky-200/80">
+              <FileText className="h-4 w-4 text-sky-600" strokeWidth={1.75} />
             </div>
             <div>
               <h2 className="text-base font-semibold text-zinc-900">
@@ -600,7 +593,7 @@ export function EmailTemplateList({
             <button
               type="submit"
               form="template-form"
-              className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-zinc-800"
+              className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-sky-700"
             >
               <Loader2 className="h-4 w-4 hidden data-[loading=true]:inline animate-spin" />
               {editingTemplate ? "保存修改" : "创建模板"}
@@ -620,7 +613,7 @@ export function EmailTemplateList({
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
               }
-              className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-100 transition-all focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950/[0.08]"
+              className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-100 transition-all focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/25"
               placeholder="例如：面试邀请模板"
               required
             />
@@ -637,7 +630,7 @@ export function EmailTemplateList({
               onChange={(e) =>
                 setFormData({ ...formData, subject: e.target.value })
               }
-              className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-100 transition-all focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950/[0.08]"
+              className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-100 transition-all focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/25"
               placeholder="例如：{{name}}，恭喜您通过初筛！"
               required
             />
@@ -653,43 +646,10 @@ export function EmailTemplateList({
               onChange={(e) =>
                 setFormData({ ...formData, body: e.target.value })
               }
-              rows={10}
-              className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-100 transition-all focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950/[0.08] resize-none font-mono max-h-[280px] overflow-y-auto"
+              className="w-full max-h-[min(20rem,38vh)] min-h-[10rem] resize-y overflow-y-auto rounded-xl border border-zinc-200 bg-white px-4 py-3 font-mono text-sm text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-100 transition-all focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/25"
               placeholder="尊敬的 {{name}} 您好：&#10;&#10;感谢您投递我们公司的 {{position}} 职位..."
               required
             />
-          </div>
-
-          {/* 变量提示 */}
-          <div className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-zinc-50/80 p-4 ring-1 ring-inset ring-zinc-200/60">
-            <div className="mb-3 flex items-center gap-2">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                变量说明
-              </span>
-              <span className="text-[11px] text-zinc-400">
-                在邮件内容中点击使用
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {VARIABLES.map((v) => (
-                <button
-                  key={v.key}
-                  type="button"
-                  onClick={() => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      body: prev.body + v.key,
-                    }));
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 shadow-sm transition-all hover:-translate-y-px hover:border-zinc-300 hover:shadow"
-                >
-                  <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] font-mono text-zinc-800">
-                    {v.key}
-                  </code>
-                  <span className="text-zinc-400">{v.desc}</span>
-                </button>
-              ))}
-            </div>
           </div>
         </form>
       </Modal>

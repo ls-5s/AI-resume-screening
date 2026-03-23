@@ -239,6 +239,7 @@ export async function sendEmails(
       message: '没有可发送的收件人',
       sentCount: 0,
       failedCount: 0,
+      successfulCandidateIds: [],
     };
   }
 
@@ -260,6 +261,7 @@ export async function sendEmails(
 
   let sentCount = 0;
   let failedCount = 0;
+  const successfulCandidateIds: number[] = [];
 
   // 逐个发送邮件
   for (const candidate of targetCandidates) {
@@ -288,6 +290,7 @@ export async function sendEmails(
       });
 
       sentCount++;
+      successfulCandidateIds.push(candidate.id);
     } catch (error) {
       console.error(`发送邮件给 ${candidate.email} 失败:`, error);
       failedCount++;
@@ -299,5 +302,6 @@ export async function sendEmails(
     message: `发送完成：成功 ${sentCount} 封，失败 ${failedCount} 封`,
     sentCount,
     failedCount,
+    successfulCandidateIds,
   };
 }
