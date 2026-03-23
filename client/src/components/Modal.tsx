@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  title?: string;
+  title?: React.ReactNode;
   children: ReactNode;
   footer?: ReactNode;
   size?: "sm" | "md" | "lg" | "xl";
@@ -78,7 +78,9 @@ export function Modal({
         {(title || showCloseButton) && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             {title && (
-              <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+              typeof title === "string"
+                ? <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+                : <div className="text-lg font-semibold text-gray-900">{title}</div>
             )}
             {showCloseButton && (
               <button

@@ -4,11 +4,13 @@ import {
   Mail,
   Phone,
   Search,
-  Filter,
   User,
   FileText,
   Check,
   Settings,
+  ChevronDown,
+  X,
+  Loader2,
 } from "lucide-react";
 import {
   getEmailTemplates,
@@ -22,29 +24,168 @@ import type { EmailConfig } from "../../types/email";
 
 interface EmailSenderProps {
   onRefresh?: () => void;
-  /** 从「邮件模板」页点击「去使用这个模板」时传入，用于自动选中并填充该模板 */
   initialTemplateId?: number | null;
-  /** 应用完 initialTemplateId 后调用，便于父组件清空 initialTemplateId */
   onInitialTemplateApplied?: () => void;
+  onTemplateCount?: (count: number) => void;
 }
 
 // 状态颜色映射
-const statusColors = {
-  pending: "bg-amber-100 text-amber-700 border-amber-200",
-  passed: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  rejected: "bg-rose-100 text-rose-700 border-rose-200",
+const STATUS_CONFIG = {
+  pending: {
+    bg: "bg-amber-50",
+    border: "border-amber-200",
+    text: "text-amber-700",
+    label: "待筛选",
+    dot: "bg-amber-400",
+  },
+  passed: {
+    bg: "bg-emerald-50",
+    border: "border-emerald-200",
+    text: "text-emerald-700",
+    label: "已通过",
+    dot: "bg-emerald-500",
+  },
+  rejected: {
+    bg: "bg-red-50",
+    border: "border-red-200",
+    text: "text-red-700",
+    label: "已拒绝",
+    dot: "bg-red-500",
+  },
 };
 
-const statusLabels = {
-  pending: "待筛选",
-  passed: "已通过",
-  rejected: "已拒绝",
-};
+// 自定义 Select 组件（Dashboard 风格）
+function Select({
+  value,
+  onChange,
+  options,
+  placeholder,
+  disabled,
+  ariaLabel,
+}: {
+  value: number | string;
+  onChange: (v: number) => void;
+  options: { value: number; label: string }[];
+  placeholder?: string;
+  disabled?: boolean;
+  ariaLabel?: string;
+}) {
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        disabled={disabled}
+        aria-label={ariaLabel}
+        className="w-full appearance-none rounded-xl border border-zinc-200 bg-white px-4 py-3 pr-10 text-sm text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-100 transition-all focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950/8 disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-400"
+      >
+        {placeholder && (
+          <option value={0} disabled>
+            {placeholder}
+          </option>
+        )}
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <ChevronDown
+        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400"
+        strokeWidth={2}
+      />
+    </div>
+  );
+}
+
+// 收件人行组件
+function RecipientRow({
+  recipient,
+  checked,
+  onToggle,
+}: {
+  recipient: EmailRecipient;
+  checked: boolean;
+  onToggle: () => void;
+}) {
+  const status = STATUS_CONFIG[recipient.status] ?? STATUS_CONFIG.pending;
+  return (
+    <label
+      className={`
+        group flex items-center gap-3 rounded-xl px-3 py-2.5 cursor-pointer transition-all duration-150
+        ${
+          checked
+            ? "bg-zinc-100/70 ring-1 ring-zinc-300/50"
+            : "hover:bg-zinc-50"
+        }
+      `}
+    >
+      {/* Checkbox */}
+      <div
+        className={`
+          flex h-5 w-5 shrink-0 items-center justify-center rounded-lg border-2 transition-all duration-150
+          ${
+            checked
+              ? "bg-zinc-900 border-zinc-900 shadow-sm"
+              : "border-zinc-300 bg-white group-hover:border-zinc-400"
+          }
+        `}
+      >
+        {checked && <Check className="h-3 w-3 text-white" strokeWidth={2.5} />}
+      </div>
+      <input
+        type="checkbox"
+        className="sr-only"
+        checked={checked}
+        onChange={onToggle}
+      />
+
+      {/* 信息 */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="truncate text-sm font-semibold text-zinc-900">
+            {recipient.name}
+          </span>
+          <span
+            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${status.bg} ${status.border} ${status.text}`}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
+            {status.label}
+          </span>
+        </div>
+        <div className="mt-0.5 flex items-center gap-3 text-[11px] text-zinc-400">
+          {recipient.email && (
+            <span className="flex items-center gap-1 truncate max-w-[180px]">
+              <Mail size={10} strokeWidth={1.5} />
+              {recipient.email}
+            </span>
+          )}
+          {recipient.phone && (
+            <span className="flex items-center gap-1">
+              <Phone size={10} strokeWidth={1.5} />
+              {recipient.phone}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* 简历附件标识 */}
+      {recipient.resumeFile && (
+        <FileText
+          size={14}
+          className="shrink-0 text-zinc-300"
+          strokeWidth={1.5}
+        />
+      )}
+    </label>
+  );
+}
 
 export function EmailSender({
   onRefresh,
   initialTemplateId,
   onInitialTemplateApplied,
+  onTemplateCount,
 }: EmailSenderProps) {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [emailConfigs, setEmailConfigs] = useState<EmailConfig[]>([]);
@@ -68,7 +209,7 @@ export function EmailSender({
   });
   const [sending, setSending] = useState(false);
 
-  // 加载收件人列表（只拉全量，筛选在前端做，保证统计数与列表一致）
+  // 加载收件人列表
   const loadRecipients = async () => {
     try {
       const data = await getEmailRecipients();
@@ -90,6 +231,7 @@ export function EmailSender({
         if (cancelled) return;
         setTemplates(templatesData);
         setEmailConfigs(configsData);
+        onTemplateCount?.(templatesData.length);
         await loadRecipients();
         // 设置默认发件邮箱
         const defaultConfig =
@@ -107,7 +249,7 @@ export function EmailSender({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [onTemplateCount]);
 
   // 从「邮件模板」页带过来的模板：加载完成后自动选中并填充
   useEffect(() => {
@@ -126,7 +268,7 @@ export function EmailSender({
     }
   }, [loading, initialTemplateId, templates, onInitialTemplateApplied]);
 
-  // 统计各状态数量（基于全量列表，切换 tab 时数字始终正确）
+  // 统计各状态数量
   const stats = {
     all: recipients.length,
     pending: recipients.filter((r) => r.status === "pending").length,
@@ -134,7 +276,7 @@ export function EmailSender({
     rejected: recipients.filter((r) => r.status === "rejected").length,
   };
 
-  // 按状态 + 关键词筛选收件人（前端筛选，不重复请求）
+  // 按状态 + 关键词筛选收件人
   const filteredRecipients = recipients
     .filter((r) => statusFilter === "all" || r.status === statusFilter)
     .filter((r) => {
@@ -147,7 +289,7 @@ export function EmailSender({
       );
     });
 
-  // 切换状态筛选（仅改状态，不再请求接口）
+  // 切换状态筛选
   const handleStatusFilter = (
     status: "all" | "pending" | "passed" | "rejected",
   ) => {
@@ -196,12 +338,12 @@ export function EmailSender({
         description: `发送邮件给 ${sendForm.candidateIds.length} 位候选人`,
       });
       alert(result.message);
-      // 重置表单
       setSendForm((prev) => ({
         ...prev,
         candidateIds: [],
         subject: "",
         body: "",
+        templateId: 0,
       }));
       onRefresh?.();
     } catch (error) {
@@ -214,83 +356,81 @@ export function EmailSender({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center py-24">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin" />
-          <span className="text-sm text-slate-500">加载中...</span>
+          <Loader2 className="h-9 w-9 animate-spin text-zinc-400" />
+          <span className="text-sm text-zinc-500">加载中...</span>
         </div>
       </div>
     );
   }
 
+  const selectedCount = sendForm.candidateIds.length;
+
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        {/* 左侧：邮件内容编辑 */}
-        <div className="xl:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          {/* 头部 */}
-          <div className="px-6 py-4 border-b border-slate-100 bg-linear-to-r from-indigo-50 to-white">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
+      {/* 左侧：邮件编辑 */}
+      <div className="lg:col-span-7">
+        <div className="overflow-hidden rounded-3xl border border-zinc-200/70 bg-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06)] ring-1 ring-zinc-950/[0.03]">
+          {/* 卡片头部 */}
+          <div className="border-b border-zinc-100/80 px-6 py-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
-                <Mail className="w-5 h-5 text-indigo-600" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500/12 ring-1 ring-inset ring-sky-500/25">
+                <Mail className="h-[17px] w-[17px] text-sky-600" strokeWidth={1.75} />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">
-                  编辑邮件
+                <h2 className="text-sm font-semibold tracking-tight text-zinc-900">
+                  编辑邮件内容
                 </h2>
-                <p className="text-sm text-slate-500">填写邮件内容和收件人</p>
+                <p className="text-xs text-zinc-500">填写邮件信息，选择收件人并发送</p>
               </div>
             </div>
           </div>
 
           <div className="p-6 space-y-5">
             {/* 选择模板 */}
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                选择模板（可选）
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-zinc-700">
+                选择模板
               </label>
-              <select
+              <Select
                 value={sendForm.templateId}
-                onChange={(e) => handleSelectTemplate(Number(e.target.value))}
-                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-sm"
-                aria-label="选择邮件模板"
-              >
-                <option value={0}>-- 选择模板 --</option>
-                {templates.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.name}
-                  </option>
-                ))}
-              </select>
+                onChange={handleSelectTemplate}
+                placeholder="-- 选择模板（可选） --"
+                ariaLabel="选择邮件模板"
+                options={templates.map((t) => ({
+                  value: t.id,
+                  label: t.name,
+                }))}
+              />
+              {templates.length === 0 && (
+                <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-600">
+                  <Settings size={12} strokeWidth={1.75} />
+                  暂无模板，请先在「模板管理」中创建
+                </p>
+              )}
             </div>
 
             {/* 发件邮箱 */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                发件邮箱 <span className="text-rose-500">*</span>
+              <label className="mb-2 block text-sm font-semibold text-zinc-700">
+                发件邮箱 <span className="text-red-400">*</span>
               </label>
-              <select
+              <Select
                 value={sendForm.fromEmailId}
-                onChange={(e) =>
-                  setSendForm({
-                    ...sendForm,
-                    fromEmailId: Number(e.target.value),
-                  })
+                onChange={(v) =>
+                  setSendForm({ ...sendForm, fromEmailId: v })
                 }
-                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-sm"
-                aria-label="选择发件邮箱"
-                required
-              >
-                <option value={0}>-- 选择发件邮箱 --</option>
-                {emailConfigs.map((config) => (
-                  <option key={config.id} value={config.id}>
-                    {config.email} {config.isDefault && "⭐"}
-                  </option>
-                ))}
-              </select>
+                placeholder="-- 选择发件邮箱 --"
+                ariaLabel="选择发件邮箱"
+                options={emailConfigs.map((c) => ({
+                  value: c.id,
+                  label: `${c.email}${c.isDefault ? " · 默认" : ""}`,
+                }))}
+              />
               {emailConfigs.length === 0 && (
-                <p className="mt-2 text-xs text-amber-600 flex items-center gap-1">
-                  <Settings size={12} />
+                <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-600">
+                  <Settings size={12} strokeWidth={1.75} />
                   暂无邮箱配置，请先在设置中添加邮箱
                 </p>
               )}
@@ -298,129 +438,211 @@ export function EmailSender({
 
             {/* 邮件主题 */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                邮件主题 <span className="text-rose-500">*</span>
+              <label className="mb-2 block text-sm font-semibold text-zinc-700">
+                邮件主题 <span className="text-red-400">*</span>
               </label>
-              <input
-                type="text"
-                value={sendForm.subject}
-                onChange={(e) =>
-                  setSendForm({ ...sendForm, subject: e.target.value })
-                }
-                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                placeholder="请输入邮件主题"
-              />
+              <div className="relative">
+                <Mail
+                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400"
+                  strokeWidth={1.75}
+                />
+                <input
+                  type="text"
+                  value={sendForm.subject}
+                  onChange={(e) =>
+                    setSendForm({ ...sendForm, subject: e.target.value })
+                  }
+                  className="w-full rounded-xl border border-zinc-200 bg-white py-3 pl-11 pr-4 text-sm text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-100 transition-all focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950/[0.08]"
+                  placeholder="请输入邮件主题，支持变量替换"
+                />
+              </div>
             </div>
 
-            {/* 邮件正文：固定高度，内部滚动 */}
+            {/* 邮件正文 */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                邮件正文 <span className="text-rose-500">*</span>
+              <label className="mb-2 block text-sm font-semibold text-zinc-700">
+                邮件正文 <span className="text-red-400">*</span>
               </label>
               <textarea
                 value={sendForm.body}
                 onChange={(e) =>
                   setSendForm({ ...sendForm, body: e.target.value })
                 }
-                className="w-full min-h-[280px] max-h-[280px] h-[280px] px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none text-sm font-mono overflow-y-auto"
-                placeholder="请输入邮件内容，支持变量替换"
+                rows={12}
+                className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-100 transition-all focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950/[0.08] resize-none font-mono leading-relaxed"
+                placeholder="尊敬的 {{name}} 您好：&#10;&#10;感谢您投递我们公司的 {{position}} 职位..."
               />
+              {/* 变量快速插入 */}
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {[
+                  { key: "{{name}}", label: "姓名" },
+                  { key: "{{email}}", label: "邮箱" },
+                  { key: "{{phone}}", label: "电话" },
+                  { key: "{{position}}", label: "职位" },
+                ].map((v) => (
+                  <button
+                    key={v.key}
+                    type="button"
+                    onClick={() =>
+                      setSendForm((prev) => ({
+                        ...prev,
+                        body: prev.body + v.key,
+                      }))
+                    }
+                    className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-500 shadow-sm transition-all hover:-translate-y-px hover:border-zinc-300 hover:text-zinc-700 hover:shadow"
+                  >
+                    <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-[10px] text-zinc-700">
+                      {v.key}
+                    </code>
+                    {v.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* 右侧：收件人选择（固定高度，底部发送按钮始终可见） */}
-        <div className="xl:col-span-5 xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] xl:flex xl:flex-col">
-          {/* 收件人选择卡片（占据剩余空间，内部列表可滚动） */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden xl:flex-1 xl:min-h-0 xl:flex xl:flex-col">
-            {/* 头部 */}
-            <div className="px-6 py-4 border-b border-slate-100 bg-linear-to-r from-emerald-50 to-white">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
-                    <User className="w-5 h-5 text-emerald-600" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-slate-900">
-                      选择收件人
-                    </h2>
-                    <p className="text-sm text-slate-500">
-                      已选:{" "}
-                      <span className="font-medium text-emerald-600">
-                        {sendForm.candidateIds.length}
-                      </span>{" "}
-                      人
-                    </p>
-                  </div>
+      {/* 右侧：收件人选择 */}
+      <div className="lg:col-span-5">
+        {/* 收件人主卡片 */}
+        <div className="overflow-hidden rounded-3xl border border-zinc-200/70 bg-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06)] ring-1 ring-zinc-950/[0.03]">
+          {/* 卡片头部 */}
+          <div className="border-b border-zinc-100/80 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/12 ring-1 ring-inset ring-violet-500/25">
+                  <User className="h-[17px] w-[17px] text-violet-600" strokeWidth={1.75} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold tracking-tight text-zinc-900">
+                    选择收件人
+                  </h2>
+                  <p className="text-xs text-zinc-500">
+                    {selectedCount > 0 ? (
+                      <>
+                        已选择{" "}
+                        <span className="font-semibold text-violet-600">
+                          {selectedCount}
+                        </span>{" "}
+                        人
+                      </>
+                    ) : (
+                      "勾选候选人发送邮件"
+                    )}
+                  </p>
                 </div>
               </div>
+              {/* 清除选择 */}
+              {selectedCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSendForm((prev) => ({ ...prev, candidateIds: [] }))
+                  }
+                  className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
+                >
+                  <X className="h-3 w-3" strokeWidth={2} />
+                  清除
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="p-5 space-y-4">
+            {/* 搜索框 */}
+            <div className="relative">
+              <Search
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400"
+                strokeWidth={1.75}
+              />
+              <input
+                type="text"
+                placeholder="搜索姓名、邮箱或电话..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-xl border border-zinc-200 bg-white py-2.5 pl-11 pr-4 text-sm text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-100 transition-all focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950/[0.08]"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  aria-label="清除搜索"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
+                >
+                  <X className="h-3 w-3" strokeWidth={2} />
+                </button>
+              )}
             </div>
 
-            <div className="p-4 space-y-4 xl:flex-1 xl:min-h-0 xl:flex xl:flex-col xl:overflow-hidden">
-              {/* 搜索框 */}
-              <div className="relative">
-                <Search
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                  size={16}
-                />
-                <input
-                  type="text"
-                  placeholder="搜索姓名、邮箱或电话..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm bg-slate-50"
-                />
-              </div>
-
-              {/* 状态筛选 */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <Filter size={14} className="text-slate-400" />
-                {(["all", "pending", "passed", "rejected"] as const).map(
-                  (status) => (
-                    <button
-                      key={status}
-                      onClick={() => handleStatusFilter(status)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                        statusFilter === status
-                          ? status === "all"
-                            ? "bg-slate-800 text-white shadow-md"
-                            : statusColors[
-                                status as keyof typeof statusColors
-                              ] + " shadow-md"
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                      }`}
+            {/* 状态筛选标签组 */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {(
+                [
+                  ["all", "全部"],
+                  ["pending", "待筛选"],
+                  ["passed", "已通过"],
+                  ["rejected", "已拒绝"],
+                ] as const
+              ).map(([status, label]) => {
+                const count =
+                  status === "all"
+                    ? stats.all
+                    : stats[status as keyof typeof stats];
+                const isActive = statusFilter === status;
+                return (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => handleStatusFilter(status)}
+                    className={`
+                      inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-150
+                      ${
+                        isActive
+                          ? "bg-zinc-900 text-white shadow-sm"
+                          : "border border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50"
+                      }
+                    `}
+                  >
+                    {label}
+                    <span
+                      className={`
+                        rounded-full px-1.5 py-0.5 text-[10px] font-bold
+                        ${
+                          isActive
+                            ? "bg-white/20 text-white"
+                            : "bg-zinc-100 text-zinc-500"
+                        }
+                      `}
                     >
-                      {status === "all"
-                        ? "全部"
-                        : statusLabels[status as keyof typeof statusLabels]}
-                      <span className="ml-1.5 text-[10px] opacity-70">
-                        (
-                        {status === "all"
-                          ? stats.all
-                          : stats[status as keyof typeof stats]}
-                        )
-                      </span>
-                    </button>
-                  ),
-                )}
-              </div>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
 
-              {/* 收件人列表：固定高度，内部可滚动 */}
-              <div className="border border-slate-200 rounded-xl bg-slate-50 h-[360px] min-h-[200px] overflow-y-auto">
-                {filteredRecipients.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10">
-                    <User className="text-slate-300 mb-3" size={40} />
-                    <p className="text-sm text-slate-500 font-medium">
-                      {searchQuery ? "没有匹配的收件人" : "暂无收件人数据"}
-                    </p>
+            {/* 收件人列表 */}
+            <div className="rounded-2xl border border-zinc-200/80 bg-zinc-50/60 overflow-hidden">
+              {filteredRecipients.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 shadow-[inset_0_1px_2px_rgba(15,23,42,0.06)] ring-1 ring-zinc-200/80">
+                    <User className="h-6 w-6 text-zinc-300" strokeWidth={1.25} />
                   </div>
-                ) : (
-                  <div className="p-2 space-y-1">
-                    {/* 全选按钮 */}
-                    <div className="sticky top-0 bg-slate-50 pb-2 border-b border-slate-200 mb-2 px-2">
+                  <p className="text-sm font-medium text-zinc-600">
+                    {searchQuery ? "没有匹配的收件人" : "暂无收件人数据"}
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-400">
+                    {searchQuery ? "尝试其他关键词" : "请先添加候选人"}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* 全选操作栏 */}
+                  <div className="sticky top-0 z-10 border-b border-zinc-200/80 bg-zinc-50/90 px-3 py-2.5 backdrop-blur-sm">
+                    <div className="flex items-center justify-between">
                       <button
                         type="button"
-                        className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
                         onClick={() =>
                           setSendForm((prev) => ({
                             ...prev,
@@ -431,111 +653,129 @@ export function EmailSender({
                                 : filteredRecipients.map((r) => r.id),
                           }))
                         }
+                        className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-zinc-600 transition-colors hover:bg-zinc-200/70"
                       >
-                        <Check size={14} />
+                        <div
+                          className={`
+                            flex h-4 w-4 items-center justify-center rounded border transition-all
+                            ${
+                              sendForm.candidateIds.length ===
+                              filteredRecipients.length
+                                ? "bg-zinc-900 border-zinc-900"
+                                : "border-zinc-300 bg-white"
+                            }
+                          `}
+                        >
+                          {sendForm.candidateIds.length ===
+                            filteredRecipients.length && (
+                            <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />
+                          )}
+                        </div>
                         {sendForm.candidateIds.length ===
                         filteredRecipients.length
-                          ? "清空全部"
-                          : "选择全部"}
+                          ? "取消全选"
+                          : "全选本页"}
                       </button>
+                      <span className="text-[11px] text-zinc-400">
+                        共 {filteredRecipients.length} 人
+                      </span>
                     </div>
-                    {filteredRecipients.map((r) => {
-                      const checked = sendForm.candidateIds.includes(r.id);
-                      return (
-                        <label
-                          key={r.id}
-                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all ${
-                            checked
-                              ? "bg-indigo-50 border border-indigo-200"
-                              : "hover:bg-white border border-transparent"
-                          }`}
-                        >
-                          <div
-                            className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${
-                              checked
-                                ? "bg-indigo-600 border-indigo-600"
-                                : "border-slate-300 bg-white"
-                            }`}
-                          >
-                            {checked && (
-                              <Check className="text-white" size={12} />
-                            )}
-                          </div>
-                          <input
-                            type="checkbox"
-                            className="sr-only"
-                            checked={checked}
-                            onChange={() => {
-                              setSendForm((prev) => ({
-                                ...prev,
-                                candidateIds: checked
-                                  ? prev.candidateIds.filter((x) => x !== r.id)
-                                  : [...prev.candidateIds, r.id],
-                              }));
-                            }}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold text-slate-900 truncate">
-                                {r.name}
-                              </span>
-                              <span
-                                className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${statusColors[r.status]}`}
-                              >
-                                {statusLabels[r.status]}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                              {r.email && (
-                                <span className="flex items-center gap-1 truncate max-w-[160px]">
-                                  <Mail size={10} /> {r.email}
-                                </span>
-                              )}
-                              {r.phone && (
-                                <span className="flex items-center gap-1">
-                                  <Phone size={10} /> {r.phone}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          {r.resumeFile && (
-                            <FileText
-                              size={14}
-                              className="text-slate-400 shrink-0"
-                            />
-                          )}
-                        </label>
-                      );
-                    })}
                   </div>
-                )}
-              </div>
+
+                  {/* 收件人列表 */}
+                  <div className="max-h-[360px] overflow-y-auto p-2 space-y-1">
+                    {filteredRecipients.map((r) => (
+                      <RecipientRow
+                        key={r.id}
+                        recipient={r}
+                        checked={sendForm.candidateIds.includes(r.id)}
+                        onToggle={() =>
+                          setSendForm((prev) => ({
+                            ...prev,
+                            candidateIds: prev.candidateIds.includes(r.id)
+                              ? prev.candidateIds.filter((x) => x !== r.id)
+                              : [...prev.candidateIds, r.id],
+                          }))
+                        }
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
+        </div>
 
-          {/* 操作按钮：固定在右侧栏底部，滚动时始终可见 */}
-          <div className="flex gap-3 xl:shrink-0 xl:pt-4 xl:bg-white xl:rounded-b-2xl">
+        {/* 发送按钮：独立于列表卡片，固定在底部 */}
+        <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200/70 bg-white p-4 shadow-[0_1px_3px_-1px_rgba(15,23,42,0.08)] ring-1 ring-zinc-950/[0.03]">
+          <div className="flex items-center gap-3">
             <button
+              type="button"
               onClick={handleSend}
               disabled={
                 sending ||
                 emailConfigs.length === 0 ||
-                sendForm.candidateIds.length === 0
+                selectedCount === 0 ||
+                !sendForm.subject ||
+                !sendForm.body
               }
-              className="flex-1 py-3.5 bg-linear-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 font-medium shadow-lg shadow-indigo-200"
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-900 py-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-zinc-800 hover:-translate-y-px hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40 disabled:translate-y-0 disabled:shadow-none"
             >
               {sending ? (
                 <>
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   发送中...
+                </>
+              ) : selectedCount > 0 ? (
+                <>
+                  <Send className="h-4 w-4" strokeWidth={2} />
+                  发送给 {selectedCount} 位收件人
                 </>
               ) : (
                 <>
-                  <Send size={18} />
-                  发送给 {sendForm.candidateIds.length} 位收件人
+                  <Send className="h-4 w-4" strokeWidth={2} />
+                  选择收件人发送
                 </>
               )}
             </button>
+          </div>
+
+          {/* 验证提示 */}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[
+              {
+                ok: emailConfigs.length > 0,
+                msg: "发件邮箱",
+              },
+              {
+                ok: !!sendForm.subject,
+                msg: "邮件主题",
+              },
+              {
+                ok: !!sendForm.body,
+                msg: "邮件正文",
+              },
+              {
+                ok: selectedCount > 0,
+                msg: "收件人",
+              },
+            ].map(({ ok, msg }) => (
+              <span
+                key={msg}
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+                  ok
+                    ? "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200"
+                    : "bg-zinc-100 text-zinc-400 ring-1 ring-zinc-200"
+                }`}
+              >
+                {ok ? (
+                  <Check className="h-2.5 w-2.5" strokeWidth={2.5} />
+                ) : (
+                  <X className="h-2.5 w-2.5" strokeWidth={2.5} />
+                )}
+                {msg}
+              </span>
+            ))}
           </div>
         </div>
       </div>
