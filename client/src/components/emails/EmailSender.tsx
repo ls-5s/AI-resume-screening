@@ -41,6 +41,10 @@ const STATUS_META = {
     pill: "bg-red-500/[0.14] text-red-950/80",
     label: "已拒绝",
   },
+  sent: {
+    pill: "bg-teal-500/[0.14] text-teal-950/80",
+    label: "发送成功",
+  },
 } as const;
 
 const STATUS_FILTERS = [
@@ -68,10 +72,6 @@ type SendForm = {
 };
 
 type StatusFilter = (typeof STATUS_FILTERS)[number]["value"];
-
-function hasPersistedEmailSent(r: EmailRecipient): boolean {
-  return r.lastEmailSentAt != null && String(r.lastEmailSentAt).length > 0;
-}
 
 // ─── 子组件 ──────────────────────────────────────────────────────────────
 
@@ -140,11 +140,10 @@ function RecipientRow({
   onToggle: () => void;
 }) {
   const meta = STATUS_META[recipient.status] ?? STATUS_META.pending;
-  const emailSent = hasPersistedEmailSent(recipient);
-  const emailSentTitle =
-    emailSent && recipient.lastEmailSentAt
+  const sentTitle =
+    recipient.status === "sent" && recipient.lastEmailSentAt
       ? `已群发邮件成功（${new Date(recipient.lastEmailSentAt).toLocaleString("zh-CN")}）`
-      : "已群发邮件成功";
+      : undefined;
   return (
     <label
       className={`group flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2.5 transition-all duration-150 sm:gap-3 ${
@@ -174,17 +173,10 @@ function RecipientRow({
           </span>
           <span
             className={`inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-[11px] font-medium leading-tight tracking-tight ${meta.pill}`}
+            title={sentTitle}
           >
             {meta.label}
           </span>
-          {emailSent && (
-            <span
-              className="inline-flex shrink-0 items-center rounded-md bg-teal-500/[0.14] px-2 py-0.5 text-[11px] font-medium leading-tight tracking-tight text-teal-950/80"
-              title={emailSentTitle}
-            >
-              已发送
-            </span>
-          )}
         </div>
         {/* 联系信息 */}
         <div className="mt-0.5 flex min-w-0 items-center gap-2 overflow-hidden text-[11px] text-zinc-400 sm:gap-3">
@@ -387,13 +379,12 @@ export function EmailSender({
     pending: recipients.filter((r) => r.status === "pending").length,
     passed: recipients.filter((r) => r.status === "passed").length,
     rejected: recipients.filter((r) => r.status === "rejected").length,
-    sent: recipients.filter((r) => hasPersistedEmailSent(r)).length,
+    sent: recipients.filter((r) => r.status === "sent").length,
   };
 
   const filteredRecipients = recipients
     .filter((r) => {
       if (statusFilter === "all") return true;
-      if (statusFilter === "sent") return hasPersistedEmailSent(r);
       return r.status === statusFilter;
     })
     .filter((r) => {

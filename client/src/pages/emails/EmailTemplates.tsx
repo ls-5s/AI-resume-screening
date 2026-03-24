@@ -114,7 +114,7 @@ export default function EmailTemplates() {
                       text-sm font-medium transition-all duration-200 sm:flex-none sm:justify-start sm:px-4
                       ${
                         isActive
-                          ? "bg-white text-zinc-900 shadow-[0_2px_10px_-3px_rgba(15,23,42,0.14),0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-zinc-950/[0.06]"
+                          ? "bg-white text-zinc-900 shadow-[0_2px_10px_-3px_rgba(15,23,42,0.14),0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-zinc-950/6"
                           : "text-zinc-500 hover:bg-white/55 hover:text-zinc-800"
                       }
                     `}
@@ -183,7 +183,7 @@ export default function EmailTemplates() {
                   className={`
                     group relative flex flex-col rounded-2xl border border-zinc-200/80 bg-white
                     px-5 py-5 shadow-[0_1px_3px_-1px_rgba(15,23,42,0.08),0_4px_16px_-4px_rgba(15,23,42,0.06)]
-                    ring-1 ring-zinc-950/[0.03] transition-all duration-300 ease-out
+                    ring-1 ring-zinc-950/3 transition-all duration-300 ease-out
                     hover:-translate-y-0.5 hover:border-zinc-200 hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)]
                     sm:px-6 sm:py-6
                     ${m.bar} border-t-[3px]

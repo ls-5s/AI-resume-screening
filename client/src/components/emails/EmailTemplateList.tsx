@@ -279,15 +279,14 @@ export function EmailTemplateList({
             {paginatedTemplates.map((template, index) => {
               const isSelected = selectedTemplate?.id === template.id;
               return (
-                <button
+                <div
                   key={template.id}
-                  type="button"
                   onClick={() => {
                     setSelectedTemplate(template);
                     setPreviewTemplate(template);
                   }}
                   className={`
-                    group relative text-left rounded-2xl border p-5 transition-all duration-200
+                    group relative cursor-pointer text-left rounded-2xl border p-5 transition-all duration-200
                     ${
                       isSelected
                         ? "border-sky-200/90 bg-white shadow-[0_4px_16px_-4px_rgba(14,165,233,0.14)] ring-2 ring-sky-300/45"
@@ -409,7 +408,7 @@ export function EmailTemplateList({
                   {isSelected && (
                     <div className="absolute -right-px -top-px h-3 w-3 rounded-bl-lg rounded-tr-2xl bg-sky-500 shadow-sm" />
                   )}
-                </button>
+                </div>
               );
             })}
           </div>

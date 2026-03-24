@@ -1,6 +1,6 @@
 import { db } from '../../db/index.js';
 import { emailTemplates, emailConfigs, resumes, activities } from '../../db/schema.js';
-import { eq, and, desc, isNotNull, inArray, like, gte, lt, sql } from 'drizzle-orm';
+import { eq, and, desc, isNotNull, isNull, inArray, like, gte, lt, sql } from 'drizzle-orm';
 import nodemailer from 'nodemailer';
 import type {
   EmailTemplateInput,
@@ -258,7 +258,7 @@ export async function getEmailRecipients(
     status === 'sent'
       ? and(base, isNotNull(resumes.lastEmailSentAt))
       : status
-        ? and(base, eq(resumes.status, status))
+        ? and(base, eq(resumes.status, status), isNull(resumes.lastEmailSentAt))
         : base;
 
   const rows = await db
@@ -278,7 +278,9 @@ export async function getEmailRecipients(
 
   return rows.map((row) => ({
     ...row,
-    status: row.status as 'pending' | 'passed' | 'rejected',
+    status: row.lastEmailSentAt
+      ? 'sent'
+      : (row.status as 'pending' | 'passed' | 'rejected'),
   }));
 }
 

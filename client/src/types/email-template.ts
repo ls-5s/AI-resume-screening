@@ -53,7 +53,8 @@ export interface EmailRecipient {
   name: string;
   email: string | null;
   phone: string | null;
-  status: 'pending' | 'passed' | 'rejected';
+  /** 邮件发送页展示状态：sent 优先于简历审核状态 */
+  status: 'pending' | 'passed' | 'rejected' | 'sent';
   resumeFile: string | null;
   originalFileName: string | null;
   /** 后端写入：最近一次群发邮件发送成功的时间（ISO 字符串） */
