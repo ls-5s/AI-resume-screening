@@ -347,9 +347,7 @@ export function ResumeList({
   }
 
   if (resumes.length === 0) {
-    return (
-      <EmptyState title={emptyTitle} description={emptyDescription} />
-    );
+    return <EmptyState title={emptyTitle} description={emptyDescription} />;
   }
 
   return (

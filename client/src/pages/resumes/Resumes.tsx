@@ -19,6 +19,8 @@ import {
   ResumeDetailDrawer,
   PdfPreviewModal,
   ResumeStatusPieChart,
+  ResumePaginationBar,
+  DEFAULT_PAGE_SIZE,
 } from "../../components/resumes";
 import { ConfirmModal } from "../../components/Modal";
 
@@ -129,6 +131,8 @@ export default function Resumes() {
   }, [loadResumes]);
 
   const [viewMode, setViewMode] = useState<"overview" | "all">("overview");
+  const [listPage, setListPage] = useState(1);
+  const [listPageSize, setListPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   const latestImportedResumes = useMemo(() => {
     return [...resumes]
@@ -146,8 +150,36 @@ export default function Resumes() {
     );
   }, [resumes]);
 
-  const displayedResumes =
-    viewMode === "overview" ? latestImportedResumes : allResumesSorted;
+  const allListTotalPages = Math.max(
+    1,
+    Math.ceil(allResumesSorted.length / listPageSize),
+  );
+
+  useEffect(() => {
+    if (viewMode !== "all") return;
+    if (listPage > allListTotalPages) {
+      setListPage(Math.max(1, allListTotalPages));
+    }
+  }, [viewMode, listPage, allListTotalPages]);
+
+  const displayedResumes = useMemo(() => {
+    if (viewMode === "overview") {
+      return latestImportedResumes;
+    }
+    const start = (listPage - 1) * listPageSize;
+    return allResumesSorted.slice(start, start + listPageSize);
+  }, [
+    viewMode,
+    latestImportedResumes,
+    allResumesSorted,
+    listPage,
+    listPageSize,
+  ]);
+
+  const handleListPageSizeChange = (size: number) => {
+    setListPageSize(size);
+    setListPage(1);
+  };
 
   const stats = useMemo(
     () => ({
@@ -420,7 +452,7 @@ export default function Resumes() {
               <p className="mt-0.5 text-xs text-zinc-500">
                 {viewMode === "overview"
                   ? `仅展示最近导入的前 ${RECENT_IMPORT_LIMIT} 份 · 当前 ${displayedResumes.length} 份`
-                  : `共 ${resumes.length} 份 · 按导入时间从新到旧`}
+                  : `共 ${resumes.length} 份 · 每页 ${listPageSize} 条 · 按导入时间从新到旧`}
               </p>
             </div>
           </div>
@@ -428,18 +460,29 @@ export default function Resumes() {
           {loading ? (
             <SkeletonTable />
           ) : (
-            <ResumeList
-              resumes={displayedResumes}
-              loading={loading}
-              onView={handleView}
-              onDelete={handleDelete}
-              emptyTitle={emptyAfterFilter ? "暂无匹配" : undefined}
-              emptyDescription={
-                emptyAfterFilter
-                  ? "最近导入的简历中没有符合当前筛选或搜索的结果，可切换状态或清空搜索。"
-                  : undefined
-              }
-            />
+            <>
+              <ResumeList
+                resumes={displayedResumes}
+                loading={loading}
+                onView={handleView}
+                onDelete={handleDelete}
+                emptyTitle={emptyAfterFilter ? "暂无匹配" : undefined}
+                emptyDescription={
+                  emptyAfterFilter
+                    ? "最近导入的简历中没有符合当前筛选或搜索的结果，可切换状态或清空搜索。"
+                    : undefined
+                }
+              />
+              {viewMode === "all" ? (
+                <ResumePaginationBar
+                  totalCount={allResumesSorted.length}
+                  currentPage={listPage}
+                  pageSize={listPageSize}
+                  onPageChange={setListPage}
+                  onPageSizeChange={handleListPageSizeChange}
+                />
+              ) : null}
+            </>
           )}
         </section>
       </div>

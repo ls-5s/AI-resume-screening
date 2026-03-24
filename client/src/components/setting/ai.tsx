@@ -266,7 +266,7 @@ const ModelIcon = ({ apiUrl }: { apiUrl: string }) => {
         fill="none"
         className="shrink-0"
       >
-        <rect width="24" height="24" rx="6" fill="#0ea5e9" />
+        <rect width="24" height="24" rx="6" fill="#0ea5e9" className="fill-sky-500" />
         <path d="M7 7h4v10H7z" fill="white" />
         <path d="M13 7h4v6h-4z" fill="white" />
         <path d="M7 12h10" stroke="white" strokeWidth="2" />
@@ -360,7 +360,7 @@ const AiConfigCard = ({
               onClick={onEdit}
               disabled={loading}
               title="编辑"
-              className="rounded-lg p-1.5 text-zinc-400 transition-all hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed"
+              className="rounded-lg p-1.5 text-zinc-400 transition-all hover:bg-sky-50 hover:text-sky-600 disabled:cursor-not-allowed"
             >
               <svg
                 className="h-4 w-4"
@@ -816,7 +816,7 @@ export function AiSettings() {
         </div>
         <button
           onClick={handleAdd}
-          className="inline-flex items-center gap-2 rounded-2xl bg-linear-to-r from-violet-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:brightness-105"
+          className="inline-flex items-center gap-2 rounded-2xl bg-linear-to-r from-sky-600 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:brightness-105"
         >
           <Plus className="h-4 w-4" />
           添加配置
@@ -917,7 +917,7 @@ export function AiSettings() {
               <button
                 onClick={() => void handleSave()}
                 disabled={!formData.name.trim() || !formData.apiUrl || saving}
-                className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-violet-600 to-purple-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-sky-600 to-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {saving ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

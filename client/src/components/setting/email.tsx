@@ -170,7 +170,7 @@ const EmailCard = ({
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
               <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-white shadow-sm">
-                <Send className="h-3.5 w-3.5 text-violet-600" />
+                <Send className="h-3.5 w-3.5 text-sky-600" />
               </div>
               <span className="font-medium text-zinc-700">SMTP</span>
             </div>
@@ -390,7 +390,7 @@ export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
       await updateEmailConfig(id, { isDefault: true });
       toast.success("已设为默认邮箱");
       void loadConfigs();
-    } catch (error) {
+    } catch {
       toast.error("设置失败");
     }
   };
@@ -398,10 +398,10 @@ export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
   return (
     <div className="overflow-hidden rounded-3xl border border-zinc-200/70 bg-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06)] ring-1 ring-zinc-950/3">
       {/* Header */}
-      <div className="border-b border-zinc-100 bg-linear-to-r from-zinc-50/50 via-white to-zinc-50/50 p-6">
+      <div className="border-b border-zinc-100 bg-linear-to-r from-sky-100/50 via-white to-sky-100/50 p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-linear-to-br from-sky-500 to-blue-600 shadow-lg shadow-sky-500/25">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-linear-to-br from-sky-600 to-blue-600 shadow-lg shadow-sky-500/25">
               <Mail className="h-5 w-5 text-white" />
             </div>
             <div>
@@ -466,7 +466,7 @@ export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
         onClose={closeModal}
         title={
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-linear-to-br from-sky-500 to-blue-600">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-linear-to-br from-sky-600 to-blue-600">
               <Mail className="h-4 w-4 text-white" />
             </div>
             <span className="text-base font-semibold text-zinc-900">
@@ -496,7 +496,7 @@ export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
           {/* Basic info section */}
           <div className="rounded-2xl border border-zinc-100 bg-linear-to-b from-zinc-50/50 to-white p-5">
             <div className="mb-4 flex items-center gap-2 text-sm font-medium text-zinc-700">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-linear-to-br from-sky-500 to-blue-600 shadow-sm">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-linear-to-br from-sky-600 to-blue-600 shadow-sm">
                 <Mail className="h-4 w-4 text-white" />
               </div>
               邮箱信息
@@ -527,7 +527,7 @@ export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
           {/* IMAP settings */}
           <div className="rounded-2xl border border-zinc-100 bg-linear-to-b from-zinc-50/50 to-white p-5">
             <div className="mb-4 flex items-center gap-2 text-sm font-medium text-zinc-700">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-linear-to-br from-sky-500 to-blue-600 shadow-sm">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-linear-to-br from-sky-600 to-blue-600 shadow-sm">
                 <Inbox className="h-4 w-4 text-white" />
               </div>
               IMAP 接收设置
@@ -554,7 +554,7 @@ export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
           {/* SMTP settings */}
           <div className="rounded-2xl border border-zinc-100 bg-linear-to-b from-zinc-50/50 to-white p-5">
             <div className="mb-4 flex items-center gap-2 text-sm font-medium text-zinc-700">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-linear-to-br from-sky-500 to-blue-600 shadow-sm">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-linear-to-br from-sky-600 to-blue-600 shadow-sm">
                 <Send className="h-4 w-4 text-white" />
               </div>
               SMTP 发送设置

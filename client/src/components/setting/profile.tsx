@@ -276,7 +276,7 @@ export function ProfileSettings() {
     <div className="space-y-6">
       {/* Header Card */}
       <div className="overflow-hidden rounded-3xl border border-zinc-200/70 bg-white shadow-sm transition-shadow hover:shadow-md">
-        <div className="h-24 bg-linear-to-br from-violet-500/10 via-purple-500/10 to-indigo-500/10" />
+        <div className="h-24 bg-linear-to-br from-sky-500/10 via-blue-500/10 to-indigo-500/10" />
 
         <div className="relative px-6 pb-6">
           {/* Avatar */}
@@ -384,7 +384,7 @@ export function ProfileSettings() {
 
               {/* Badges */}
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-600 ring-1 ring-inset ring-violet-100">
+                <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-600 ring-1 ring-inset ring-sky-200">
                   <Shield className="h-3 w-3" />
                   个人账户
                 </span>
@@ -410,7 +410,7 @@ export function ProfileSettings() {
       <div className="grid gap-4 md:grid-cols-2">
         <div className="group relative rounded-2xl border border-zinc-200/60 bg-white p-4 transition-all hover:border-zinc-300 hover:shadow-sm">
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600 transition-colors group-hover:bg-violet-100">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600 transition-colors group-hover:bg-sky-100">
               <User className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
@@ -436,7 +436,7 @@ export function ProfileSettings() {
 
         <div className="group relative rounded-2xl border border-zinc-200/60 bg-white p-4 transition-all hover:border-zinc-300 hover:shadow-sm">
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600 transition-colors group-hover:bg-violet-100">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600 transition-colors group-hover:bg-sky-100">
               <Mail className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
