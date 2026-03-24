@@ -17,7 +17,6 @@ import {
   ResumeList,
   ResumeModal,
   ResumeDetailDrawer,
-  PdfPreviewModal,
   ResumeStatusPieChart,
   ResumePaginationBar,
   DEFAULT_PAGE_SIZE,
@@ -63,7 +62,6 @@ function SkeletonTable() {
             </div>
             <div className="h-5 w-16 rounded-full bg-zinc-100" />
             <div className="h-3 w-40 rounded bg-zinc-100" />
-            <div className="h-3 w-20 rounded bg-zinc-100" />
             <div className="h-3 w-28 rounded bg-zinc-100" />
             <div className="ml-auto flex gap-2">
               <div className="h-8 w-8 rounded-md bg-zinc-100" />
@@ -89,10 +87,6 @@ export default function Resumes() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [viewResume, setViewResume] = useState<Resume | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
-  const [pdfPreview, setPdfPreview] = useState<{
-    url: string;
-    fileName: string;
-  } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     id: number;
     name: string;
@@ -197,7 +191,8 @@ export default function Resumes() {
       const data = await getEmailConfigs();
       setEmailConfigs(data);
       if (data.length > 0) {
-        setSelectedConfigId(data[0].id);
+        const defaultConfig = data.find((c) => c.isDefault) ?? data[0];
+        setSelectedConfigId(defaultConfig.id);
       }
     } catch (error) {
       console.error("加载邮箱配置失败:", error);
@@ -504,14 +499,6 @@ export default function Resumes() {
         resume={viewResume}
         loading={viewLoading}
         onOpenChange={(open) => !open && setViewResume(null)}
-        onPreview={(url, fileName) => setPdfPreview({ url, fileName })}
-      />
-
-      <PdfPreviewModal
-        isOpen={!!pdfPreview}
-        onClose={() => setPdfPreview(null)}
-        url={pdfPreview?.url || null}
-        fileName={pdfPreview?.fileName || null}
       />
 
       <ResumeModal

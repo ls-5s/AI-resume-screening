@@ -6,15 +6,14 @@ import {
   Phone,
   Calendar,
   HardDrive,
-  Download,
   Sparkles,
   Clock,
   CheckCircle2,
   XCircle,
-  X,
   User,
   FileCheck,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "../Drawer";
 import type { Resume } from "../../types/resume";
 import { formatFileSize, formatDate, formatRelativeTime } from "../../utils/format";
@@ -71,7 +70,6 @@ interface ResumeDetailDrawerProps {
   resume: Resume | null;
   loading: boolean;
   onOpenChange: (open: boolean) => void;
-  onPreview: (url: string, fileName: string) => void;
 }
 
 // ============================================================================
@@ -115,43 +113,6 @@ const StatusBadge = ({ status }: { status: StatusType }) => {
     >
       <Icon className="h-3.5 w-3.5" />
       {config.label}
-    </div>
-  );
-};
-
-// ============================================================================
-// Info Card Component
-// ============================================================================
-
-const InfoItem = ({
-  icon: Icon,
-  label,
-  value,
-  truncate,
-}: {
-  icon: typeof Mail;
-  label: string;
-  value?: string | null;
-  truncate?: boolean;
-}) => {
-  if (!value) return null;
-
-  return (
-    <div className="flex items-center gap-3">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100">
-        <Icon className="h-4 w-4 text-zinc-500" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs font-medium text-zinc-400">{label}</p>
-        <p
-          className={`
-            text-sm font-medium text-zinc-900 truncate
-            ${truncate ? "max-w-[200px]" : ""}
-          `}
-        >
-          {value}
-        </p>
-      </div>
     </div>
   );
 };
@@ -209,11 +170,11 @@ const AISummaryCard = ({ summary }: { summary: string }) => (
 
 const ParsedContentCard = ({
   content,
-  onPreview,
+  onOpenOriginal,
   resume,
 }: {
   content: string;
-  onPreview: () => void;
+  onOpenOriginal: () => void;
   resume: Resume;
 }) => (
   <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden">
@@ -229,7 +190,9 @@ const ParsedContentCard = ({
       </div>
       {resume.resumeFile && (
         <button
-          onClick={onPreview}
+          type="button"
+          title="在新标签页打开"
+          onClick={onOpenOriginal}
           className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm ring-1 ring-zinc-200/50 transition-all hover:bg-zinc-50 hover:shadow-md"
         >
           <Eye className="h-4 w-4" />
@@ -269,16 +232,18 @@ export function ResumeDetailDrawer({
   resume,
   loading,
   onOpenChange,
-  onPreview,
 }: ResumeDetailDrawerProps) {
-  const handlePreview = () => {
+  const handleOpenOriginalFile = () => {
     if (!resume?.resumeFile) return;
     const fullPath = resume.resumeFile;
     const relativePath = fullPath
       .replace(/^.*[\\/]uploads[\\/]/, "uploads/")
       .replace(/\\/g, "/");
     const fileUrl = `${API_BASE_URL}/${relativePath}`;
-    onPreview(fileUrl, resume.originalFileName || "简历");
+    const opened = window.open(fileUrl, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      toast.error("无法打开新窗口，请检查浏览器是否拦截了弹窗");
+    }
   };
 
   const hasSummary = !!resume?.summary;
@@ -389,7 +354,7 @@ export function ResumeDetailDrawer({
               {hasContent ? (
                 <ParsedContentCard
                   content={resume.parsedContent!}
-                  onPreview={handlePreview}
+                  onOpenOriginal={handleOpenOriginalFile}
                   resume={resume}
                 />
               ) : (

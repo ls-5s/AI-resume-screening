@@ -8,7 +8,6 @@ import type { Resume } from "../../types/resume";
 import {
   ResumeList,
   ResumeDetailDrawer,
-  PdfPreviewModal,
   ResumePaginationBar,
   DEFAULT_PAGE_SIZE,
 } from "../../components/resumes";
@@ -42,6 +41,7 @@ function SkeletonAllTable() {
             </div>
             <div className="h-5 w-16 rounded-full bg-zinc-100" />
             <div className="h-3 w-40 rounded bg-zinc-100" />
+            <div className="h-3 w-28 rounded bg-zinc-100" />
             <div className="ml-auto flex gap-2">
               <div className="h-8 w-8 rounded-md bg-zinc-100" />
               <div className="h-8 w-8 rounded-md bg-zinc-100" />
@@ -62,10 +62,6 @@ export default function ResumesAll() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [viewResume, setViewResume] = useState<Resume | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
-  const [pdfPreview, setPdfPreview] = useState<{
-    url: string;
-    fileName: string;
-  } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     id: number;
     name: string;
@@ -299,14 +295,6 @@ export default function ResumesAll() {
         resume={viewResume}
         loading={viewLoading}
         onOpenChange={(open) => !open && setViewResume(null)}
-        onPreview={(url, fileName) => setPdfPreview({ url, fileName })}
-      />
-
-      <PdfPreviewModal
-        isOpen={!!pdfPreview}
-        onClose={() => setPdfPreview(null)}
-        url={pdfPreview?.url || null}
-        fileName={pdfPreview?.fileName || null}
       />
 
       <ConfirmModal

@@ -6,17 +6,12 @@ import {
   Mail,
   Phone,
   Calendar,
-  HardDrive,
   Clock,
   CheckCircle2,
   XCircle,
 } from "lucide-react";
 import type { Resume } from "../../types/resume";
-import {
-  formatFileSize,
-  formatDate,
-  formatRelativeTime,
-} from "../../utils/format";
+import { formatDate } from "../../utils/format";
 
 // ============================================================================
 // Types & Constants
@@ -144,7 +139,6 @@ function ResumeTable({
             <th className="px-6 py-3 font-medium">候选人</th>
             <th className="px-4 py-3 font-medium">状态</th>
             <th className="px-4 py-3 font-medium">联系方式</th>
-            <th className="px-4 py-3 font-medium">文件</th>
             <th className="px-4 py-3 font-medium">导入时间</th>
             <th className="px-6 py-3 pr-6 text-right font-medium">操作</th>
           </tr>
@@ -189,25 +183,10 @@ function ResumeTable({
                 </div>
               </td>
               <td className="px-4 py-3.5 align-middle text-xs text-zinc-600">
-                <div className="flex items-center gap-1 whitespace-nowrap">
-                  <HardDrive className="h-3.5 w-3.5 text-zinc-400" />
-                  <span className="font-medium">
-                    {resume.fileType?.toUpperCase() ?? "—"}
-                  </span>
-                  <span className="text-zinc-300">·</span>
-                  <span>{formatFileSize(resume.fileSize || 0)}</span>
-                </div>
-              </td>
-              <td className="px-4 py-3.5 align-middle text-xs text-zinc-600">
-                <div className="flex flex-col gap-0.5">
-                  <span className="flex items-center gap-1 tabular-nums">
-                    <Calendar className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-                    {formatDate(resume.createdAt)}
-                  </span>
-                  <span className="pl-5 text-zinc-400">
-                    {formatRelativeTime(resume.createdAt)}
-                  </span>
-                </div>
+                <span className="flex items-center gap-1 tabular-nums">
+                  <Calendar className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                  {formatDate(resume.createdAt)}
+                </span>
               </td>
               <td className="px-6 py-3.5 pr-6 align-middle text-right">
                 <div className="inline-flex items-center gap-0.5">
@@ -289,12 +268,9 @@ function ResumeMobileCard({
                 </div>
               )}
             </div>
-            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-400">
-              <span>
-                {resume.fileType?.toUpperCase()} ·{" "}
-                {formatFileSize(resume.fileSize || 0)}
-              </span>
-              <span>{formatRelativeTime(resume.createdAt)}</span>
+            <div className="mt-2 flex items-center gap-1 text-[11px] text-zinc-400 tabular-nums">
+              <Calendar className="h-3 w-3 shrink-0" />
+              {formatDate(resume.createdAt)}
             </div>
             {hasSummary && (
               <p className="mt-2 line-clamp-2 border-l-2 border-zinc-200 pl-2 text-xs leading-relaxed text-zinc-600">

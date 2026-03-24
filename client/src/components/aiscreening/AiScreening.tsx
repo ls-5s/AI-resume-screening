@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { toast } from "sonner";
 import {
   Loader2,
   FileText,
@@ -28,17 +29,19 @@ import type { AiConfig } from "../../types/ai";
 // 状态筛选类型
 type StatusFilter = "all" | "pending" | "passed" | "rejected";
 
-// 列表状态样式
+// 与 ResumeList 状态徽章一致
 const listStatusStyles = {
-  pending: "bg-gray-200 text-gray-800",
-  passed: "bg-green-500 text-white",
-  rejected: "bg-red-500 text-white",
+  pending:
+    "bg-amber-50 text-amber-800 border border-amber-200/80",
+  passed:
+    "bg-emerald-50 text-emerald-800 border border-emerald-200/80",
+  rejected: "bg-rose-50 text-rose-800 border border-rose-200/80",
 };
 
 const listStatusLabels = {
-  pending: "待定",
-  passed: "通过",
-  rejected: "拒绝",
+  pending: "待筛选",
+  passed: "已通过",
+  rejected: "已拒绝",
 };
 
 const LIST_PAGE_SIZE = 10;
@@ -262,12 +265,12 @@ export function AiScreening() {
   // 筛选单个简历
   const handleScreenResume = async (resumeId: number) => {
     if (!jobRequirements.trim()) {
-      alert("请输入岗位要求");
+      toast.error("请输入岗位要求");
       return;
     }
 
     if (!selectedAiConfigId) {
-      alert("请选择AI配置");
+      toast.error("请选择 AI 配置");
       return;
     }
 
@@ -328,7 +331,7 @@ export function AiScreening() {
       }
     } catch (error) {
       console.error("AI筛选失败:", error);
-      alert("AI筛选失败，请重试");
+      toast.error("AI 筛选失败，请重试");
     } finally {
       setScreeningResumeId(null);
     }
@@ -337,17 +340,17 @@ export function AiScreening() {
   // 批量筛选
   const handleBatchScreen = async () => {
     if (!jobRequirements.trim()) {
-      alert("请输入岗位要求");
+      toast.error("请输入岗位要求");
       return;
     }
 
     if (!selectedAiConfigId) {
-      alert("请选择AI配置");
+      toast.error("请选择 AI 配置");
       return;
     }
 
     if (resumes.length === 0) {
-      alert("暂无简历可筛选");
+      toast.error("暂无简历可筛选");
       return;
     }
 
@@ -422,7 +425,7 @@ export function AiScreening() {
       }
     } catch (error) {
       console.error("批量筛选失败:", error);
-      alert("批量筛选失败，请重试");
+      toast.error("批量筛选失败，请重试");
     } finally {
       setScreeningAll(false);
     }
@@ -445,7 +448,7 @@ export function AiScreening() {
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="relative flex min-h-full flex-col">
       {jobConfigModalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -456,62 +459,63 @@ export function AiScreening() {
             if (e.target === e.currentTarget) setJobConfigModalOpen(false);
           }}
         >
-          <div className="absolute inset-0 bg-black/40" />
+          <div className="absolute inset-0 bg-zinc-900/40 backdrop-blur-[2px]" />
 
-          <div className="relative w-full max-w-3xl bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-              <div className="flex items-center gap-2 min-w-0">
-                <Briefcase className="w-4 h-4 text-gray-500" />
-                <p className="font-medium text-gray-900 truncate">
+          <div className="relative w-full max-w-3xl overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-[0_24px_48px_-12px_rgba(15,23,42,0.18)]">
+            <div className="flex items-center justify-between border-b border-zinc-100/80 px-5 py-3.5">
+              <div className="flex min-w-0 items-center gap-2">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-600 text-white shadow-sm">
+                  <Briefcase className="h-4 w-4" />
+                </div>
+                <p className="truncate text-sm font-semibold text-zinc-900">
                   岗位要求与 AI 配置
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setJobConfigModalOpen(false)}
-                className="p-2 rounded-lg hover:bg-gray-100 text-gray-600"
+                className="rounded-lg p-2 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
                 title="关闭"
               >
-                <X className="w-4 h-4" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="p-4">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_16rem] md:items-start">
+            <div className="p-5">
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(0,1fr)_16rem] md:items-start">
                 <div className="min-w-0">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="mb-2 block text-sm font-medium text-zinc-700">
                     岗位要求
                   </label>
                   <textarea
                     value={jobRequirements}
                     onChange={(e) => setJobRequirements(e.target.value)}
-                    placeholder="请输入岗位要求，例如：需要3年以上前端开发经验，熟悉React、Vue框架..."
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                    placeholder="请输入岗位要求，例如：需要3年以上前端开发经验，熟悉 React、Vue 框架..."
+                    className="w-full resize-none rounded-xl border border-zinc-200/80 px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200"
                     rows={6}
                   />
                 </div>
 
                 <div className="flex flex-col gap-3">
                   <div className="min-w-0">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="mb-2 block text-sm font-medium text-zinc-700">
                       AI 配置
                     </label>
                     {loadingAiConfigs ? (
-                      <div className="flex items-center justify-center h-10 bg-gray-50 rounded-lg">
-                        <Loader2 className="animate-spin w-4 h-4 text-gray-400" />
+                      <div className="flex h-10 items-center justify-center rounded-xl bg-zinc-50">
+                        <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
                       </div>
                     ) : aiConfigs.length === 0 ? (
-                      <div className="h-10 flex items-center justify-center bg-gray-50 rounded-lg text-sm text-gray-500">
-                        暂无AI配置
+                      <div className="flex h-10 items-center justify-center rounded-xl bg-zinc-50 text-sm text-zinc-500">
+                        暂无 AI 配置
                       </div>
                     ) : (
                       <select
-                        title="选择AI配置"
+                        title="选择 AI 配置"
                         value={selectedAiConfigId ?? ""}
                         onChange={(e) => {
                           const configId = Number(e.target.value);
                           setSelectedAiConfigId(configId);
-                          // 自动填充岗位要求
                           const selectedConfig = aiConfigs.find(
                             (c) => c.id === configId,
                           );
@@ -519,7 +523,7 @@ export function AiScreening() {
                             setJobRequirements(selectedConfig.prompt);
                           }
                         }}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                        className="w-full rounded-xl border border-zinc-200/80 bg-white px-3 py-2.5 text-sm text-zinc-900 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200"
                       >
                         {aiConfigs
                           .filter((config) => config.id !== null)
@@ -533,6 +537,7 @@ export function AiScreening() {
                   </div>
 
                   <button
+                    type="button"
                     onClick={handleBatchScreen}
                     disabled={
                       screeningAll ||
@@ -540,12 +545,12 @@ export function AiScreening() {
                       !selectedAiConfigId ||
                       !jobRequirements.trim()
                     }
-                    className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {screeningAll ? (
-                      <Loader2 className="animate-spin w-4 h-4" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <Sparkles className="w-4 h-4" />
+                      <Sparkles className="h-4 w-4" />
                     )}
                     批量筛选全部
                   </button>
@@ -553,7 +558,7 @@ export function AiScreening() {
                   <button
                     type="button"
                     onClick={() => setJobConfigModalOpen(false)}
-                    className="w-full px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="w-full rounded-xl border border-zinc-200/80 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
                   >
                     关闭
                   </button>
@@ -564,320 +569,361 @@ export function AiScreening() {
         </div>
       )}
 
-      {/* 主内容区域 - 左右分栏（参考图布局） */}
-      <div className="flex-1 flex gap-0 min-h-0 bg-gray-50 pb-14">
-        {/* 左侧：搜索 + 状态 Tab + 候选人列表 */}
-        <div className="w-[380px] shrink-0 flex flex-col min-h-0 bg-gray-50 border-r border-gray-200 overflow-hidden">
-          <div className="shrink-0 p-3 border-b border-gray-200">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="搜索简历/姓名/邮箱"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-          <div className="shrink-0 px-3 pt-2 flex gap-1 border-b border-gray-100">
-            {(
-              [
-                { key: "all" as const, label: "全部" },
-                { key: "pending" as const, label: "未筛选" },
-                { key: "passed" as const, label: "已通过" },
-                { key: "rejected" as const, label: "已拒绝" },
-              ] as const
-            ).map(({ key, label }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setStatusFilter(key)}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  statusFilter === key
-                    ? "bg-purple-600 text-white"
-                    : "text-gray-600 hover:bg-gray-100"
-                }`}
+      <div
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(14,165,233,0.08),transparent)]"
+        aria-hidden
+      />
+
+      <div className="mx-auto flex min-h-0 max-w-[1360px] flex-1 flex-col px-4 pb-12 pt-6 sm:px-6 lg:px-8">
+        <header className="mb-6 flex flex-col gap-1 sm:mb-8">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">
+            AI Screening
+          </p>
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 sm:text-[1.75rem]">
+            AI 智能筛选
+          </h1>
+          <p className="text-sm text-zinc-500">
+            选择候选人、配置岗位要求与模型，查看匹配度与评估理由
+          </p>
+        </header>
+
+        <section
+          className="flex min-h-[min(640px,calc(100vh-11rem))] flex-1 flex-col overflow-hidden rounded-3xl border border-zinc-200/70 bg-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06)]"
+          aria-label="AI 筛选工作台"
+        >
+          <div className="flex min-h-0 flex-1">
+            <aside className="flex w-[380px] shrink-0 flex-col border-r border-zinc-200/80 bg-zinc-50/50">
+              <div className="shrink-0 border-b border-zinc-100/80 p-3">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                  <input
+                    type="search"
+                    placeholder="搜索姓名/邮箱"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full rounded-xl border border-zinc-200/80 bg-white py-2.5 pl-9 pr-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200"
+                    aria-label="搜索简历"
+                  />
+                </div>
+              </div>
+              <div
+                className="shrink-0 border-b border-zinc-100/80 px-2 py-2"
+                role="group"
+                aria-label="按状态筛选"
               >
-                {label}({key === "all" ? stats.all : stats[key]})
-              </button>
-            ))}
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {loading ? (
-              <div className="flex justify-center py-16">
-                <Loader2 className="animate-spin text-gray-400" size={36} />
+                <div className="flex flex-wrap gap-1">
+                  {(
+                    [
+                      { key: "all" as const, label: "全部" },
+                      { key: "pending" as const, label: "待筛选" },
+                      { key: "passed" as const, label: "已通过" },
+                      { key: "rejected" as const, label: "已拒绝" },
+                    ] as const
+                  ).map(({ key, label }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setStatusFilter(key)}
+                      className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors sm:text-sm ${
+                        statusFilter === key
+                          ? "bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200/80"
+                          : "text-zinc-600 hover:text-zinc-900"
+                      }`}
+                    >
+                      {label}（{key === "all" ? stats.all : stats[key]}）
+                    </button>
+                  ))}
+                </div>
               </div>
-            ) : filteredResumes.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 px-4">
-                <FileText className="w-12 h-12 text-gray-300 mb-3" />
-                <p className="text-gray-500 text-sm">暂无简历数据</p>
-                <p className="text-gray-400 text-xs mt-1">请先上传简历</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-100">
-                {paginatedResumes.map((resume) => (
-                  <div
-                    key={resume.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => handleSelectResume(resume.id)}
-                    onKeyDown={(e) =>
-                      e.key === "Enter" && handleSelectResume(resume.id)
-                    }
-                    className={`p-3 cursor-pointer transition-all duration-200 hover:bg-gray-50 ${
-                      selectedResumeId === resume.id
-                        ? "bg-purple-50 border-l-4 border-purple-500"
-                        : "border-l-4 border-transparent"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2 min-w-0">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-gray-900 truncate">
-                          {resume.name}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-0.5 truncate">
-                          {resume.phone || "—"}
-                        </p>
-                      </div>
-                      <div className="shrink-0 flex flex-col items-end gap-1">
-                        {(resume.score != null ||
-                          screeningResults.get(resume.id)) && (
-                          <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">
-                            {resume.score ??
-                              screeningResults.get(resume.id)?.score ??
-                              0}
-                            %
-                          </span>
-                        )}
-                        <span
-                          className={`shrink-0 px-1.5 py-0.5 rounded text-xs font-medium ${listStatusStyles[resume.status]}`}
-                        >
-                          {listStatusLabels[resume.status]}
-                        </span>
-                      </div>
-                    </div>
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {loading ? (
+                  <div className="flex justify-center py-16">
+                    <Loader2
+                      className="h-9 w-9 animate-spin text-zinc-300"
+                      strokeWidth={1.75}
+                    />
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 左侧固定分页栏 */}
-        {!loading && filteredResumes.length > 0 && (
-          <div className="fixed bottom-0 left-0 w-[380px] px-3 py-2 border-t border-r border-gray-200 flex items-center justify-between gap-2 bg-white z-10">
-            <span className="text-xs text-gray-500">
-              {listTotalPages > 1
-                ? `第 ${listPage} / ${listTotalPages} 页，共 ${filteredResumes.length} 条`
-                : `共 ${filteredResumes.length} 条`}
-            </span>
-            {listTotalPages > 1 && (
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setListPage((p) => Math.max(1, p - 1))}
-                  disabled={listPage <= 1}
-                  className="p-1.5 rounded border border-gray-200 bg-white text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="上一页"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setListPage((p) => Math.min(listTotalPages, p + 1))
-                  }
-                  disabled={listPage >= listTotalPages}
-                  className="p-1.5 rounded border border-gray-200 bg-white text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="下一页"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* 右侧：候选人详情 */}
-        <div className="flex-1 flex flex-col min-h-0 bg-white min-w-0 overflow-hidden">
-          {!selectedResume ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-              <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mb-4">
-                <Sparkles className="text-purple-400" size={36} />
-              </div>
-              <p className="text-gray-500 font-medium">请选择一份简历</p>
-              <p className="text-gray-400 text-sm mt-1">
-                查看详情与 AI 筛选结果
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* 头部：姓名、职位与日期、操作图标 */}
-              <div className="shrink-0 p-6 pb-4 border-b border-gray-200">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h1 className="text-2xl font-semibold text-gray-900">
-                      {selectedResume.name}
-                    </h1>
-                    <p className="text-sm text-gray-500 mt-1">
-                      简历 · 更新于 {formatDateShort(selectedResume.createdAt)}
+                ) : filteredResumes.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center px-4 py-16 text-center">
+                    <FileText
+                      className="mb-3 h-12 w-12 text-zinc-200"
+                      strokeWidth={1.25}
+                    />
+                    <p className="text-sm font-medium text-zinc-600">
+                      暂无简历数据
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-400">
+                      请先在简历管理中上传
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {selectedResume.resumeFile && (
-                      <button
-                        type="button"
-                        onClick={() => openResumeInNewWindow(selectedResume)}
-                        className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 text-sm"
-                      >
-                        打开简历
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setJobConfigModalOpen(true)}
-                      className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 text-sm"
-                    >
-                      AI 设置
-                    </button>
-                    {selectedResumeId && (
-                      <button
-                        type="button"
-                        onClick={() => handleScreenResume(selectedResumeId)}
-                        disabled={
-                          screeningResumeId === selectedResumeId ||
-                          !jobRequirements.trim()
+                ) : (
+                  <div className="divide-y divide-zinc-100">
+                    {paginatedResumes.map((resume) => (
+                      <div
+                        key={resume.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleSelectResume(resume.id)}
+                        onKeyDown={(e) =>
+                          e.key === "Enter" && handleSelectResume(resume.id)
                         }
-                        className="px-3 py-1.5 rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center gap-1.5"
+                        className={`cursor-pointer border-l-4 p-3 transition-colors hover:bg-white/80 ${
+                          selectedResumeId === resume.id
+                            ? "border-sky-500 bg-sky-50/60"
+                            : "border-transparent"
+                        }`}
                       >
-                        {screeningResumeId === selectedResumeId ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Sparkles className="w-4 h-4" />
-                        )}
-                        AI 筛选
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                <div className="flex-1 overflow-y-auto p-6">
-                  <div className="w-full space-y-4">
-                    {/* 基本信息 + 匹配度 两列 */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="rounded-xl border border-gray-200 p-4 bg-white">
-                        <h3 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
-                          <User className="w-4 h-4 text-gray-500" />
-                          基本信息
-                        </h3>
-                        <div className="space-y-2 text-sm text-gray-700">
-                          <p>邮箱: {selectedResume.email || "—"}</p>
-                          <p className="flex items-center gap-1">
-                            电话:{" "}
-                            {selectedResume.phone
-                              ? phoneExpanded
-                                ? selectedResume.phone
-                                : selectedResume.phone.length > 7
-                                  ? `${selectedResume.phone.slice(0, 3)}****${selectedResume.phone.slice(-4)}`
-                                  : "***"
-                              : "—"}
-                            {selectedResume.phone &&
-                              selectedResume.phone.length > 7 && (
-                                <button
-                                  type="button"
-                                  onClick={() => setPhoneExpanded((v) => !v)}
-                                  className="text-purple-600 hover:underline"
-                                >
-                                  {phoneExpanded ? "收起" : "展开"}
-                                </button>
-                              )}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="rounded-xl border border-gray-200 p-4 bg-white">
-                        <h3 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
-                          <BarChart3 className="w-4 h-4 text-gray-500" />
-                          匹配度
-                        </h3>
-                        {selectedResult ? (
-                          <div>
-                            <p className="text-2xl font-semibold text-gray-900">
-                              {selectedResult.score}%
+                        <div className="flex min-w-0 items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-medium text-zinc-900">
+                              {resume.name}
                             </p>
-                            <p className="text-sm text-gray-500 mt-1">
-                              技能: {Math.min(selectedResult.score + 5, 100)}%
-                              学历: {Math.max(selectedResult.score - 25, 0)}%
+                            <p className="mt-0.5 truncate text-xs text-zinc-500">
+                              {resume.phone || "—"}
                             </p>
                           </div>
-                        ) : (
-                          <p className="text-gray-500 text-sm">
-                            暂无匹配度数据，请先进行 AI 筛选
-                          </p>
+                          <div className="flex shrink-0 flex-col items-end gap-1">
+                            {(resume.score != null ||
+                              screeningResults.get(resume.id)) && (
+                              <span className="rounded-md bg-sky-100 px-1.5 py-0.5 text-xs font-semibold text-sky-800">
+                                {resume.score ??
+                                  screeningResults.get(resume.id)?.score ??
+                                  0}
+                                %
+                              </span>
+                            )}
+                            <span
+                              className={`shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium ${listStatusStyles[resume.status]}`}
+                            >
+                              {listStatusLabels[resume.status]}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {!loading && filteredResumes.length > 0 && (
+                <div className="flex shrink-0 items-center justify-between gap-2 border-t border-zinc-200/80 bg-white px-3 py-2.5">
+                  <span className="text-xs text-zinc-500">
+                    {listTotalPages > 1
+                      ? `第 ${listPage}/${listTotalPages} 页 · 共 ${filteredResumes.length} 条`
+                      : `共 ${filteredResumes.length} 条`}
+                  </span>
+                  {listTotalPages > 1 && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setListPage((p) => Math.max(1, p - 1))}
+                        disabled={listPage <= 1}
+                        className="rounded-lg border border-zinc-200/80 bg-white p-1.5 text-zinc-600 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
+                        title="上一页"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setListPage((p) => Math.min(listTotalPages, p + 1))
+                        }
+                        disabled={listPage >= listTotalPages}
+                        className="rounded-lg border border-zinc-200/80 bg-white p-1.5 text-zinc-600 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
+                        title="下一页"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </aside>
+
+            <main className="flex min-h-0 min-w-0 flex-1 flex-col bg-white">
+              {!selectedResume ? (
+                <div className="flex flex-1 flex-col items-center justify-center px-8 py-16 text-center">
+                  <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-sky-50 ring-1 ring-sky-100">
+                    <Sparkles className="h-9 w-9 text-sky-500" />
+                  </div>
+                  <p className="font-medium text-zinc-700">请选择一份简历</p>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    在左侧列表中点击候选人，查看详情与 AI 结果
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="shrink-0 border-b border-zinc-100/80 px-6 py-5">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <h2 className="text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl">
+                          {selectedResume.name}
+                        </h2>
+                        <p className="mt-1 text-sm text-zinc-500">
+                          导入于 {formatDateShort(selectedResume.createdAt)}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {selectedResume.resumeFile && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openResumeInNewWindow(selectedResume)
+                            }
+                            className="rounded-xl border border-zinc-200/80 bg-white px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                          >
+                            打开简历
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setJobConfigModalOpen(true)}
+                          className="rounded-xl border border-zinc-200/80 bg-white px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                        >
+                          AI 设置
+                        </button>
+                        {selectedResumeId && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleScreenResume(selectedResumeId)
+                            }
+                            disabled={
+                              screeningResumeId === selectedResumeId ||
+                              !jobRequirements.trim()
+                            }
+                            className="flex items-center gap-1.5 rounded-xl bg-sky-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {screeningResumeId === selectedResumeId ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-4 w-4" />
+                            )}
+                            AI 筛选
+                          </button>
                         )}
                       </div>
                     </div>
+                  </div>
 
-                    {/* AI 评估理由 - 可折叠 */}
-                    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-                      <button
-                        type="button"
-                        onClick={() => setReasoningOpen((v) => !v)}
-                        className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-gray-50"
-                      >
-                        <span className="font-medium text-gray-900 flex items-center gap-2">
-                          <MessageSquare className="w-4 h-4 text-gray-500" />
-                          AI评估理由
-                        </span>
-                        {reasoningOpen ? (
-                          <ChevronUp className="w-4 h-4 text-gray-400" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4 text-gray-400" />
-                        )}
-                      </button>
-                      {reasoningOpen && (
-                        <div className="px-4 pb-4 pt-0 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap border-t border-gray-100">
-                          {selectedResult?.reasoning ||
-                            "暂无评估理由，请先进行 AI 筛选。"}
+                  <div className="min-h-0 flex-1 overflow-y-auto p-6">
+                    <div className="mx-auto max-w-3xl space-y-4">
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div className="rounded-2xl border border-zinc-200/70 bg-zinc-50/30 p-4">
+                          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-900">
+                            <User className="h-4 w-4 text-zinc-400" />
+                            基本信息
+                          </h3>
+                          <div className="space-y-2 text-sm text-zinc-700">
+                            <p>邮箱：{selectedResume.email || "—"}</p>
+                            <p className="flex flex-wrap items-center gap-1">
+                              电话：
+                              {selectedResume.phone
+                                ? phoneExpanded
+                                  ? selectedResume.phone
+                                  : selectedResume.phone.length > 7
+                                    ? `${selectedResume.phone.slice(0, 3)}****${selectedResume.phone.slice(-4)}`
+                                    : "***"
+                                : "—"}
+                              {selectedResume.phone &&
+                                selectedResume.phone.length > 7 && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setPhoneExpanded((v) => !v)
+                                    }
+                                    className="text-sky-600 hover:underline"
+                                  >
+                                    {phoneExpanded ? "收起" : "展开"}
+                                  </button>
+                                )}
+                            </p>
+                          </div>
                         </div>
-                      )}
+                        <div className="rounded-2xl border border-zinc-200/70 bg-zinc-50/30 p-4">
+                          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-900">
+                            <BarChart3 className="h-4 w-4 text-zinc-400" />
+                            匹配度
+                          </h3>
+                          {selectedResult ? (
+                            <div>
+                              <p className="text-2xl font-semibold tabular-nums text-zinc-900">
+                                {selectedResult.score}%
+                              </p>
+                              <p className="mt-1 text-xs text-zinc-500">
+                                技能 {Math.min(selectedResult.score + 5, 100)}%
+                                · 学历{" "}
+                                {Math.max(selectedResult.score - 25, 0)}%
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-zinc-500">
+                              暂无匹配度，请先进行 AI 筛选
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="overflow-hidden rounded-2xl border border-zinc-200/70 bg-white">
+                        <button
+                          type="button"
+                          onClick={() => setReasoningOpen((v) => !v)}
+                          className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-zinc-50/80"
+                        >
+                          <span className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
+                            <MessageSquare className="h-4 w-4 text-zinc-400" />
+                            AI 评估理由
+                          </span>
+                          {reasoningOpen ? (
+                            <ChevronUp className="h-4 w-4 text-zinc-400" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-zinc-400" />
+                          )}
+                        </button>
+                        {reasoningOpen && (
+                          <div className="border-t border-zinc-100 px-4 pb-4 pt-3 text-sm leading-relaxed text-zinc-700 whitespace-pre-wrap">
+                            {selectedResult?.reasoning ||
+                              "暂无评估理由，请先进行 AI 筛选。"}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
 
-      {/* 右侧固定操作按钮 - 固定在屏幕底部 */}
-      {selectedResume && (
-        <div className="fixed bottom-0 right-0 px-6 py-4 border-t border-l border-gray-200 flex justify-end gap-3 bg-white z-10">
-          <button
-            type="button"
-            onClick={() => handleUpdateStatus(selectedResume.id, "pending")}
-            className="px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            待定
-          </button>
-          <button
-            type="button"
-            onClick={() => handleUpdateStatus(selectedResume.id, "rejected")}
-            className="px-4 py-2.5 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
-          >
-            拒绝
-          </button>
-          <button
-            type="button"
-            onClick={() => handleUpdateStatus(selectedResume.id, "passed")}
-            className="px-4 py-2.5 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors"
-          >
-            通过
-          </button>
-        </div>
-      )}
+                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-zinc-100/80 bg-zinc-50/40 px-4 py-3 sm:gap-3 sm:px-6">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleUpdateStatus(selectedResume.id, "pending")
+                      }
+                      className="rounded-xl border border-zinc-200/80 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                    >
+                      待定
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleUpdateStatus(selectedResume.id, "rejected")
+                      }
+                      className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-rose-700"
+                    >
+                      拒绝
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleUpdateStatus(selectedResume.id, "passed")
+                      }
+                      className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+                    >
+                      通过
+                    </button>
+                  </div>
+                </>
+              )}
+            </main>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

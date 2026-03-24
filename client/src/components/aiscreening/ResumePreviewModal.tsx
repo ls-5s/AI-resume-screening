@@ -90,33 +90,34 @@ export function ResumePreviewModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-50 bg-zinc-900/40 backdrop-blur-[2px]"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="absolute inset-0 bg-white flex flex-col">
-        <div className="h-14 px-4 border-b border-gray-200 flex items-center justify-between gap-4">
+      <div className="absolute inset-0 flex flex-col bg-white">
+        <div className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-zinc-100/80 px-4">
           <div className="min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">{fileName || '简历预览'}</p>
-            <p className="text-xs text-gray-500">{previewType.toUpperCase()} 预览</p>
+            <p className="truncate text-sm font-semibold text-zinc-900">{fileName || '简历预览'}</p>
+            <p className="text-xs text-zinc-500">{previewType.toUpperCase()} 预览</p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex shrink-0 items-center gap-2">
             {url && (
               <a
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+                className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-sky-700"
               >
                 <ExternalLink size={16} />
                 新窗口打开
               </a>
             )}
             <button
+              type="button"
               onClick={onClose}
-              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="rounded-lg p-2 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
               aria-label="关闭"
             >
               <X size={18} />
@@ -124,31 +125,31 @@ export function ResumePreviewModal({
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 bg-gray-50">
+        <div className="min-h-0 flex-1 bg-zinc-50/80">
           {previewType === 'pdf' ? (
             <iframe src={url || undefined} className="w-full h-full border-0" title="PDF Preview" />
           ) : previewType === 'docx' ? (
             loading ? (
-              <div className="h-full flex items-center justify-center">
-                <Loader2 className="animate-spin text-slate-400" size={36} />
+              <div className="flex h-full items-center justify-center">
+                <Loader2 className="animate-spin text-zinc-400" size={36} />
               </div>
             ) : error ? (
-              <div className="h-full flex items-center justify-center px-6 text-center text-sm text-slate-600">
+              <div className="flex h-full items-center justify-center px-6 text-center text-sm text-zinc-600">
                 {error}
               </div>
             ) : docxHtml ? (
               <div className="h-full overflow-y-auto bg-white">
-                <div className="max-w-5xl mx-auto p-8">
+                <div className="mx-auto max-w-5xl p-8">
                   <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: docxHtml }} />
                 </div>
               </div>
             ) : (
-              <div className="h-full flex items-center justify-center px-6 text-center text-sm text-slate-600">
+              <div className="flex h-full items-center justify-center px-6 text-center text-sm text-zinc-600">
                 未读取到可预览内容
               </div>
             )
           ) : (
-            <div className="h-full flex items-center justify-center px-6 text-center text-sm text-slate-600">
+            <div className="flex h-full items-center justify-center px-6 text-center text-sm text-zinc-600">
               {previewType === 'doc'
                 ? '暂不支持 DOC 预览，请下载后查看'
                 : '暂不支持该格式预览，请下载后查看'}

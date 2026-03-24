@@ -1,5 +1,5 @@
 import { AiScreening } from "../../components/aiscreening/AiScreening";
 
-export default function Jobs() {
+export default function AiScreeningPage() {
   return <AiScreening />;
 }
