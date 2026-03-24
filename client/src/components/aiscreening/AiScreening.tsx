@@ -307,12 +307,13 @@ export function AiScreening() {
     const activeId = localStorage.getItem("active-screening-template");
     if (activeId) {
       localStorage.removeItem("active-screening-template");
-      const templates = loadTemplates();
-      const found = templates.find((t) => t.id === activeId);
-      if (found) {
-        setPreFilterConfig(found.config);
-        toast.success(`已应用模版「${found.name}」的筛选条件`);
-      }
+      loadTemplates().then((templates) => {
+        const found = templates.find((t) => t.id === Number(activeId));
+        if (found) {
+          setPreFilterConfig(found.config);
+          toast.success(`已应用模版「${found.name}」的筛选条件`);
+        }
+      });
     }
   }, []);
 

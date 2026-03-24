@@ -181,6 +181,26 @@ export const activitiesRelations = relations(activities, ({ one }) => ({
   }),
 }));
 
+// 筛选模板表
+export const screeningTemplates = mysqlTable(
+  "screening_templates",
+  {
+    id: serial("id").primaryKey(),
+    userId: int("user_id")
+      .notNull()
+      .references(() => users.id),
+    name: varchar("name", { length: 255 }).notNull(),
+    /** 预筛选配置（JSON 字符串） */
+    config: longtext("config").notNull(),
+    isDefault: boolean("is_default").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (screeningTemplates) => ({
+    userIdIdx: index("screening_template_user_id_idx").on(screeningTemplates.userId),
+  }),
+);
+
 // 导出类型
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -194,3 +214,5 @@ export type AiConfig = typeof aiConfigs.$inferSelect;
 export type NewAiConfig = typeof aiConfigs.$inferInsert;
 export type Activity = typeof activities.$inferSelect;
 export type NewActivity = typeof activities.$inferInsert;
+export type ScreeningTemplate = typeof screeningTemplates.$inferSelect;
+export type NewScreeningTemplate = typeof screeningTemplates.$inferInsert;

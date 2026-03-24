@@ -9,6 +9,7 @@ import settingRouter from './routes/setting.js';
 import emailRouter from './routes/emailTemplate.js';
 import resumeRouter from './routes/resume.js';
 import dashboardRouter from './routes/dashboard.js';
+import templateRouter from './routes/screeningTemplate.js';
 const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
@@ -26,6 +27,7 @@ app.use('/v1', settingRouter);
 app.use('/v1', emailRouter);
 app.use('/v1', resumeRouter);
 app.use('/v1', dashboardRouter);
+app.use('/v1', templateRouter);
 // Express 全局错误处理中间件
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   // 1. 处理 JWT Token 验证失败（401 未授权）
