@@ -302,7 +302,7 @@ const AiConfigCard = ({
   return (
     <div className="group relative overflow-hidden rounded-3xl border border-zinc-100 bg-white shadow-sm transition-all duration-300 hover:border-zinc-200 hover:shadow-lg hover:-translate-y-0.5">
       {/* Gradient top accent */}
-      <div className={`h-1 w-full bg-linear-to-r ${provider.bg}`} />
+      <div className={`h-1 w-full bg-gradient-to-r ${provider.bg}`} />
 
       {/* Card Content */}
       <div className="p-5">
@@ -387,7 +387,7 @@ const AiConfigCard = ({
 
       {/* Bottom accent */}
       <div
-        className={`h-0.5 w-0 bg-linear-to-r ${provider.bg} transition-all duration-500 group-hover:w-full`}
+        className={`h-0.5 w-0 bg-gradient-to-r ${provider.bg} transition-all duration-500 group-hover:w-full`}
       />
     </div>
   );

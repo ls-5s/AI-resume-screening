@@ -1,22 +1,70 @@
-import { Loader2, FileText, Eye, Mail, Phone, Calendar, HardDrive, Download, Sparkles } from 'lucide-react';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '../Drawer';
-import type { Resume } from '../../types/resume';
-import { formatFileSize, formatDate } from '../../utils/format';
+import {
+  Loader2,
+  FileText,
+  Eye,
+  Mail,
+  Phone,
+  Calendar,
+  HardDrive,
+  Download,
+  Sparkles,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  X,
+  User,
+  FileCheck,
+} from "lucide-react";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "../Drawer";
+import type { Resume } from "../../types/resume";
+import { formatFileSize, formatDate, formatRelativeTime } from "../../utils/format";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
-// 状态颜色映射
-const statusColors = {
-  pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-  rejected: 'bg-red-100 text-red-700 border-red-200',
-  passed: 'bg-green-100 text-green-700 border-green-200',
-};
+// ============================================================================
+// Types & Constants
+// ============================================================================
 
-// 状态文本映射
-const statusLabels = {
-  pending: '待筛选',
-  rejected: '已拒绝',
-  passed: '已通过',
+type StatusType = "pending" | "passed" | "rejected";
+
+interface StatusConfig {
+  label: string;
+  icon: typeof Clock;
+  gradient: string;
+  textColor: string;
+  badgeBg: string;
+  badgeText: string;
+  badgeBorder: string;
+}
+
+const STATUS_CONFIG: Record<StatusType, StatusConfig> = {
+  pending: {
+    label: "待筛选",
+    icon: Clock,
+    gradient: "from-amber-500 via-orange-500 to-amber-600",
+    textColor: "text-amber-500",
+    badgeBg: "bg-amber-50",
+    badgeText: "text-amber-700",
+    badgeBorder: "border-amber-200",
+  },
+  passed: {
+    label: "已通过",
+    icon: CheckCircle2,
+    gradient: "from-emerald-500 via-teal-500 to-emerald-600",
+    textColor: "text-emerald-500",
+    badgeBg: "bg-emerald-50",
+    badgeText: "text-emerald-700",
+    badgeBorder: "border-emerald-200",
+  },
+  rejected: {
+    label: "已拒绝",
+    icon: XCircle,
+    gradient: "from-rose-500 via-pink-500 to-rose-600",
+    textColor: "text-rose-500",
+    badgeBg: "bg-rose-50",
+    badgeText: "text-rose-700",
+    badgeBorder: "border-rose-200",
+  },
 };
 
 interface ResumeDetailDrawerProps {
@@ -26,135 +74,339 @@ interface ResumeDetailDrawerProps {
   onPreview: (url: string, fileName: string) => void;
 }
 
-export function ResumeDetailDrawer({ resume, loading, onOpenChange, onPreview }: ResumeDetailDrawerProps) {
+// ============================================================================
+// Avatar Component
+// ============================================================================
+
+const ProfileAvatar = ({ name }: { name: string }) => {
+  const initials = name
+    .split(/\s+/)
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+  return (
+    <div className="relative">
+      <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-xl shadow-violet-500/30">
+        <span className="text-2xl font-bold text-white">{initials || "R"}</span>
+      </div>
+      <div className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-xl bg-white shadow-lg">
+        <User className="h-3.5 w-3.5 text-violet-600" />
+      </div>
+    </div>
+  );
+};
+
+// ============================================================================
+// Status Badge Component
+// ============================================================================
+
+const StatusBadge = ({ status }: { status: StatusType }) => {
+  const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
+  const Icon = config.icon;
+
+  return (
+    <div
+      className={`
+        inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold
+        ${config.badgeBg} ${config.badgeText} ${config.badgeBorder}
+      `}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {config.label}
+    </div>
+  );
+};
+
+// ============================================================================
+// Info Card Component
+// ============================================================================
+
+const InfoItem = ({
+  icon: Icon,
+  label,
+  value,
+  truncate,
+}: {
+  icon: typeof Mail;
+  label: string;
+  value?: string | null;
+  truncate?: boolean;
+}) => {
+  if (!value) return null;
+
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100">
+        <Icon className="h-4 w-4 text-zinc-500" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-zinc-400">{label}</p>
+        <p
+          className={`
+            text-sm font-medium text-zinc-900 truncate
+            ${truncate ? "max-w-[200px]" : ""}
+          `}
+        >
+          {value}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================================
+// Meta Tag Component
+// ============================================================================
+
+const MetaTag = ({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof HardDrive;
+  label: string;
+  value: string;
+}) => (
+  <div className="inline-flex items-center gap-2 rounded-xl bg-zinc-50 px-3 py-2 text-sm">
+    <Icon className="h-4 w-4 text-zinc-400" />
+    <span className="font-medium text-zinc-600">{label}:</span>
+    <span className="text-zinc-900">{value}</span>
+  </div>
+);
+
+// ============================================================================
+// AI Summary Card Component
+// ============================================================================
+
+const AISummaryCard = ({ summary }: { summary: string }) => (
+  <div className="relative overflow-hidden rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50 via-purple-50 to-fuchsia-50 p-6">
+    {/* Background decoration */}
+    <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-violet-200/30" />
+    <div className="absolute -bottom-6 -left-6 h-32 w-32 rounded-full bg-purple-200/20" />
+
+    <div className="relative">
+      <div className="mb-4 flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg shadow-violet-500/25">
+          <Sparkles className="h-5 w-5 text-white" />
+        </div>
+        <div>
+          <h3 className="text-base font-semibold text-zinc-900">AI 智能解析</h3>
+          <p className="text-xs text-zinc-500">自动提取简历关键信息</p>
+        </div>
+      </div>
+      <p className="text-sm leading-relaxed text-zinc-700 whitespace-pre-wrap">
+        {summary}
+      </p>
+    </div>
+  </div>
+);
+
+// ============================================================================
+// Parsed Content Card Component
+// ============================================================================
+
+const ParsedContentCard = ({
+  content,
+  onPreview,
+  resume,
+}: {
+  content: string;
+  onPreview: () => void;
+  resume: Resume;
+}) => (
+  <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden">
+    <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50/50 px-6 py-4">
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-200">
+          <FileCheck className="h-4 w-4 text-zinc-600" />
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold text-zinc-900">简历完整内容</h3>
+          <p className="text-xs text-zinc-500">OCR 识别后的文本内容</p>
+        </div>
+      </div>
+      {resume.resumeFile && (
+        <button
+          onClick={onPreview}
+          className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm ring-1 ring-zinc-200/50 transition-all hover:bg-zinc-50 hover:shadow-md"
+        >
+          <Eye className="h-4 w-4" />
+          查看原文件
+        </button>
+      )}
+    </div>
+    <div className="p-6">
+      <pre className="text-sm leading-7 text-zinc-700 whitespace-pre-wrap font-simplified max-h-[400px] overflow-y-auto">
+        {content}
+      </pre>
+    </div>
+  </div>
+);
+
+// ============================================================================
+// Empty Content State
+// ============================================================================
+
+const EmptyContent = () => (
+  <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/50 py-16 px-8">
+    <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100">
+      <FileText className="h-8 w-8 text-zinc-400" />
+    </div>
+    <h4 className="mb-2 text-base font-medium text-zinc-700">暂无简历解析内容</h4>
+    <p className="text-sm text-zinc-500 text-center max-w-sm">
+      系统将在 AI 分析完成后自动生成简历摘要和完整内容
+    </p>
+  </div>
+);
+
+// ============================================================================
+// Main Component
+// ============================================================================
+
+export function ResumeDetailDrawer({
+  resume,
+  loading,
+  onOpenChange,
+  onPreview,
+}: ResumeDetailDrawerProps) {
   const handlePreview = () => {
     if (!resume?.resumeFile) return;
-    // 从完整路径中提取相对路径 (uploads/resumes/xxx.pdf)
     const fullPath = resume.resumeFile;
-    const relativePath = fullPath.replace(/^.*[\\/]uploads[\\/]/, 'uploads/').replace(/\\/g, '/');
+    const relativePath = fullPath
+      .replace(/^.*[\\/]uploads[\\/]/, "uploads/")
+      .replace(/\\/g, "/");
     const fileUrl = `${API_BASE_URL}/${relativePath}`;
-    onPreview(fileUrl, resume.originalFileName || '简历');
+    onPreview(fileUrl, resume.originalFileName || "简历");
   };
+
+  const hasSummary = !!resume?.summary;
+  const hasContent = !!resume?.parsedContent;
+  const statusConfig = resume ? (STATUS_CONFIG[resume.status as StatusType] || STATUS_CONFIG.pending) : null;
 
   return (
     <Drawer open={!!resume} onOpenChange={onOpenChange}>
       <DrawerContent className="w-full max-w-3xl">
-        <DrawerHeader>
+        <DrawerHeader className="sr-only">
           <DrawerTitle>简历详情</DrawerTitle>
         </DrawerHeader>
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+
+        <div className="flex-1 overflow-y-auto">
           {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="animate-spin text-slate-400" size={36} />
+            <div className="flex items-center justify-center py-24">
+              <div className="relative">
+                <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-xl">
+                  <Loader2 className="h-10 w-10 animate-spin text-white" />
+                </div>
+              </div>
             </div>
           ) : resume ? (
-            <div className="space-y-6">
-              {/* 头部信息卡片 */}
-              <div className="bg-slate-800 text-white rounded-2xl p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
-                      <FileText className="text-white" size={32} />
+            <div className="p-6 space-y-6">
+              {/* Profile Header */}
+              <div
+                className={`
+                  relative overflow-hidden rounded-2xl border border-transparent
+                  bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 p-6
+                `}
+              >
+                {/* Background decoration */}
+                <div
+                  className={`
+                    absolute -right-12 -top-12 h-40 w-40 rounded-full
+                    bg-gradient-to-br ${statusConfig?.gradient || "from-violet-500 to-purple-600"}
+                    opacity-20 blur-3xl
+                  `}
+                />
+                <div className="absolute -left-6 -bottom-6 h-24 w-24 rounded-full bg-violet-500/10" />
+
+                <div className="relative flex items-start gap-5">
+                  <ProfileAvatar name={resume.name} />
+
+                  <div className="flex-1 min-w-0 pt-2">
+                    <div className="flex items-center gap-3 mb-3">
+                      <h2 className="text-2xl font-bold text-white">
+                        {resume.name}
+                      </h2>
+                      <StatusBadge status={resume.status as StatusType} />
                     </div>
-                    <div>
-                      <h2 className="text-2xl font-bold">{resume.name}</h2>
-                      <span className={`inline-block mt-2 px-3 py-1 rounded-full text-sm font-medium border ${statusColors[resume.status]}`}>
-                        {statusLabels[resume.status]}
-                      </span>
+
+                    {/* Contact Info */}
+                    <div className="flex flex-wrap gap-4">
+                      {resume.email && (
+                        <div className="flex items-center gap-2 text-sm text-zinc-300">
+                          <Mail className="h-4 w-4 text-zinc-500" />
+                          <span>{resume.email}</span>
+                        </div>
+                      )}
+                      {resume.phone && (
+                        <div className="flex items-center gap-2 text-sm text-zinc-300">
+                          <Phone className="h-4 w-4 text-zinc-500" />
+                          <span>{resume.phone}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  {resume.resumeFile && (
-                    <button
-                      onClick={handlePreview}
-                      className="flex items-center gap-2 px-4 py-2.5 bg-white/20 hover:bg-white/30 rounded-xl transition-colors"
-                    >
-                      <Eye size={18} />
-                      查看原文件
-                    </button>
-                  )}
                 </div>
 
-                {/* 联系信息 */}
-                <div className="mt-6 flex flex-wrap gap-6">
-                  {resume.email && (
-                    <div className="flex items-center gap-2 text-slate-200">
-                      <Mail size={18} className="text-slate-400" />
-                      <span>{resume.email}</span>
-                    </div>
-                  )}
-                  {resume.phone && (
-                    <div className="flex items-center gap-2 text-slate-200">
-                      <Phone size={18} className="text-slate-400" />
-                      <span>{resume.phone}</span>
-                    </div>
-                  )}
+                {/* Meta Info Bar */}
+                <div className="relative mt-6 flex flex-wrap gap-3 pt-5 border-t border-white/10">
+                  <MetaTag
+                    icon={HardDrive}
+                    label="文件类型"
+                    value={resume.fileType?.toUpperCase() || "-"}
+                  />
+                  <MetaTag
+                    icon={FileText}
+                    label="文件大小"
+                    value={formatFileSize(resume.fileSize || 0)}
+                  />
+                  <MetaTag
+                    icon={Calendar}
+                    label="上传时间"
+                    value={formatDate(resume.createdAt)}
+                  />
+                  <MetaTag
+                    icon={Clock}
+                    label="上传于"
+                    value={formatRelativeTime(resume.createdAt)}
+                  />
                 </div>
               </div>
 
-              {/* 文件信息 */}
-              <div className="bg-slate-50 rounded-xl p-4 flex flex-wrap gap-4 text-sm">
-                <div className="flex items-center gap-2 text-slate-600">
-                  <HardDrive size={16} className="text-slate-400" />
-                  <span className="font-medium">文件类型:</span>
-                  <span>{resume.fileType?.toUpperCase()}</span>
-                </div>
-                <div className="flex items-center gap-2 text-slate-600">
-                  <Download size={16} className="text-slate-400" />
-                  <span className="font-medium">文件大小:</span>
-                  <span>{formatFileSize(resume.fileSize || 0)}</span>
-                </div>
-                <div className="flex items-center gap-2 text-slate-600">
-                  <Calendar size={16} className="text-slate-400" />
-                  <span className="font-medium">上传时间:</span>
-                  <span>{formatDate(resume.createdAt)}</span>
-                </div>
-                {resume.originalFileName && (
-                  <div className="flex items-center gap-2 text-slate-600">
-                    <FileText size={16} className="text-slate-400" />
-                    <span className="font-medium">原始文件名:</span>
-                    <span className="truncate max-w-[200px]">{resume.originalFileName}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* AI 摘要 */}
-              {resume.summary && (
-                <div className="bg-linear-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100 p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Sparkles className="text-blue-600" size={20} />
-                    <h3 className="text-lg font-semibold text-slate-900">AI 解析摘要</h3>
-                  </div>
-                  <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">
-                    {resume.summary}
-                  </p>
+              {/* Original File Name */}
+              {resume.originalFileName && (
+                <div className="rounded-xl bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
+                  <span className="font-medium text-zinc-500">原始文件名：</span>
+                  <span className="font-mono">{resume.originalFileName}</span>
                 </div>
               )}
 
-              {/* 简历完整内容 */}
-              {resume.parsedContent && (
-                <div className="bg-white rounded-xl border border-slate-200 p-5">
-                  <h3 className="text-lg font-semibold text-slate-900 mb-4 pb-3 border-b border-slate-100 flex items-center gap-2">
-                    <FileText size={18} className="text-slate-400" />
-                    简历完整内容
-                  </h3>
-                  <div className="text-slate-700 whitespace-pre-wrap text-sm leading-7 max-h-[400px] overflow-y-auto">
-                    {resume.parsedContent}
-                  </div>
-                </div>
-              )}
+              {/* AI Summary */}
+              {hasSummary && <AISummaryCard summary={resume.summary!} />}
 
-              {/* 空状态 */}
-              {!resume.summary && !resume.parsedContent && (
-                <div className="text-center py-8 px-4 bg-slate-50 rounded-xl">
-                  <FileText className="mx-auto text-slate-300 mb-3" size={40} />
-                  <p className="text-slate-500">暂无简历解析内容</p>
-                </div>
+              {/* Parsed Content */}
+              {hasContent ? (
+                <ParsedContentCard
+                  content={resume.parsedContent!}
+                  onPreview={handlePreview}
+                  resume={resume}
+                />
+              ) : (
+                <EmptyContent />
               )}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-16 px-4">
-              <FileText className="text-slate-300 mb-3" size={48} />
-              <p className="text-slate-500">无法加载简历详情</p>
+            <div className="flex flex-col items-center justify-center py-24 px-4">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100">
+                <FileText className="h-8 w-8 text-zinc-400" />
+              </div>
+              <p className="text-base font-medium text-zinc-700">
+                无法加载简历详情
+              </p>
+              <p className="mt-1 text-sm text-zinc-500">
+                请稍后重试或联系管理员
+              </p>
             </div>
           )}
         </div>
