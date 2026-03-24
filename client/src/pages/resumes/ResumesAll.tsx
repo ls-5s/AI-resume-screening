@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { Search } from "lucide-react";
 import { getResumes, deleteResume, getResume } from "../../api/resume";
 import { logActivity } from "../../api/dashboard";
 import type { Resume } from "../../types/resume";
@@ -12,6 +13,15 @@ import {
   DEFAULT_PAGE_SIZE,
 } from "../../components/resumes";
 import { ConfirmModal } from "../../components/Modal";
+
+type StatusFilter = "all" | "pending" | "passed" | "rejected";
+
+const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: "all", label: "全部状态" },
+  { value: "pending", label: "待筛选" },
+  { value: "passed", label: "已通过" },
+  { value: "rejected", label: "已拒绝" },
+];
 
 function SkeletonAllTable() {
   return (
@@ -48,6 +58,8 @@ export default function ResumesAll() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [keyword, setKeyword] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [viewResume, setViewResume] = useState<Resume | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
   const [pdfPreview, setPdfPreview] = useState<{
@@ -84,17 +96,35 @@ export default function ResumesAll() {
     );
   }, [resumes]);
 
-  const totalPages = Math.max(1, Math.ceil(sortedResumes.length / pageSize));
+  const filteredResumes = useMemo(() => {
+    const kw = keyword.trim().toLowerCase();
+    return sortedResumes.filter((r) => {
+      const matchKeyword =
+        !kw ||
+        r.name.toLowerCase().includes(kw) ||
+        (r.email && r.email.toLowerCase().includes(kw)) ||
+        (r.phone && r.phone.includes(keyword.trim()));
+      const matchStatus =
+        statusFilter === "all" || r.status === statusFilter;
+      return matchKeyword && matchStatus;
+    });
+  }, [sortedResumes, keyword, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredResumes.length / pageSize));
   const paginatedResumes = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return sortedResumes.slice(start, start + pageSize);
-  }, [sortedResumes, currentPage, pageSize]);
+    return filteredResumes.slice(start, start + pageSize);
+  }, [filteredResumes, currentPage, pageSize]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
       setCurrentPage(Math.max(1, totalPages));
     }
   }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [keyword, statusFilter]);
 
   // 切换 pageSize 时回到第一页
   const handlePageSizeChange = (size: number) => {
@@ -189,13 +219,48 @@ export default function ResumesAll() {
           className="overflow-hidden rounded-3xl border border-zinc-200/70 bg-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06)]"
           aria-label="全部简历列表"
         >
-          <div className="border-b border-zinc-100/80 px-6 py-4">
-            <h2 className="text-base font-semibold tracking-tight text-zinc-900">
-              全部列表
-            </h2>
-            <p className="mt-0.5 text-xs text-zinc-500">
-              共 {sortedResumes.length} 份 · 每页 {pageSize} 条
-            </p>
+          <div className="flex flex-col gap-4 border-b border-zinc-100/80 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-base font-semibold tracking-tight text-zinc-900">
+                全部列表
+              </h2>
+              <p className="mt-0.5 text-xs text-zinc-500">
+                共 {filteredResumes.length} 份 · 每页 {pageSize} 条
+                {keyword || statusFilter !== "all"
+                  ? " · 按导入时间从新到旧"
+                  : ""}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <Search
+                  className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+                  aria-hidden
+                />
+                <input
+                  type="search"
+                  value={keyword}
+                  onChange={(e) => setKeyword(e.target.value)}
+                  placeholder="搜索姓名/邮箱/电话"
+                  className="h-9 w-40 rounded-lg border border-zinc-200/80 bg-white pl-8 pr-3 text-sm text-zinc-700 placeholder:text-zinc-400 outline-none transition-colors focus:border-sky-400 focus:ring-1 focus:ring-sky-200 sm:w-48"
+                  aria-label="搜索简历"
+                />
+              </div>
+              <select
+                value={statusFilter}
+                onChange={(e) =>
+                  setStatusFilter(e.target.value as StatusFilter)
+                }
+                className="h-9 rounded-lg border border-zinc-200/80 bg-white px-3 pr-8 text-sm text-zinc-600 outline-none transition-colors focus:border-sky-400 focus:ring-1 focus:ring-sky-200"
+                aria-label="按状态筛选"
+              >
+                {STATUS_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {loading ? (
@@ -207,9 +272,19 @@ export default function ResumesAll() {
                 loading={loading}
                 onView={handleView}
                 onDelete={handleDelete}
+                emptyTitle={
+                  resumes.length > 0 && filteredResumes.length === 0
+                    ? "暂无匹配"
+                    : undefined
+                }
+                emptyDescription={
+                  resumes.length > 0 && filteredResumes.length === 0
+                    ? "请调整筛选条件"
+                    : undefined
+                }
               />
               <ResumePaginationBar
-                totalCount={sortedResumes.length}
+                totalCount={filteredResumes.length}
                 currentPage={currentPage}
                 pageSize={pageSize}
                 onPageChange={setCurrentPage}

@@ -38,13 +38,31 @@ interface ResumeModalProps {
 // Upload Section Components
 // ============================================================================
 
+const ACCEPT_TYPES = ".pdf,.doc,.docx";
+
 interface DropZoneProps {
   selectedFile: File | null;
+  onFileChange?: (file: File | null) => void;
 }
 
-const DropZone = ({
-  selectedFile,
-}: DropZoneProps) => {
+const DropZone = ({ selectedFile, onFileChange }: DropZoneProps) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    onFileChange?.(file ?? null);
+    e.target.value = "";
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file) onFileChange?.(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  };
+
   const getFileIcon = () => {
     const ext = selectedFile?.name.split(".").pop()?.toLowerCase();
     if (ext === "pdf") return <FileText className="h-8 w-8" />;
@@ -60,51 +78,67 @@ const DropZone = ({
     return "from-sky-500 to-blue-600";
   };
 
+  const inputId = "resume-upload-input";
+
   return (
-    <div
-      className={`
-        overflow-hidden rounded-2xl border-2 border-dashed
-        ${selectedFile ? "border-sky-200 bg-sky-50/40" : "border-zinc-200 bg-zinc-50/30"}
-      `}
-    >
-      <div className="p-6 text-center">
-        <div className="flex flex-col items-center gap-3">
-          {/* Icon */}
-          <div
-            className={`
+    <>
+      <input
+        id={inputId}
+        type="file"
+        accept={ACCEPT_TYPES}
+        className="sr-only"
+        onChange={handleInputChange}
+        aria-label="选择简历文件（PDF 或 Word）"
+      />
+      <label
+        htmlFor={inputId}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        className={`
+          block overflow-hidden rounded-2xl border-2 border-dashed
+          ${selectedFile ? "border-sky-200 bg-sky-50/40" : "border-zinc-200 bg-zinc-50/30"}
+          ${onFileChange ? "cursor-pointer transition-colors hover:border-zinc-300 hover:bg-zinc-50/50" : ""}
+        `}
+      >
+        <div className="p-6 text-center">
+          <div className="flex flex-col items-center gap-3">
+            {/* Icon */}
+            <div
+              className={`
               flex h-14 w-14 items-center justify-center rounded-2xl
               bg-linear-to-br ${getFileGradient()} shadow-md
             `}
-          >
-            <div className="text-white">{getFileIcon()}</div>
-          </div>
+            >
+              <div className="text-white">{getFileIcon()}</div>
+            </div>
 
-          {selectedFile ? (
-            <>
-              {/* File Info */}
+            {selectedFile ? (
+              <>
+                {/* File Info */}
+                <div>
+                  <p className="text-sm font-semibold text-zinc-900 mb-0.5 truncate max-w-[20rem]">
+                    {selectedFile.name}
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    {formatFileSize(selectedFile.size)}
+                  </p>
+                </div>
+              </>
+            ) : (
+              /* Empty state */
               <div>
-                <p className="text-sm font-semibold text-zinc-900 mb-0.5 truncate max-w-[20rem]">
-                  {selectedFile.name}
+                <p className="text-sm font-semibold text-zinc-900 mb-1">
+                  点击或拖拽文件到此处
                 </p>
-                <p className="text-xs text-zinc-500">
-                  {formatFileSize(selectedFile.size)}
+                <p className="text-xs text-zinc-400">
+                  支持 PDF、Word 文档，最大 10MB
                 </p>
               </div>
-            </>
-          ) : (
-            /* Empty state */
-            <div>
-              <p className="text-sm font-semibold text-zinc-900 mb-1">
-                等待上传文件
-              </p>
-              <p className="text-xs text-zinc-400">
-                支持 PDF、Word 文档，最大 10MB
-              </p>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
-    </div>
+      </label>
+    </>
   );
 };
 
@@ -288,9 +322,7 @@ export function ResumeModal({
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 shadow-sm shadow-sky-500/20">
             <Upload className="h-4 w-4 text-white" />
           </div>
-          <span className="text-sm font-semibold text-zinc-900">
-            上传简历
-          </span>
+          <span className="text-sm font-semibold text-zinc-900">上传简历</span>
         </div>
       );
     }
@@ -299,9 +331,7 @@ export function ResumeModal({
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 shadow-sm shadow-sky-500/20">
           <Mail className="h-4 w-4 text-white" />
         </div>
-        <span className="text-sm font-semibold text-zinc-900">
-          从邮箱导入
-        </span>
+        <span className="text-sm font-semibold text-zinc-900">从邮箱导入</span>
       </div>
     );
   };
@@ -362,7 +392,10 @@ export function ResumeModal({
       }
     >
       {isUpload ? (
-        <DropZone selectedFile={selectedFile || null} />
+        <DropZone
+          selectedFile={selectedFile || null}
+          onFileChange={onFileChange}
+        />
       ) : (
         <ImportSection
           emailConfigs={emailConfigs}
