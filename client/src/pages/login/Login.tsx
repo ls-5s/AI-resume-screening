@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useLoginStore } from "../../store/Login";
 import toast from "../../utils/toast";
 import { LoginForm, RegisterForm } from "../../components/login";
+import { CheckCircle2 } from "lucide-react";
 
 const FEATURES = [
   "智能解析简历，快速提取关键信息",
@@ -11,9 +12,15 @@ const FEATURES = [
   "数据安全可控，助力合规招聘流程",
 ];
 
+const STATS = [
+  { value: "10K+", label: "已处理简历" },
+  { value: "98.6%", label: "匹配准确率" },
+  { value: "3.2x", label: "效率提升" },
+];
+
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
-  const [key, setKey] = useState(0);
+  const [animKey, setAnimKey] = useState(0);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { token } = useLoginStore();
@@ -28,28 +35,35 @@ export default function AuthPage() {
     }
   }, [searchParams]);
 
-  const switchTab = (val: boolean) => {
+  const handleSwitchTab = (val: boolean) => {
+    if (val === isLogin) return;
+    setAnimKey((k) => k + 1);
     setIsLogin(val);
-    setKey((k) => k + 1);
   };
 
-  return (
-    <div className="auth-bg">
-      <div className="auth-card">
-        <aside className="auth-aside">
-          <div className="auth-aside-bg" aria-hidden />
+  // 切换到登录：表单从左侧滑入；切换到注册：表单从右侧滑入
+  const enterFromLeft = isLogin;
 
-          <div className="auth-aside-inner">
-            <div className="inline-flex items-center gap-2">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm">
+  return (
+    <div className="login-root">
+      {/* 精致圆点背景 */}
+      <div className="login-grid-bg" aria-hidden />
+
+      {/* 主卡片 */}
+      <div className="login-card">
+        {/* ── 左侧品牌区 ── */}
+        <aside className="login-brand">
+          <div className="login-brand-inner">
+            {/* Logo */}
+            <div className="login-brand-logo">
+              <div className="login-logo-icon">
                 <svg
-                  width={20}
-                  height={20}
-                  className="text-white"
+                  width="22"
+                  height="22"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
+                  stroke="white"
+                  strokeWidth="2"
                   aria-hidden
                 >
                   <path d="M12 2L2 7l10 5 10-5-10-5z" />
@@ -57,66 +71,94 @@ export default function AuthPage() {
                   <path d="M2 12l10 5 10-5" />
                 </svg>
               </div>
-              <span className="text-base font-semibold tracking-wide">AI Resume Screening</span>
+              <span className="login-brand-name">AI Resume Screening</span>
             </div>
 
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl lg:text-[1.75rem] lg:leading-snug">
-                欢迎来到
+            {/* 标题 */}
+            <div className="login-brand-headline">
+              <h1>
+                用 AI 重新定义
                 <br />
-                AI 简历筛选
+                简历筛选体验
               </h1>
-              <p className="mt-3 text-sm leading-relaxed text-white/70 sm:text-[15px]">
-                用智能工具赋能招聘，让每一份简历都被认真对待
-              </p>
+              <p>智能解析 · 精准匹配 · 高效协同，让每一份人才都被认真对待</p>
             </div>
 
-            <ul className="space-y-3 text-sm text-white/80 sm:text-[15px]">
-              {FEATURES.map((line) => (
-                <li key={line} className="flex items-start gap-3">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/60" />
-                  <span>{line}</span>
+            {/* 特性列表 */}
+            <ul className="login-features">
+              {FEATURES.map((text) => (
+                <li key={text} className="login-feature-item">
+                  <div className="login-feature-icon">
+                    <CheckCircle2 size={11} color="rgba(255,255,255,0.9)" aria-hidden />
+                  </div>
+                  <span>{text}</span>
                 </li>
               ))}
             </ul>
+
+            {/* 统计数据 */}
+            <div className="login-stats">
+              {STATS.map((s) => (
+                <div key={s.label} className="login-stat-item">
+                  <span className="login-stat-value">{s.value}</span>
+                  <span className="login-stat-label">{s.label}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <p className="auth-aside-footer">
+          {/* 底部版权 */}
+          <p className="login-brand-footer">
             © {new Date().getFullYear()} AI Resume Screening
           </p>
         </aside>
 
-        <div className="auth-form-panel">
-          <header className="mb-6">
-            <h2 className="text-xl font-bold text-gray-800 sm:text-2xl">
-              {isLogin ? "账号登录" : "账号注册"}
-            </h2>
-            <p className="mt-2 text-sm text-gray-500">
-              {isLogin
-                ? "登录后即可使用简历智能筛选与匹配能力"
-                : "注册账户，开始使用 AI 简历筛选"}
-            </p>
-          </header>
-
-          <div className="auth-tabs">
+        {/* ── 右侧表单区 ── */}
+        <div className="login-form-panel">
+          {/* Tab 切换器（滑动指示器） */}
+          <div className="login-tab-nav" role="tablist" aria-label="登录方式">
+            <div
+              className="login-tab-slider"
+              data-pos={isLogin ? "left" : "right"}
+              aria-hidden
+            />
             <button
-              type="button"
-              onClick={() => switchTab(true)}
-              className={`auth-tab ${isLogin ? "auth-tab-active" : ""}`}
+              role="tab"
+              aria-selected={isLogin ? "true" : "false"}
+              tabIndex={isLogin ? 0 : -1}
+              onClick={() => handleSwitchTab(true)}
+              className={`login-tab-item ${isLogin ? "login-tab-active" : ""}`}
             >
               登录
             </button>
             <button
-              type="button"
-              onClick={() => switchTab(false)}
-              className={`auth-tab ${!isLogin ? "auth-tab-active" : ""}`}
+              role="tab"
+              aria-selected={!isLogin ? "true" : "false"}
+              tabIndex={!isLogin ? 0 : -1}
+              onClick={() => handleSwitchTab(false)}
+              className={`login-tab-item ${!isLogin ? "login-tab-active" : ""}`}
             >
               注册
             </button>
           </div>
 
-          <div key={key} className="form-container">
-            {isLogin ? <LoginForm /> : <RegisterForm onSuccess={() => switchTab(true)} />}
+          {/* 表单区域（带滑入动画） */}
+          <div className="login-form-area">
+            {isLogin ? (
+              <div
+                key={`login-${animKey}`}
+                className={`login-form-card ${enterFromLeft ? "entering-from-left" : "entering"}`}
+              >
+                <LoginForm />
+              </div>
+            ) : (
+              <div
+                key={`register-${animKey}`}
+                className={`login-form-card ${enterFromLeft ? "entering" : "entering-from-left"}`}
+              >
+                <RegisterForm onSuccess={() => handleSwitchTab(true)} />
+              </div>
+            )}
           </div>
         </div>
       </div>
