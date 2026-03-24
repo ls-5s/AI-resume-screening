@@ -194,9 +194,24 @@ router.delete("/resume/:id", async (req: Request, res: Response) => {
       });
     }
 
-    // 删除文件
-    if (resume.resumeFile && fs.existsSync(resume.resumeFile)) {
-      fs.unlinkSync(resume.resumeFile);
+    // 删除磁盘文件（安全检查：仅允许删除 uploads 目录下的文件）
+    if (resume.resumeFile) {
+      const uploadsDir = path.join(process.cwd(), "uploads");
+      const resolvedFile = path.resolve(resume.resumeFile);
+      if (resolvedFile.startsWith(uploadsDir)) {
+        try {
+          if (fs.existsSync(resolvedFile)) {
+            fs.unlinkSync(resolvedFile);
+            console.log(`文件已删除: ${resolvedFile}`);
+          } else {
+            console.warn(`文件不存在，跳过删除: ${resolvedFile}`);
+          }
+        } catch (fileErr) {
+          console.error(`删除文件失败: ${resolvedFile}`, fileErr);
+        }
+      } else {
+        console.warn(`文件路径不安全，跳过删除: ${resolvedFile}`);
+      }
     }
 
     // 删除数据库记录

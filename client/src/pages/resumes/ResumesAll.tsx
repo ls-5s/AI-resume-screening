@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   getResumes,
   deleteResume,
@@ -13,6 +14,9 @@ import {
   ResumeDetailDrawer,
   PdfPreviewModal,
 } from "../../components/resumes";
+import { ConfirmModal } from "../../components/Modal";
+
+const PAGE_SIZE = 10;
 
 function SkeletonAllTable() {
   return (
@@ -47,12 +51,18 @@ function SkeletonAllTable() {
 export default function ResumesAll() {
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
   const [viewResume, setViewResume] = useState<Resume | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
   const [pdfPreview, setPdfPreview] = useState<{
     url: string;
     fileName: string;
   } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const loadResumes = useCallback(async () => {
     setLoading(true);
@@ -78,9 +88,26 @@ export default function ResumesAll() {
     );
   }, [resumes]);
 
-  const handleDelete = async (id: number, name: string) => {
-    if (!confirm("确定要删除这份简历吗？")) return;
+  const totalPages = Math.max(1, Math.ceil(sortedResumes.length / PAGE_SIZE));
+  const paginatedResumes = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return sortedResumes.slice(start, start + PAGE_SIZE);
+  }, [sortedResumes, currentPage]);
 
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const handleDelete = (id: number, name: string) => {
+    setDeleteConfirm({ id, name });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm) return;
+    const { id, name } = deleteConfirm;
+    setDeleteLoading(true);
     try {
       await deleteResume(id);
       await logActivity({
@@ -90,10 +117,13 @@ export default function ResumesAll() {
         description: "删除了简历",
       });
       toast.success("删除成功");
+      setDeleteConfirm(null);
       void loadResumes();
     } catch (error) {
       console.error("删除失败:", error);
       toast.error("删除失败");
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -154,27 +184,95 @@ export default function ResumesAll() {
         </header>
 
         <section
-          className="overflow-hidden rounded-3xl border border-zinc-200/70 bg-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06)] ring-1 ring-zinc-950/3"
+          className="overflow-hidden rounded-3xl border border-zinc-200/70 bg-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06)]"
           aria-label="全部简历列表"
         >
           <div className="border-b border-zinc-100/80 px-6 py-4">
             <h2 className="text-base font-semibold tracking-tight text-zinc-900">
-              列表
+              全部列表
             </h2>
             <p className="mt-0.5 text-xs text-zinc-500">
-              当前显示 {sortedResumes.length} 份
+              共 {sortedResumes.length} 份 · 每页 {PAGE_SIZE} 条
             </p>
           </div>
 
           {loading ? (
             <SkeletonAllTable />
           ) : (
-            <ResumeList
-              resumes={sortedResumes}
-              loading={loading}
-              onView={handleView}
-              onDelete={handleDelete}
-            />
+            <>
+              <ResumeList
+                resumes={paginatedResumes}
+                loading={loading}
+                onView={handleView}
+                onDelete={handleDelete}
+              />
+              {totalPages > 1 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100/80 px-6 py-4">
+                  <p className="text-xs text-zinc-500">
+                    第 {(currentPage - 1) * PAGE_SIZE + 1}–
+                    {Math.min(currentPage * PAGE_SIZE, sortedResumes.length)}{" "}
+                    条，共 {sortedResumes.length} 份
+                  </p>
+                  <nav
+                    className="flex items-center gap-1"
+                    aria-label="分页"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage <= 1}
+                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200/80 bg-white text-zinc-600 transition-colors hover:bg-zinc-50 hover:border-zinc-300 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+                      aria-label="上一页"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <div className="flex items-center gap-0.5">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        .filter((p) => {
+                          if (totalPages <= 7) return true;
+                          if (p === 1 || p === totalPages) return true;
+                          if (Math.abs(p - currentPage) <= 1) return true;
+                          return false;
+                        })
+                        .map((p, idx, arr) => (
+                          <span key={p}>
+                            {idx > 0 && arr[idx - 1] !== p - 1 && (
+                              <span className="inline-flex w-8 justify-center text-zinc-300">
+                                …
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setCurrentPage(p)}
+                              className={`
+                                flex h-9 min-w-9 items-center justify-center rounded-lg border px-2 text-sm font-medium transition-colors
+                                ${
+                                  p === currentPage
+                                    ? "border-sky-200 bg-sky-50 text-sky-700"
+                                    : "border-zinc-200/80 bg-white text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300"
+                                }
+                              `}
+                            >
+                              {p}
+                            </button>
+                          </span>
+                        ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCurrentPage((p) => Math.min(totalPages, p + 1))
+                      }
+                      disabled={currentPage >= totalPages}
+                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200/80 bg-white text-zinc-600 transition-colors hover:bg-zinc-50 hover:border-zinc-300 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+                      aria-label="下一页"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </nav>
+                </div>
+              )}
+            </>
           )}
         </section>
       </div>
@@ -191,6 +289,17 @@ export default function ResumesAll() {
         onClose={() => setPdfPreview(null)}
         url={pdfPreview?.url || null}
         fileName={pdfPreview?.fileName || null}
+      />
+
+      <ConfirmModal
+        isOpen={!!deleteConfirm}
+        onClose={() => setDeleteConfirm(null)}
+        onConfirm={handleDeleteConfirm}
+        title="确认删除"
+        message={`确定要删除简历「${deleteConfirm?.name}」吗？此操作不可恢复。`}
+        confirmText="删除"
+        confirmVariant="danger"
+        loading={deleteLoading}
       />
     </div>
   );

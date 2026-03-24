@@ -20,6 +20,7 @@ import {
   PdfPreviewModal,
   ResumeStatusPieChart,
 } from "../../components/resumes";
+import { ConfirmModal } from "../../components/Modal";
 
 const RECENT_IMPORT_LIMIT = 3;
 
@@ -90,6 +91,11 @@ export default function Resumes() {
     url: string;
     fileName: string;
   } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     if (searchParams.get("action") === "upload") {
@@ -251,9 +257,14 @@ export default function Resumes() {
     }
   };
 
-  const handleDelete = async (id: number, name: string) => {
-    if (!confirm("确定要删除这份简历吗？")) return;
+  const handleDelete = (id: number, name: string) => {
+    setDeleteConfirm({ id, name });
+  };
 
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm) return;
+    const { id, name } = deleteConfirm;
+    setDeleteLoading(true);
     try {
       await deleteResume(id);
       await logActivity({
@@ -263,10 +274,13 @@ export default function Resumes() {
         description: "删除了简历",
       });
       toast.success("删除成功");
+      setDeleteConfirm(null);
       void loadResumes();
     } catch (error) {
       console.error("删除失败:", error);
       toast.error("删除失败");
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -346,7 +360,7 @@ export default function Resumes() {
         {viewMode === "overview" && (
           <section
             aria-label="简历概览与操作"
-            className="mb-5 grid grid-cols-1 gap-5 lg:mb-6 lg:grid-cols-12 lg:gap-6 lg:items-start"
+            className="mb-5 grid grid-cols-1 gap-5 lg:mb-6 lg:grid-cols-12 lg:gap-6 lg:items-stretch"
           >
             <div className="lg:col-span-7">
               {loading ? (
@@ -361,8 +375,8 @@ export default function Resumes() {
               )}
             </div>
             <div className="lg:col-span-5">
-              <div className="rounded-3xl border border-zinc-200/70 bg-white p-5 shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06)] ring-1 ring-zinc-950/3">
-                <div className="space-y-1.5">
+              <div className="flex h-full flex-col rounded-3xl border border-zinc-200/70 bg-white p-5 shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06)]">
+                <div className="mb-auto space-y-1.5">
                   <h2 className="text-sm font-semibold tracking-tight text-zinc-900">
                     操作
                   </h2>
@@ -370,21 +384,21 @@ export default function Resumes() {
                     上传文件或从已绑定邮箱拉取附件，快速进入智能筛选。
                   </p>
                 </div>
-                <div className="mt-4 grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr))]">
+                <div className="mt-4 flex flex-col gap-2">
                   <button
                     type="button"
                     onClick={handleOpenImportModal}
-                    className="flex h-10 min-h-[2.5rem] w-full min-w-0 items-center justify-center gap-2 rounded-xl border border-zinc-200/80 bg-zinc-50/50 text-sm font-medium text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-zinc-100/80"
+                    className="group flex h-11 w-full items-center justify-center gap-2.5 rounded-2xl border border-zinc-200/80 bg-zinc-50/60 text-sm font-medium text-zinc-600 backdrop-blur-sm transition-all hover:border-sky-200 hover:bg-sky-50/70 hover:text-sky-700"
                   >
-                    <Mail className="h-4 w-4 shrink-0 text-zinc-500" />
+                    <Mail className="h-4 w-4 shrink-0 text-zinc-400 transition-colors group-hover:text-sky-500" />
                     邮箱导入
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowModal(true)}
-                    className="flex h-10 min-h-[2.5rem] w-full min-w-0 items-center justify-center gap-2 rounded-xl bg-sky-600 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
+                    className="group flex h-11 w-full items-center justify-center gap-2.5 rounded-2xl bg-sky-600 text-sm font-semibold text-white shadow-sm shadow-sky-600/20 transition-all hover:bg-sky-700 hover:shadow-md hover:shadow-sky-600/25"
                   >
-                    <Upload className="h-4 w-4 shrink-0" />
+                    <Upload className="h-4 w-4 shrink-0 transition-transform group-hover:scale-110" />
                     上传简历
                   </button>
                 </div>
@@ -470,6 +484,17 @@ export default function Resumes() {
         onConfigChange={setSelectedConfigId}
         onImport={handleImportFromEmail}
         importing={importing}
+      />
+
+      <ConfirmModal
+        isOpen={!!deleteConfirm}
+        onClose={() => setDeleteConfirm(null)}
+        onConfirm={handleDeleteConfirm}
+        title="确认删除"
+        message={`确定要删除简历「${deleteConfirm?.name}」吗？此操作不可恢复。`}
+        confirmText="删除"
+        confirmVariant="danger"
+        loading={deleteLoading}
       />
     </div>
   );

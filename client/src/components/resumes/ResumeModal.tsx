@@ -1,4 +1,3 @@
-import { useRef, useCallback, useState } from "react";
 import {
   Upload,
   FileText,
@@ -41,98 +40,47 @@ interface ResumeModalProps {
 
 interface DropZoneProps {
   selectedFile: File | null;
-  onFileChange: (file: File | null) => void;
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
 }
 
 const DropZone = ({
   selectedFile,
-  onFileChange,
-  fileInputRef,
 }: DropZoneProps) => {
-  const [isDragging, setIsDragging] = useState(false);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  }, []);
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setIsDragging(false);
-      const file = e.dataTransfer.files?.[0];
-      if (file) {
-        onFileChange(file);
-      }
-    },
-    [onFileChange],
-  );
-
   const getFileIcon = () => {
-    if (!selectedFile) return <Upload className="h-12 w-12" />;
-    const ext = selectedFile.name.split(".").pop()?.toLowerCase();
-    if (ext === "pdf") {
-      return <FileText className="h-12 w-12" />;
-    }
-    return <File className="h-12 w-12" />;
+    const ext = selectedFile?.name.split(".").pop()?.toLowerCase();
+    if (ext === "pdf") return <FileText className="h-8 w-8" />;
+    if (ext === "docx" || ext === "doc") return <File className="h-8 w-8" />;
+    return <Upload className="h-8 w-8" />;
   };
 
   const getFileGradient = () => {
     if (!selectedFile) return "from-zinc-100 to-slate-200";
     const ext = selectedFile.name.split(".").pop()?.toLowerCase();
     if (ext === "pdf") return "from-rose-500 to-red-600";
-    if (ext === "docx") return "from-blue-500 to-indigo-600";
+    if (ext === "docx" || ext === "doc") return "from-blue-500 to-indigo-600";
     return "from-sky-500 to-blue-600";
   };
 
   return (
     <div
       className={`
-        relative overflow-hidden rounded-2xl border-2 border-dashed
-        transition-all duration-300 cursor-pointer
-        ${
-          isDragging
-            ? "border-sky-500 bg-sky-50/60"
-            : selectedFile
-              ? "border-sky-200 bg-sky-50/40"
-              : "border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50/50"
-        }
+        overflow-hidden rounded-2xl border-2 border-dashed
+        ${selectedFile ? "border-sky-200 bg-sky-50/40" : "border-zinc-200 bg-zinc-50/30"}
       `}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
     >
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".pdf,.docx,.doc"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          onFileChange(file || null);
-        }}
-        className="hidden"
-        id="resume-upload"
-      />
-      <label htmlFor="resume-upload" className="cursor-pointer block">
-        <div className="p-6 text-center">
-          {selectedFile ? (
-            <div className="flex flex-col items-center gap-3">
-              {/* File Preview */}
-              <div
-                className={`
-                  flex h-16 w-16 items-center justify-center rounded-2xl
-                  bg-gradient-to-br ${getFileGradient()} shadow-md
-                `}
-              >
-                <div className="text-white scale-90">{getFileIcon()}</div>
-              </div>
+      <div className="p-6 text-center">
+        <div className="flex flex-col items-center gap-3">
+          {/* Icon */}
+          <div
+            className={`
+              flex h-14 w-14 items-center justify-center rounded-2xl
+              bg-linear-to-br ${getFileGradient()} shadow-md
+            `}
+          >
+            <div className="text-white">{getFileIcon()}</div>
+          </div>
 
+          {selectedFile ? (
+            <>
               {/* File Info */}
               <div>
                 <p className="text-sm font-semibold text-zinc-900 mb-0.5 truncate max-w-[20rem]">
@@ -142,43 +90,20 @@ const DropZone = ({
                   {formatFileSize(selectedFile.size)}
                 </p>
               </div>
-
-              {/* Replace hint */}
-              <p className="text-xs text-sky-600 font-medium">
-                点击或拖拽以更换
-              </p>
-            </div>
+            </>
           ) : (
-            <div className="flex flex-col items-center gap-2.5">
-              {/* Upload Icon */}
-              <div
-                className={`
-                  flex h-14 w-14 items-center justify-center rounded-2xl
-                  bg-gradient-to-br ${getFileGradient()} shadow-md
-                  transition-transform duration-300
-                  ${isDragging ? "scale-110" : ""}
-                `}
-              >
-                <Upload
-                  className={`h-7 w-7 text-white transition-transform duration-300 ${
-                    isDragging ? "scale-110" : ""
-                  }`}
-                />
-              </div>
-
-              {/* Text Content */}
-              <div>
-                <p className="text-sm font-semibold text-zinc-900 mb-1">
-                  {isDragging ? "松开以上传" : "点击上传或拖拽文件到此处"}
-                </p>
-                <p className="text-xs text-zinc-400">
-                  支持 PDF、Word 文档，最大 10MB
-                </p>
-              </div>
+            /* Empty state */
+            <div>
+              <p className="text-sm font-semibold text-zinc-900 mb-1">
+                等待上传文件
+              </p>
+              <p className="text-xs text-zinc-400">
+                支持 PDF、Word 文档，最大 10MB
+              </p>
             </div>
           )}
         </div>
-      </label>
+      </div>
     </div>
   );
 };
@@ -347,14 +272,9 @@ export function ResumeModal({
   onImport,
   importing,
 }: ResumeModalProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const handleClose = () => {
     if (type === "upload" && onFileChange) {
       onFileChange(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
     }
     onClose();
   };
@@ -442,11 +362,7 @@ export function ResumeModal({
       }
     >
       {isUpload ? (
-        <DropZone
-          selectedFile={selectedFile || null}
-          onFileChange={onFileChange || (() => {})}
-          fileInputRef={fileInputRef}
-        />
+        <DropZone selectedFile={selectedFile || null} />
       ) : (
         <ImportSection
           emailConfigs={emailConfigs}

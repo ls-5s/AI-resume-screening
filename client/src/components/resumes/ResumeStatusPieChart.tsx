@@ -62,14 +62,14 @@ export function ResumeStatusPieChart({
 
   if (total === 0) {
     return (
-      <div className="flex min-h-[240px] flex-col items-center justify-center rounded-3xl border border-zinc-200/70 bg-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06)] ring-1 ring-zinc-950/3">
+      <div className="flex min-h-[240px] flex-col items-center justify-center rounded-3xl border border-zinc-200/70 bg-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06)]">
         <p className="text-sm text-zinc-400">暂无数据</p>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-[240px] flex-col overflow-hidden rounded-3xl border border-zinc-200/70 bg-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06)] ring-1 ring-zinc-950/3">
+    <div className="flex min-h-[240px] flex-col overflow-hidden rounded-3xl border border-zinc-200/70 bg-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06)]">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-zinc-100/80 px-5 py-4 sm:px-6">
         <div>
           <h2 className="text-base font-semibold tracking-tight text-zinc-900">
@@ -115,10 +115,19 @@ export function ResumeStatusPieChart({
                 dataKey="value"
               >
                 {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={entry.color}
+                    strokeWidth={0}
+                    style={{ outline: "none" }}
+                  />
                 ))}
               </Pie>
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip
+                content={<CustomTooltip />}
+                offset={70}
+                wrapperStyle={{ outline: "none" }}
+              />
             </PieChart>
           </ResponsiveContainer>
           {total > 0 && (
