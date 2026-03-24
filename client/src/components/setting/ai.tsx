@@ -218,7 +218,7 @@ export function AiSettings() {
 
   // 渲染表单
   const renderForm = () => (
-    <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+    <div className="bg-sky-50/60 rounded-2xl border border-sky-100/70 p-5 space-y-4">
       {/* 配置名称 */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -341,7 +341,7 @@ export function AiSettings() {
         <button
           onClick={handleCancel}
           disabled={saving || testing}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+          className="rounded-2xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm transition-all hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           <X className="w-4 h-4" />
           取消
@@ -349,7 +349,7 @@ export function AiSettings() {
         <button
           onClick={handleTest}
           disabled={testing || saving}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+          className="rounded-2xl border border-zinc-200 bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm transition-all hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           {testing ? (
             <>
@@ -366,7 +366,7 @@ export function AiSettings() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+          className="rounded-2xl bg-linear-to-r from-sky-600 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:brightness-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           {saving ? (
             <>
@@ -388,7 +388,7 @@ export function AiSettings() {
   const renderConfigCard = (config: AiConfig) => (
     <div
       key={config.id}
-      className={`bg-white rounded-lg border p-4 ${
+      className={`bg-white rounded-2xl border p-4 ${
         config.isDefault ? "border-blue-300 ring-1 ring-blue-200" : "border-gray-200"
       }`}
     >
@@ -450,16 +450,16 @@ export function AiSettings() {
   );
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+    <div className="overflow-hidden rounded-3xl border border-zinc-200/70 bg-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06)] ring-1 ring-zinc-950/3 p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-lg font-medium text-gray-900">AI 配置</h2>
-          <p className="text-sm text-gray-500 mt-1">配置多个 AI 模型用于简历筛选</p>
+          <h2 className="text-lg font-semibold tracking-tight text-zinc-900">AI 配置</h2>
+          <p className="text-sm text-zinc-500 mt-1">配置多个 AI 模型用于简历筛选</p>
         </div>
         {!isAdding && editingId === null && (
           <button
             onClick={handleAdd}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
+            className="rounded-2xl bg-linear-to-r from-sky-600 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:brightness-95 flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
             添加配置

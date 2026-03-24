@@ -126,41 +126,52 @@ export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
   };
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-medium text-gray-900">邮箱配置</h3>
+    <div className="overflow-hidden rounded-3xl border border-zinc-200/70 bg-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06)] ring-1 ring-zinc-950/3 p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h3 className="text-lg font-semibold tracking-tight text-zinc-900">
+            邮箱配置
+          </h3>
+          <p className="mt-1 text-sm text-zinc-500">
+            管理发件邮箱与 SMTP/IMAP 连接参数
+          </p>
+        </div>
         <button
           onClick={() => openModal()}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          className="rounded-2xl bg-linear-to-r from-sky-600 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:brightness-95 flex items-center gap-2"
         >
           添加邮箱
         </button>
       </div>
 
       {loading ? (
-        <div className="text-center text-gray-500 py-8">加载中...</div>
+        <div className="text-center text-zinc-500 py-14">加载中...</div>
       ) : configs.length === 0 ? (
-        <div className="bg-gray-50 rounded-lg p-8 text-center">
-          <p className="text-gray-500">暂无邮箱配置</p>
-          <p className="text-sm text-gray-400 mt-1">点击上方按钮添加第一个邮箱配置</p>
+        <div className="bg-sky-50/60 rounded-2xl border border-sky-100/70 p-10 text-center">
+          <p className="text-zinc-500">暂无邮箱配置</p>
+          <p className="text-sm text-zinc-400 mt-1">
+            点击上方按钮添加第一个邮箱配置
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
           {configs.map((config) => (
             <div
               key={config.id}
-              className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+              className="flex items-center justify-between p-4 bg-white rounded-2xl border border-zinc-200/70"
             >
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-900">{config.email}</span>
+                  <span className="font-semibold text-zinc-900">
+                    {config.email}
+                  </span>
                   {config.isDefault && (
-                    <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">
+                    <span className="px-2 py-0.5 text-xs bg-sky-100 text-sky-700 rounded">
                       默认
                     </span>
                   )}
                 </div>
-                <div className="mt-1 text-sm text-gray-500">
+                <div className="mt-1 text-sm text-zinc-500">
                   IMAP: {config.imapHost}:{config.imapPort} | SMTP: {config.smtpHost}:{config.smtpPort}
                 </div>
               </div>
@@ -168,19 +179,19 @@ export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
                 <button
                   onClick={() => handleTest(config.id)}
                   disabled={testingId === config.id}
-                  className="px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  className="rounded-2xl border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 shadow-sm transition-all hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {testingId === config.id ? "测试中..." : "测试"}
                 </button>
                 <button
                   onClick={() => openModal(config)}
-                  className="px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="rounded-2xl border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 shadow-sm transition-all hover:bg-zinc-50"
                 >
                   编辑
                 </button>
                 <button
                   onClick={() => handleDelete(config.id)}
-                  className="px-3 py-1.5 text-sm text-red-600 bg-white border border-red-300 rounded-lg hover:bg-red-50"
+                  className="rounded-2xl border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-600 shadow-sm transition-all hover:bg-red-50"
                 >
                   删除
                 </button>
