@@ -8,6 +8,7 @@ import {
   Mail,
   PanelLeftClose,
   PanelLeftOpen,
+  ClipboardList,
 } from "lucide-react";
 import { useLoginStore } from "../store/Login";
 import { UserInfo } from "../components/UserInfo";
@@ -16,6 +17,7 @@ const navItems = [
   { path: "/app", label: "仪表盘", icon: LayoutDashboard },
   { path: "/app/resumes", label: "简历管理", icon: FileText },
   { path: "/app/aiscreening", label: "AI 筛选", icon: Briefcase },
+  { path: "/app/screening-template", label: "筛选模版", icon: ClipboardList },
   { path: "/app/emails", label: "邮件群发", icon: Mail },
   { path: "/app/settings", label: "设置", icon: Settings },
 ];
@@ -25,7 +27,7 @@ export default function Layout() {
   const { user } = useLoginStore();
 
   const [expanded, setExpanded] = useState(
-    () => localStorage.getItem("sidebar-expanded") !== "false"
+    () => localStorage.getItem("sidebar-expanded") !== "false",
   );
 
   return (
@@ -49,9 +51,27 @@ export default function Layout() {
               >
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-linear-to-br from-[#0ea5e9] to-[#3b82f6] text-white shadow-[0_2px_8px_rgba(14,165,233,0.35)]">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 2L2 7l10 5 10-5-10-5z" fill="currentColor" opacity="0.9"/>
-                    <path d="M2 17l10 5 10-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.6"/>
-                    <path d="M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.8"/>
+                    <path
+                      d="M12 2L2 7l10 5 10-5-10-5z"
+                      fill="currentColor"
+                      opacity="0.9"
+                    />
+                    <path
+                      d="M2 17l10 5 10-5"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      opacity="0.6"
+                    />
+                    <path
+                      d="M2 12l10 5 10-5"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      opacity="0.8"
+                    />
                   </svg>
                 </div>
                 <span className="truncate text-[15px] font-semibold tracking-tight text-[#1a1a2e]">
@@ -65,17 +85,43 @@ export default function Layout() {
                 aria-label="收起侧边栏"
                 className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0ea5e9]/25 focus-visible:ring-offset-2"
               >
-                <PanelLeftClose className="h-[18px] w-[18px]" strokeWidth={2} aria-hidden />
+                <PanelLeftClose
+                  className="h-[18px] w-[18px]"
+                  strokeWidth={2}
+                  aria-hidden
+                />
               </button>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2 px-3 py-4">
-              <Link to="/app" className="flex shrink-0 no-underline" title="简历筛选">
+              <Link
+                to="/app"
+                className="flex shrink-0 no-underline"
+                title="简历筛选"
+              >
                 <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-linear-to-br from-[#667eea] to-[#764ba2] text-white shadow-[0_2px_8px_rgba(102,126,234,0.35)]">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 2L2 7l10 5 10-5-10-5z" fill="currentColor" opacity="0.9"/>
-                    <path d="M2 17l10 5 10-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.6"/>
-                    <path d="M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.8"/>
+                    <path
+                      d="M12 2L2 7l10 5 10-5-10-5z"
+                      fill="currentColor"
+                      opacity="0.9"
+                    />
+                    <path
+                      d="M2 17l10 5 10-5"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      opacity="0.6"
+                    />
+                    <path
+                      d="M2 12l10 5 10-5"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      opacity="0.8"
+                    />
                   </svg>
                 </div>
               </Link>
@@ -86,7 +132,11 @@ export default function Layout() {
                 aria-label="展开侧边栏"
                 className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0ea5e9]/25 focus-visible:ring-offset-2"
               >
-                <PanelLeftOpen className="h-[17px] w-[17px]" strokeWidth={2} aria-hidden />
+                <PanelLeftOpen
+                  className="h-[17px] w-[17px]"
+                  strokeWidth={2}
+                  aria-hidden
+                />
               </button>
             </div>
           )}
@@ -122,7 +172,9 @@ export default function Layout() {
         </nav>
 
         {/* User */}
-        <div className={`border-t border-black/5 shrink-0 ${expanded ? "px-3 py-3" : "px-2 py-3"}`}>
+        <div
+          className={`border-t border-black/5 shrink-0 ${expanded ? "px-3 py-3" : "px-2 py-3"}`}
+        >
           <UserInfo username={user?.username} compact={!expanded} />
         </div>
       </aside>

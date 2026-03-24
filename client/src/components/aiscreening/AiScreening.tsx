@@ -24,6 +24,7 @@ import {
   getDefaultPreFilter,
   isEmptyPreFilter,
 } from "./preFilterUtils";
+import { loadTemplates } from "../../pages/screeningtemplate/templateApi";
 import { getResumes, updateResumeStatus } from "../../api/resume";
 import {
   batchScreenResumesWithAi,
@@ -40,10 +41,8 @@ type StatusFilter = "all" | "pending" | "passed" | "rejected";
 
 // 与 ResumeList 状态徽章一致
 const listStatusStyles = {
-  pending:
-    "bg-amber-50 text-amber-800 border border-amber-200/80",
-  passed:
-    "bg-emerald-50 text-emerald-800 border border-emerald-200/80",
+  pending: "bg-amber-50 text-amber-800 border border-amber-200/80",
+  passed: "bg-emerald-50 text-emerald-800 border border-emerald-200/80",
   rejected: "bg-rose-50 text-rose-800 border border-rose-200/80",
 };
 
@@ -155,9 +154,8 @@ export function AiScreening() {
   const [loadingAiConfigs, setLoadingAiConfigs] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [preFilterConfig, setPreFilterConfig] = useState<PreFilterConfig>(
-    getDefaultPreFilter,
-  );
+  const [preFilterConfig, setPreFilterConfig] =
+    useState<PreFilterConfig>(getDefaultPreFilter);
   const [preFilterModalOpen, setPreFilterModalOpen] = useState(false);
   const [reasoningOpen, setReasoningOpen] = useState(false);
   const [phoneExpanded, setPhoneExpanded] = useState(false);
@@ -198,7 +196,9 @@ export function AiScreening() {
             .toLowerCase();
           const matches = keywords.filter((kw) => searchable.includes(kw));
           const matchKeywords =
-            mode === "and" ? matches.length === keywords.length : matches.length > 0;
+            mode === "and"
+              ? matches.length === keywords.length
+              : matches.length > 0;
           if (!matchKeywords) return false;
         }
 
@@ -298,10 +298,22 @@ export function AiScreening() {
     setReasoningOpen(Boolean(selectedResult?.reasoning?.trim()));
   }, [selectedResumeId, selectedResult?.reasoning]);
 
-  // 加载简历列表和AI配置
+  // 加载简历列表和AI配置，并读取主动应用的模版
   useEffect(() => {
     loadResumes();
     loadAiConfigs();
+
+    // 从模版页面跳转时，可能携带了 active-screening-template
+    const activeId = localStorage.getItem("active-screening-template");
+    if (activeId) {
+      localStorage.removeItem("active-screening-template");
+      const templates = loadTemplates();
+      const found = templates.find((t) => t.id === activeId);
+      if (found) {
+        setPreFilterConfig(found.config);
+        toast.success(`已应用模版「${found.name}」的筛选条件`);
+      }
+    }
   }, []);
 
   const loadAiConfigs = async () => {
@@ -605,7 +617,8 @@ export function AiScreening() {
               AI 智能筛选
             </h1>
             <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-zinc-500">
-              左侧选人，右侧决策；先配置岗位与模型，再对单人运行 AI 筛选或批量处理。
+              左侧选人，右侧决策；先配置岗位与模型，再对单人运行 AI
+              筛选或批量处理。
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <span className="inline-flex items-center rounded-full border border-zinc-200/80 bg-white px-2.5 py-0.5 text-xs font-medium text-zinc-600 shadow-sm">
@@ -720,7 +733,11 @@ export function AiScreening() {
 
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-2">
                 {loading ? (
-                  <ul className="space-y-2 p-1" aria-busy="true" aria-label="加载中">
+                  <ul
+                    className="space-y-2 p-1"
+                    aria-busy="true"
+                    aria-label="加载中"
+                  >
                     {Array.from({ length: 7 }).map((_, i) => (
                       <li
                         key={i}
@@ -880,7 +897,8 @@ export function AiScreening() {
                     选择一位候选人
                   </p>
                   <p className="mt-2 max-w-xs text-sm leading-relaxed text-zinc-500">
-                    在左侧列表中选中简历后，可查看联系方式、匹配分与 AI 评估，并在此做出筛选决策。
+                    在左侧列表中选中简历后，可查看联系方式、匹配分与 AI
+                    评估，并在此做出筛选决策。
                   </p>
                   <button
                     type="button"
@@ -934,9 +952,7 @@ export function AiScreening() {
                         {selectedResumeId != null && (
                           <button
                             type="button"
-                            onClick={() =>
-                              handleScreenResume(selectedResumeId)
-                            }
+                            onClick={() => handleScreenResume(selectedResumeId)}
                             disabled={
                               screeningResumeId === selectedResumeId ||
                               !jobRequirements.trim()
