@@ -24,7 +24,6 @@ import {
 } from "lucide-react";
 import toast from "../../utils/toast";
 import {
-  LoadingState,
   EmptyState,
   FormInput,
   PasswordInput,
@@ -32,6 +31,7 @@ import {
   CardGrid,
   AnimatedCard,
 } from "../ui";
+import { SettingSkeleton } from "./SettingSkeleton";
 
 // ============================================================================
 // Types
@@ -429,7 +429,7 @@ export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
       {/* Content */}
       <div className="p-6">
         {loading ? (
-          <LoadingState message="加载配置中..." />
+          <SettingSkeleton rows={3} message="加载邮箱配置中..." />
         ) : configs.length === 0 ? (
           <EmptyState
             title="暂无邮箱配置"

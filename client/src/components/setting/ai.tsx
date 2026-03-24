@@ -28,7 +28,6 @@ import toast from "../../utils/toast";
 import { Modal, ConfirmModal } from "../Modal";
 import {
   StatusFeedback,
-  LoadingState,
   EmptyState,
   FormInput,
   PasswordInput,
@@ -36,6 +35,7 @@ import {
   CardGrid,
   AnimatedCard,
 } from "../ui";
+import { SettingSkeleton } from "./SettingSkeleton";
 
 // ============================================================================
 // Constants
@@ -548,7 +548,7 @@ export function AiSettings() {
 
       setIsModalOpen(false);
       void loadConfigs();
-    } catch (error) {
+    } catch {
       toast.error("保存失败，请稍后重试");
     } finally {
       setSaving(false);
@@ -825,7 +825,7 @@ export function AiSettings() {
 
       {/* Content */}
       {loading ? (
-        <LoadingState message="加载配置中..." />
+        <SettingSkeleton rows={3} message="加载 AI 配置中..." />
       ) : configs.length === 0 ? (
         <div className="px-6 pb-6">
           <EmptyState

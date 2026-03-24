@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import toast from "../../utils/toast";
 import { useLoginStore } from "../../store/Login";
-import { LoadingState } from "../ui";
+import { SettingSkeleton } from "./SettingSkeleton";
 
 // ============================================================================
 // Types
@@ -268,9 +268,7 @@ export function ProfileSettings() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <LoadingState message="加载个人信息..." />
-      </div>
+      <SettingSkeleton rows={1} message="加载个人信息..." />
     );
   }
 
