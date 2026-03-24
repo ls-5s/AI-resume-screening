@@ -7,6 +7,30 @@ import { authenticate } from "../middleware/auth.js";
 const router: Router = express.Router();
 
 /**
+ * 获取模板详情
+ */
+router.get("/screening-templates/:id", authenticate, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    const id = parseInt(req.params.id as string);
+
+    const [row] = await db
+      .select()
+      .from(screeningTemplates)
+      .where(eq(screeningTemplates.id, id));
+
+    if (!row) {
+      return res.status(404).json({ code: 404, message: "模板不存在" });
+    }
+
+    res.json({ code: 200, data: row });
+  } catch (error: any) {
+    console.error("获取模板详情失败:", error);
+    res.status(500).json({ code: 500, message: error.message || "获取失败" });
+  }
+});
+
+/**
  * 获取模板列表
  */
 router.get("/screening-templates", authenticate, async (req: Request, res: Response) => {

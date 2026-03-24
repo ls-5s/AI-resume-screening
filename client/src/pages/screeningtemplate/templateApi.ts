@@ -2,6 +2,7 @@
 export {
   type ScreeningTemplate,
   loadTemplates,
+  getTemplate,
   createTemplate,
   updateTemplate,
   deleteTemplate,

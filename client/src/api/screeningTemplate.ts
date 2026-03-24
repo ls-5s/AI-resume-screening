@@ -1,6 +1,10 @@
 import instance from "../utils/http";
 import type { PreFilterConfig } from "../components/aiscreening/preFilterUtils";
-import type { ScreeningTemplate } from "../types/screening-template";
+import type {
+  ScreeningTemplate,
+  RawTemplateRow,
+  ScreeningTemplatePatch,
+} from "../types/screening-template";
 
 export type { ScreeningTemplate } from "../types/screening-template";
 
@@ -10,16 +14,6 @@ const DEFAULT_CONFIG: PreFilterConfig = {
   minScore: null,
   dateFrom: "",
   dateTo: "",
-};
-
-type RawTemplateRow = {
-  id: number;
-  userId: number;
-  name: string;
-  config?: unknown;
-  isDefault?: unknown;
-  createdAt: string;
-  updatedAt: string;
 };
 
 function normalize(raw: RawTemplateRow): ScreeningTemplate {
@@ -50,7 +44,15 @@ function normalize(raw: RawTemplateRow): ScreeningTemplate {
 export const loadTemplates = async (): Promise<ScreeningTemplate[]> => {
   const list = await instance.get("/v1/screening-templates");
   if (!Array.isArray(list)) return [];
-  return list.map((item) => normalize(item as RawTemplateRow));
+  return (list as RawTemplateRow[]).map(normalize);
+};
+
+/**
+ * 获取筛选模板详情
+ */
+export const getTemplate = async (id: number): Promise<ScreeningTemplate> => {
+  const row = (await instance.get(`/v1/screening-templates/${id}`)) as RawTemplateRow;
+  return normalize(row);
 };
 
 /**
@@ -60,7 +62,8 @@ export const createTemplate = async (
   name: string,
   config: PreFilterConfig,
 ): Promise<ScreeningTemplate> => {
-  const row = (await instance.post("/v1/screening-templates", { name, config })) as RawTemplateRow;
+  const patch: ScreeningTemplatePatch = { name, config };
+  const row = (await instance.post("/v1/screening-templates", patch)) as RawTemplateRow;
   return normalize(row);
 };
 
@@ -69,7 +72,7 @@ export const createTemplate = async (
  */
 export const updateTemplate = async (
   id: number,
-  patch: { name: string; config: PreFilterConfig },
+  patch: ScreeningTemplatePatch,
 ): Promise<ScreeningTemplate> => {
   const row = (await instance.put(`/v1/screening-templates/${id}`, patch)) as RawTemplateRow;
   return normalize(row);
