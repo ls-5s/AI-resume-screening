@@ -23,6 +23,29 @@
   --app-page-bg: #f8f9fc;
   --app-primary-soft: rgb(14 165 233 / 0.1);
   --app-accent-soft: rgb(59 130 246 / 0.1);
+
+  /* ThemeDemo 等：浅色 token（须写在 .dark 之前，避免第二个 :root 覆盖深色） */
+  --color-demo-bg: #f4f4f6;
+  --color-demo-surface: #ffffff;
+  --color-demo-surface-raised: #fafafa;
+  --color-demo-border: rgba(0, 0, 0, 0.07);
+  --color-demo-border-subtle: rgba(0, 0, 0, 0.04);
+  --color-demo-text-primary: #18181b;
+  --color-demo-text-secondary: #52525b;
+  --color-demo-text-muted: #a1a1aa;
+  --color-demo-accent: #0ea5e9;
+  --color-demo-accent-hover: #0284c7;
+  --color-demo-accent-soft: rgba(14, 165, 233, 0.1);
+  --color-demo-accent-ring: rgba(14, 165, 233, 0.2);
+  --color-demo-success: #22c55e;
+  --color-demo-success-soft: rgba(34, 197, 94, 0.1);
+  --color-demo-warning: #f59e0b;
+  --color-demo-warning-soft: rgba(245, 158, 11, 0.1);
+  --color-demo-danger: #ef4444;
+  --color-demo-danger-soft: rgba(239, 68, 68, 0.1);
+  --color-demo-purple: #a855f7;
+  --color-demo-purple-soft: rgba(168, 85, 247, 0.1);
+  --color-demo-cyan: #06b6d4;
 }
 
 /* Tailwind v4：主题色工具类，便于组件统一引用 */
@@ -804,30 +827,15 @@ body {
   --color-demo-text-muted: #52525b;
   --color-demo-accent: #38bdf8;
   --color-demo-accent-hover: #7dd3fc;
+  --color-demo-accent-soft: rgba(56, 189, 248, 0.12);
+  --color-demo-accent-ring: rgba(56, 189, 248, 0.20);
   --color-demo-success: #4ade80;
+  --color-demo-success-soft: rgba(74, 222, 128, 0.12);
   --color-demo-warning: #fbbf24;
+  --color-demo-warning-soft: rgba(251, 191, 36, 0.12);
   --color-demo-danger: #f87171;
+  --color-demo-danger-soft: rgba(248, 113, 113, 0.12);
   --color-demo-purple: #c084fc;
+  --color-demo-purple-soft: rgba(192, 132, 252, 0.12);
   --color-demo-cyan: #22d3ee;
-}
-
-/* ========================
-   亮色主题变量（默认）
-   ======================== */
-:root {
-  --color-demo-bg: #f4f4f6;
-  --color-demo-surface: #ffffff;
-  --color-demo-surface-raised: #fafafa;
-  --color-demo-border: rgba(0, 0, 0, 0.07);
-  --color-demo-border-subtle: rgba(0, 0, 0, 0.04);
-  --color-demo-text-primary: #18181b;
-  --color-demo-text-secondary: #52525b;
-  --color-demo-text-muted: #a1a1aa;
-  --color-demo-accent: #0ea5e9;
-  --color-demo-accent-hover: #0284c7;
-  --color-demo-success: #22c55e;
-  --color-demo-warning: #f59e0b;
-  --color-demo-danger: #ef4444;
-  --color-demo-purple: #a855f7;
-  --color-demo-cyan: #06b6d4;
 }

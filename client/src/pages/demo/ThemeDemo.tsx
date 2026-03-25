@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import {
   Sun,
   Moon,
@@ -7,9 +7,7 @@ import {
   Type,
   Layers,
   LayoutGrid,
-  Copy,
   Check,
-  ChevronRight,
   Star,
   Heart,
   Zap,
@@ -220,7 +218,7 @@ function ButtonSection() {
             {[
               { label: "主要按钮", cls: "bg-[var(--color-demo-accent)] text-white hover:bg-[var(--color-demo-accent-hover)]" },
               { label: "次要按钮", cls: "bg-[var(--color-demo-surface-raised)] text-[var(--color-demo-text-primary)] border border-[var(--color-demo-border)] hover:bg-[var(--color-demo-border)]" },
-              { label: "幽灵按钮", cls: "text-[var(--color-demo-accent)] hover:bg-[var(--color-demo-accent)]/10" },
+              { label: "幽灵按钮", cls: "text-[var(--color-demo-accent)] hover:bg-[var(--color-demo-accent-soft)]" },
               { label: "危险按钮", cls: "bg-[var(--color-demo-danger)] text-white hover:brightness-110" },
               { label: "禁用态", cls: "opacity-40 cursor-not-allowed", disabled: true },
             ].map((b) => (
@@ -291,7 +289,7 @@ function FormSection() {
             <input
               type="text"
               placeholder="请输入内容…"
-              className="w-full rounded-xl border border-[var(--color-demo-border)] bg-[var(--color-demo-surface-raised)] px-4 py-2.5 text-sm text-[var(--color-demo-text-primary)] placeholder:text-[var(--color-demo-text-muted)] transition-colors focus:border-[var(--color-demo-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-demo-accent)]/20"
+              className="w-full rounded-xl border border-[var(--color-demo-border)] bg-[var(--color-demo-surface-raised)] px-4 py-2.5 text-sm text-[var(--color-demo-text-primary)] placeholder:text-[var(--color-demo-text-muted)] transition-colors focus:border-[var(--color-demo-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-demo-accent-ring)]"
             />
           </div>
           <div className="space-y-1.5">
@@ -300,7 +298,7 @@ function FormSection() {
             </label>
             <select
               title="选择选项"
-              className="w-full rounded-xl border border-[var(--color-demo-border)] bg-[var(--color-demo-surface-raised)] px-4 py-2.5 text-sm text-[var(--color-demo-text-primary)] transition-colors focus:border-[var(--color-demo-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-demo-accent)]/20"
+              className="w-full rounded-xl border border-[var(--color-demo-border)] bg-[var(--color-demo-surface-raised)] px-4 py-2.5 text-sm text-[var(--color-demo-text-primary)] transition-colors focus:border-[var(--color-demo-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-demo-accent-ring)]"
             >
               <option>选项一</option>
               <option>选项二</option>
@@ -314,7 +312,7 @@ function FormSection() {
             <textarea
               rows={3}
               placeholder="请输入多行文本…"
-              className="w-full resize-y rounded-xl border border-[var(--color-demo-border)] bg-[var(--color-demo-surface-raised)] px-4 py-2.5 text-sm text-[var(--color-demo-text-primary)] placeholder:text-[var(--color-demo-text-muted)] transition-colors focus:border-[var(--color-demo-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-demo-accent)]/20"
+              className="w-full resize-y rounded-xl border border-[var(--color-demo-border)] bg-[var(--color-demo-surface-raised)] px-4 py-2.5 text-sm text-[var(--color-demo-text-primary)] placeholder:text-[var(--color-demo-text-muted)] transition-colors focus:border-[var(--color-demo-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-demo-accent-ring)]"
             />
           </div>
           {/* Checkboxes & radios */}
@@ -355,11 +353,11 @@ function FormSection() {
 function BadgeSection() {
   const badges = [
     { label: "默认", cls: "bg-[var(--color-demo-surface-raised)] text-[var(--color-demo-text-secondary)] border border-[var(--color-demo-border)]" },
-    { label: "主色", cls: "bg-[var(--color-demo-accent)]/10 text-[var(--color-demo-accent)] border border-[var(--color-demo-accent)]/20" },
-    { label: "成功", cls: "bg-[var(--color-demo-success)]/10 text-[var(--color-demo-success)] border border-[var(--color-demo-success)]/20" },
-    { label: "警告", cls: "bg-[var(--color-demo-warning)]/10 text-[var(--color-demo-warning)] border border-[var(--color-demo-warning)]/20" },
-    { label: "危险", cls: "bg-[var(--color-demo-danger)]/10 text-[var(--color-demo-danger)] border border-[var(--color-demo-danger)]/20" },
-    { label: "紫色", cls: "bg-[var(--color-demo-purple)]/10 text-[var(--color-demo-purple)] border border-[var(--color-demo-purple)]/20" },
+    { label: "主色", cls: "bg-[var(--color-demo-accent-soft)] text-[var(--color-demo-accent)] border border-[var(--color-demo-accent-soft)]" },
+    { label: "成功", cls: "bg-[var(--color-demo-success-soft)] text-[var(--color-demo-success)] border border-[var(--color-demo-success-soft)]" },
+    { label: "警告", cls: "bg-[var(--color-demo-warning-soft)] text-[var(--color-demo-warning)] border border-[var(--color-demo-warning-soft)]" },
+    { label: "危险", cls: "bg-[var(--color-demo-danger-soft)] text-[var(--color-demo-danger)] border border-[var(--color-demo-danger-soft)]" },
+    { label: "紫色", cls: "bg-[var(--color-demo-purple-soft)] text-[var(--color-demo-purple)] border border-[var(--color-demo-purple-soft)]" },
   ];
 
   return (
@@ -390,7 +388,7 @@ const demoCards = [
     title: "AI 智能筛选",
     desc: "基于大语言模型对简历内容进行深度语义理解与评分排序，精准识别优质候选人。",
     tag: "AI 能力",
-    tagClass: "bg-[var(--color-demo-accent)]/10 text-[var(--color-demo-accent)] border-[var(--color-demo-accent)]/20",
+    tagClass: "bg-[var(--color-demo-accent-soft)] text-[var(--color-demo-accent)] border-[var(--color-demo-accent-soft)]",
     icon: <Zap className="size-5 text-[var(--color-demo-accent)]" />,
     stats: [{ label: "准确率", value: "96.8%" }, { label: "日处理", value: "1,200+" }],
   },
@@ -398,7 +396,7 @@ const demoCards = [
     title: "安全可靠",
     desc: "全程数据加密传输与存储，严格权限控制，确保候选人隐私与商业机密安全。",
     tag: "安全合规",
-    tagClass: "bg-[var(--color-demo-success)]/10 text-[var(--color-demo-success)] border-[var(--color-demo-success)]/20",
+    tagClass: "bg-[var(--color-demo-success-soft)] text-[var(--color-demo-success)] border-[var(--color-demo-success-soft)]",
     icon: <Shield className="size-5 text-[var(--color-demo-success)]" />,
     stats: [{ label: "安全等级", value: "AES-256" }, { label: "合规认证", value: "ISO 27001" }],
   },
@@ -406,7 +404,7 @@ const demoCards = [
     title: "实时分析",
     desc: "流式输出 AI 筛选结果，随时查看处理进度与中间推理过程，过程透明可追溯。",
     tag: "实时能力",
-    tagClass: "bg-[var(--color-demo-purple)]/10 text-[var(--color-demo-purple)] border-[var(--color-demo-purple)]/20",
+    tagClass: "bg-[var(--color-demo-purple-soft)] text-[var(--color-demo-purple)] border-[var(--color-demo-purple-soft)]",
     icon: <Activity className="size-5 text-[var(--color-demo-purple)]" />,
     stats: [{ label: "延迟", value: "<200ms" }, { label: "可用性", value: "99.9%" }],
   },
