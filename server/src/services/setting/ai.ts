@@ -407,7 +407,7 @@ const DIMENSION_KEYS = [
   "education",
   "fit",
   "communication",
-  "stability",
+  "campus",
 ] as const;
 
 type AiDimensionScores = Record<(typeof DIMENSION_KEYS)[number], number>;
@@ -497,7 +497,7 @@ export async function screenResumeWithAi(
     .replace(/\{job_requirements\}/g, jobRequirements)
     .replace(/\{resume_content\}/g, resume.parsedContent || "");
 
-  const prompt = `你是招聘筛选助手。请**严格依据**下面「岗位要求」和「筛选标准」评估候选人，并在 reasoning 中**明确结合这些要求**说明匹配或不足的原因，不要只做通用评价。
+  const prompt = `你是招聘筛选助手。请**严格依据**下面「岗位要求」和「筛选标准」评估候选人。
 
 岗位要求：
 ${jobRequirements}
@@ -508,9 +508,21 @@ ${resolvedPrompt || "(无额外筛选标准，请主要依据岗位要求评估)
 候选人简历内容：
 ${resume.parsedContent}
 
-请严格只输出 JSON（不要输出 Markdown/代码块/多余文字）。字段名与 dimensions 子字段名须为英文，格式如下（示例数值仅作结构参考，请按实际评估填写具体整数）：
-{"recommendation":"pass|reject|pending","score":68,"dimensions":{"skills":73,"projects":62,"experience":70,"education":43,"fit":71,"communication":58,"stability":65},"reasoning":"针对上述岗位要求与筛选标准，逐条或分点说明该候选人的匹配情况、符合项与不符合项，以及给分与推荐理由"}
-说明：score 为综合匹配度 0-100；dimensions 七项分别为 技能 skills、项目 projects、工作经历 experience、学历 education、岗位契合 fit、沟通协作 communication、候选人稳定性 stability 的分项分（0-100 整数），须与 reasoning 中的分析一致；缺失的维度可用综合分 score 作为近似。`;
+请用以下 Markdown 格式输出（不要用 JSON，不要用代码块包裹）：
+
+推荐：pass|reject|pending（必填，只填这三个词之一）
+综合分：XX（0-100 整数）
+维度评分：
+- 专业技能：XX
+- 项目经验：XX
+- 工作经历：XX
+- 教育背景：XX
+- 岗位匹配：XX
+- 沟通协作：XX
+- 在校经历：XX
+
+## 评估理由
+[详细说明该候选人与岗位的匹配情况，包括优势、不足和推荐理由]`;
   console.log("model:", config.model);
   // 调用 AI API
   const url = config.apiUrl.replace(/\/$/, "");
@@ -634,8 +646,12 @@ function parseAiResponse(aiResponse: string): {
   dimensions?: AiDimensionScores;
 } {
   const raw = (aiResponse || "").trim();
-  const lowerResponse = raw.toLowerCase();
 
+  // 优先解析 Markdown 格式
+  const mdResult = parseMarkdownResponse(raw);
+  if (mdResult) return mdResult;
+
+  // 兜底解析 JSON
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     try {
@@ -668,11 +684,12 @@ function parseAiResponse(aiResponse: string): {
         ...(dimensions ? { dimensions } : {}),
       };
     } catch {
-      // 忽略，走兜底解析
+      // 忽略
     }
   }
 
-  // 尝试识别推荐结果
+  // 最后的兜底：关键词匹配
+  const lowerResponse = raw.toLowerCase();
   let recommendation: "pass" | "reject" | "pending" = "pending";
   if (
     lowerResponse.includes("不推荐") ||
@@ -691,8 +708,7 @@ function parseAiResponse(aiResponse: string): {
     recommendation = "pass";
   }
 
-  // 尝试提取评分 (0-100)
-  let score = 50; // 默认分数
+  let score = 50;
   const scoreMatch =
     raw.match(/(\d{1,3})\s*分/) ||
     raw.match(/score\s*[:：]\s*(\d{1,3})/i) ||
@@ -701,10 +717,66 @@ function parseAiResponse(aiResponse: string): {
     score = Math.min(100, Math.max(0, parseInt(scoreMatch[1])));
   }
 
+  return { recommendation, score, reasoning: raw };
+}
+
+/**
+ * 解析 Markdown 格式的 AI 响应
+ */
+function parseMarkdownResponse(
+  raw: string,
+): {
+  recommendation: "pass" | "reject" | "pending";
+  score: number;
+  reasoning: string;
+  dimensions?: AiDimensionScores;
+} | null {
+  const recMatch = raw.match(/推荐[：:]\s*(pass|reject|pending)/i);
+  if (!recMatch) return null;
+
+  const recommendation = recMatch[1].toLowerCase() as
+    | "pass"
+    | "reject"
+    | "pending";
+
+  const scoreMatch = raw.match(/综合[分评分][：:]\s*(\d+)/);
+  if (!scoreMatch) return null;
+
+  const score = Math.min(100, Math.max(0, parseInt(scoreMatch[1])));
+
+  const dimPatterns: Array<[string, keyof AiDimensionScores]> = [
+    ["专业技能", "skills"],
+    ["项目经验", "projects"],
+    ["工作经历", "experience"],
+    ["教育背景", "education"],
+    ["岗位匹配", "fit"],
+    ["沟通协作", "communication"],
+    ["在校经历", "campus"],
+  ];
+
+  const dimensions: Partial<AiDimensionScores> = {};
+  let dimsFound = 0;
+  for (const [label, key] of dimPatterns) {
+    const m = raw.match(
+      new RegExp(`${label}[：:]\\s*(\\d{1,3})`, "i"),
+    );
+    if (m) {
+      dimensions[key] = Math.min(100, Math.max(0, parseInt(m[1]))) as never;
+      dimsFound++;
+    }
+  }
+
+  // 提取评估理由：Markdown 中 "## 评估理由" 之后的内容
+  const reasoningMatch = raw.match(/##\s*评估理由\n([\s\S]*)$/i);
+  const reasoning = reasoningMatch
+    ? reasoningMatch[1].trim()
+    : raw.replace(/^推荐[：:].*/m, "").replace(/^综合[分评分][：:].*/m, "").replace(/^维度评分\n/, "").replace(/^[-*]\s*.+\n?/gm, "").trim();
+
   return {
     recommendation,
     score,
-    reasoning: raw,
+    reasoning,
+    ...(dimsFound > 0 ? { dimensions: dimensions as AiDimensionScores } : {}),
   };
 }
 
@@ -751,4 +823,3 @@ export async function batchScreenResumesWithAi(
     results,
   };
 }
-

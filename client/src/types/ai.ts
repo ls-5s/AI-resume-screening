@@ -29,7 +29,7 @@ export interface CreateAiConfigData {
   isDefault?: boolean;
 }
 
-/** 与后端 AI JSON 字段一致，七维 0–100 */
+/** 与后端 AI JSON 字段一致，七项 0–100；前端展示为简历关键板块标签 */
 export interface AiDimensionScores {
   skills: number;
   projects: number;
@@ -37,11 +37,11 @@ export interface AiDimensionScores {
   education: number;
   fit: number;
   communication: number;
-  stability: number;
+  campus: number;
 }
 
 export interface AiScreeningResult {
-  recommendation: 'pass' | 'reject' | 'pending';
+  recommendation: "pass" | "reject" | "pending";
   score: number;
   reasoning: string;
   /** 模型输出的分项分；旧数据或解析失败时可能为空 */

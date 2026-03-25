@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "db:generate": "drizzle-kit generate:mysql",
+    "db:add-dimension-scores": "tsx scripts/ensure-dimension-scores-column.ts",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"
   },

@@ -9,6 +9,10 @@ export type PreFilterModalProps = {
   config: PreFilterConfig;
   onConfigChange: (config: PreFilterConfig) => void;
   onApply?: (config: PreFilterConfig) => void;
+  /** 当前关联模版名称，为 null 时显示默认提示 */
+  templateName?: string | null;
+  /** 清空时同时取消模版关联 */
+  onClear?: () => void;
 };
 
 export function PreFilterModal({
@@ -17,6 +21,8 @@ export function PreFilterModal({
   config,
   onConfigChange,
   onApply,
+  templateName,
+  onClear,
 }: PreFilterModalProps) {
   useEffect(() => {
     if (!open) return;
@@ -36,6 +42,7 @@ export function PreFilterModal({
 
   const handleClear = () => {
     onConfigChange(getDefaultPreFilter());
+    onClear?.();
   };
 
   return (
@@ -64,10 +71,12 @@ export function PreFilterModal({
                 id="prefilter-modal-title"
                 className="truncate text-base font-semibold text-zinc-900"
               >
-                自定义预筛选条件
+                {templateName ? `预筛选条件 · ${templateName}` : "自定义预筛选条件"}
               </h2>
               <p className="truncate text-xs text-zinc-500">
-                先按条件筛一遍，再进行 AI 筛选
+                {templateName
+                  ? "当前筛选条件来自该模版，可调整后重新应用"
+                  : "先按条件筛一遍，再进行 AI 筛选"}
               </p>
             </div>
           </div>
