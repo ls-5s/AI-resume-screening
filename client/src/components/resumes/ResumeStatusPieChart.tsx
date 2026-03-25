@@ -5,6 +5,7 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
+import type { TooltipContentProps } from "recharts";
 
 interface StatusData {
   name: string;
@@ -21,9 +22,43 @@ interface ResumeStatusPieChartProps {
 
 const STATUS_COLORS = {
   pending: "#f59e0b", // amber-500
-  passed: "#10b981",  // emerald-500
+  passed: "#10b981", // emerald-500
   rejected: "#ef4444", // red-500
 };
+
+function isStatusData(value: unknown): value is StatusData {
+  if (value === null || typeof value !== "object") return false;
+  const o = value as Record<string, unknown>;
+  return (
+    typeof o.name === "string" &&
+    typeof o.value === "number" &&
+    typeof o.color === "string"
+  );
+}
+
+function StatusPieTooltip({
+  active,
+  payload,
+  total,
+}: Pick<TooltipContentProps<number, string>, "active" | "payload"> & {
+  total: number;
+}) {
+  if (!active || !payload?.length) return null;
+  const item = payload[0]?.payload;
+  if (!isStatusData(item)) return null;
+  const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0";
+  return (
+    <div className="rounded-xl border border-(--app-border) bg-(--app-surface)/95 px-3.5 py-2.5 text-sm shadow-(--app-shadow) backdrop-blur-sm">
+      <p className="text-xs font-medium text-(--app-text-muted)">{item.name}</p>
+      <p className="text-base font-semibold tabular-nums text-(--app-text-primary)">
+        {item.value} 份
+        <span className="ml-1.5 text-xs font-normal text-(--app-text-muted)">
+          ({pct}%)
+        </span>
+      </p>
+    </div>
+  );
+}
 
 export function ResumeStatusPieChart({
   total,
@@ -36,29 +71,6 @@ export function ResumeStatusPieChart({
     { name: "通过筛选", value: passed, color: STATUS_COLORS.passed },
     { name: "不符合条件", value: rejected, color: STATUS_COLORS.rejected },
   ].filter((d) => d.value > 0);
-
-  const CustomTooltip = ({
-    active,
-    payload,
-  }: {
-    active?: boolean;
-    payload?: { payload: StatusData }[];
-  }) => {
-    if (!active || !payload?.length) return null;
-    const item = payload[0].payload;
-    const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0";
-    return (
-      <div className="rounded-xl border border-(--app-border) bg-(--app-surface)/95 px-3.5 py-2.5 text-sm shadow-(--app-shadow) backdrop-blur-sm">
-        <p className="text-xs font-medium text-(--app-text-muted)">{item.name}</p>
-        <p className="text-base font-semibold tabular-nums text-(--app-text-primary)">
-          {item.value} 份
-          <span className="ml-1.5 text-xs font-normal text-(--app-text-muted)">
-            ({pct}%)
-          </span>
-        </p>
-      </div>
-    );
-  };
 
   if (total === 0) {
     return (
@@ -124,7 +136,9 @@ export function ResumeStatusPieChart({
                 ))}
               </Pie>
               <Tooltip
-                content={<CustomTooltip />}
+                content={({ active, payload }) => (
+                  <StatusPieTooltip active={active} payload={payload} total={total} />
+                )}
                 offset={70}
                 wrapperStyle={{ outline: "none" }}
               />

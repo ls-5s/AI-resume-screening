@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import {
   Palette, Layers, LayoutGrid,
   Check, Star, Heart, Zap, Shield, Activity, Eye,
@@ -7,8 +7,6 @@ import {
   Loader2, BarChart3, Bell, X, Users,
   Clock3, Filter, ArrowUpDown, RefreshCw,
 } from "lucide-react";
-import { useThemeStore } from "../../store/theme";
-
 // ─── 1. 基础：颜色 + 排版 ───────────────────────────────────────
 
 const colorGroups = [
@@ -830,7 +828,6 @@ function NavTab({ items, active, onChange }: {
 type TabId = "basic" | "button" | "form" | "card" | "feedback" | "popup" | "data" | "advance";
 
 export default function ThemeDemo() {
-  const { mode } = useThemeStore();
   const [activeTab, setActiveTab] = useState<TabId>("basic");
 
   const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [

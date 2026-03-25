@@ -1,4 +1,4 @@
-import { Plus, Shield, Zap, Mail, Bot } from "lucide-react";
+import { Plus, Shield, Mail, Bot } from "lucide-react";
 
 interface FeatureItem {
   icon: typeof Shield;

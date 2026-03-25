@@ -30,7 +30,7 @@ function applyTheme(mode: ThemeMode) {
 
 export const useThemeStore = create<ThemeState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       mode: "light",
       setMode: (mode) => {
         set({ mode });

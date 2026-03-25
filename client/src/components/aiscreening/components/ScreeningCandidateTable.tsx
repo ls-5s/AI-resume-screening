@@ -68,7 +68,11 @@ export function ScreeningCandidateTable({
 }: ScreeningCandidateTableProps) {
   return (
     <div className="min-h-0 min-w-0 flex-1 overflow-auto text-(--app-text-primary)">
-      <table className="w-full min-w-[640px] border-collapse text-left text-sm">
+      <table
+        role="grid"
+        aria-label="候选人列表"
+        className="w-full min-w-[640px] border-collapse text-left text-sm"
+      >
         <thead className="sticky top-0 z-10 border-b border-(--app-ai-border)/90 bg-(--app-surface-raised)/95 text-(--app-text-secondary) backdrop-blur-sm">
           <tr className="text-[11px] font-semibold uppercase tracking-wide">
             <th className="whitespace-nowrap px-3 py-2.5 pl-4">候选人</th>

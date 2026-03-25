@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
 interface FormInputProps {
@@ -110,7 +111,8 @@ export function ToggleSwitch({
   onChange,
   id,
 }: ToggleSwitchProps) {
-  const switchId = id ?? label;
+  const autoId = useId();
+  const switchId = id ?? autoId;
 
   return (
     <div className="flex items-center justify-between rounded-2xl border border-(--app-border) bg-(--app-surface) px-4 py-3.5">

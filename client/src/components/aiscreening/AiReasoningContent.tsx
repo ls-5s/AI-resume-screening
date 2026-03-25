@@ -48,8 +48,7 @@ const mdComponents: Components = {
   ),
   ul: ({ children, ...props }) => (
     <ul
-      className="mb-4 space-y-2.5 pl-1 text-[15px] leading-[1.75] text-(--md-text-secondary)"
-      style={{ listStyleType: "'• '" }}
+      className="mb-4 list-inside space-y-2.5 pl-1 text-[15px] leading-[1.75] text-(--md-text-secondary) [list-style-type:'\2022\00A0']"
       {...props}
     >
       {children}

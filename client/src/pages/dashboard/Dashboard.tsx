@@ -36,11 +36,20 @@ function SkeletonChart() {
       </div>
       <div className="m-4 flex flex-1 rounded-2xl bg-(--app-skeleton)/80 p-4">
         <div className="flex flex-1 items-end gap-2">
-          {[35, 55, 40, 70, 50, 65, 45].map((h, i) => (
+          {(
+            [
+              "h-[35%]",
+              "h-[55%]",
+              "h-[40%]",
+              "h-[70%]",
+              "h-[50%]",
+              "h-[65%]",
+              "h-[45%]",
+            ] as const
+          ).map((hClass, i) => (
             <div
               key={i}
-              className="flex-1 rounded-t-lg bg-(--app-border-strong)/90"
-              style={{ height: `${h}%` }}
+              className={`flex-1 rounded-t-lg bg-(--app-border-strong)/90 ${hClass}`}
             />
           ))}
         </div>

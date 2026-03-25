@@ -25,8 +25,9 @@ const navItems = [
   { path: "/app/settings", label: "设置", icon: Settings },
 ];
 
-const SIDEBAR_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
-const SIDEBAR_MS = 280;
+/** 与侧栏宽度动画对齐（避免内联 style 触发 Edge Tools 提示） */
+const sidebarMotionClass =
+  "motion-safe:duration-[280ms] motion-safe:ease-[cubic-bezier(0.22_1_0.36_1)] motion-reduce:duration-0";
 
 const logoBoxClass =
   "flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-linear-to-br from-[#0ea5e9] to-[#3b82f6] text-white shadow-[0_2px_8px_rgba(14,165,233,0.35)]";
@@ -82,13 +83,9 @@ export default function Layout() {
         className={`
           fixed left-0 top-0 bottom-0 flex flex-col z-40 overflow-hidden
           bg-(--app-sidebar-bg) border-r border-(--app-sidebar-border)
-          motion-safe:transition-[width] motion-reduce:transition-none
+          motion-safe:transition-[width] motion-reduce:transition-none ${sidebarMotionClass}
           ${expanded ? "w-60" : "w-[72px]"}
         `}
-        style={{
-          transitionDuration: `${SIDEBAR_MS}ms`,
-          transitionTimingFunction: SIDEBAR_EASE,
-        }}
       >
         {/* 顶栏：品牌 + 侧栏开关（展开/收起共用同一套视觉，避免突变） */}
         <div className="shrink-0 border-b border-(--app-sidebar-border)">
@@ -112,15 +109,11 @@ export default function Layout() {
                 <BrandGlyph />
               </div>
               <span
-                className={`min-w-0 truncate text-[15px] font-semibold tracking-tight text-(--app-sidebar-text-primary) motion-safe:transition-[opacity,max-width] motion-reduce:transition-none ${
+                className={`min-w-0 truncate text-[15px] font-semibold tracking-tight text-(--app-sidebar-text-primary) motion-safe:transition-[opacity,max-width] motion-reduce:transition-none ${sidebarMotionClass} ${
                   expanded
                     ? "ml-0 max-w-[min(100%,12rem)] opacity-100"
                     : "ml-0 max-w-0 overflow-hidden opacity-0"
                 }`}
-                style={{
-                  transitionDuration: `${SIDEBAR_MS}ms`,
-                  transitionTimingFunction: SIDEBAR_EASE,
-                }}
               >
                 简历筛选
               </span>
@@ -161,13 +154,9 @@ export default function Layout() {
                 key={item.path}
                 to={item.path}
                 title={expanded ? undefined : item.label}
-                style={{
-                  transitionDuration: `${SIDEBAR_MS}ms`,
-                  transitionTimingFunction: SIDEBAR_EASE,
-                }}
                 className={`
                   flex items-center rounded-[10px] no-underline text-[14px] font-medium
-                  motion-safe:transition-[padding,gap,background-color,color] motion-reduce:transition-none group
+                  motion-safe:transition-[padding,gap,background-color,color] motion-reduce:transition-none group ${sidebarMotionClass}
                   ${expanded ? "gap-3 px-3.5 py-2.5" : "justify-center gap-0 px-2 py-2.5"}
                   ${
                     isActive
@@ -178,15 +167,11 @@ export default function Layout() {
               >
                 <item.icon className="w-[18px] h-[18px] shrink-0 motion-safe:transition-transform motion-safe:duration-150 group-hover:scale-105 motion-reduce:group-hover:scale-100" />
                 <span
-                  className={`min-w-0 overflow-hidden whitespace-nowrap motion-safe:transition-[max-width,opacity] motion-reduce:transition-none ${
+                  className={`min-w-0 overflow-hidden whitespace-nowrap motion-safe:transition-[max-width,opacity] motion-reduce:transition-none ${sidebarMotionClass} ${
                     expanded
                       ? "max-w-[14rem] opacity-100"
                       : "max-w-0 opacity-0"
                   }`}
-                  style={{
-                    transitionDuration: `${SIDEBAR_MS}ms`,
-                    transitionTimingFunction: SIDEBAR_EASE,
-                  }}
                 >
                   {item.label}
                 </span>
@@ -214,13 +199,9 @@ export default function Layout() {
       <main
         className={`
           flex min-h-0 flex-1 flex-col overflow-y-auto
-          motion-safe:transition-[margin-left] motion-reduce:transition-none
+          motion-safe:transition-[margin-left] motion-reduce:transition-none ${sidebarMotionClass}
           ${expanded ? "ml-60" : "ml-[72px]"}
         `}
-        style={{
-          transitionDuration: `${SIDEBAR_MS}ms`,
-          transitionTimingFunction: SIDEBAR_EASE,
-        }}
       >
         <Outlet />
       </main>
