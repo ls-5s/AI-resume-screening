@@ -7,7 +7,7 @@ import {
   QuickActions,
   WeeklyBarChart,
 } from "../../components/dashboard";
-import { toast } from "sonner";
+import toast from "../../utils/toast";
 
 function SkeletonStrip() {
   return (

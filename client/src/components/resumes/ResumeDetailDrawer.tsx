@@ -1,5 +1,5 @@
 import { Loader2, FileText, Eye, Calendar, FileCheck } from "lucide-react";
-import { toast } from "sonner";
+import toast from "../../utils/toast";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "../Drawer";
 import type { Resume } from "../../types/resume";
 import { formatDate, formatRelativeTime } from "../../utils/format";

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { toast } from "sonner";
+import toast from "../../utils/toast";
 import { Upload, Mail } from "lucide-react";
 import {
   getResumes,

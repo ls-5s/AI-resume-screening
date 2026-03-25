@@ -18,40 +18,52 @@ export function ToastContainer() {
   if (items.length === 0) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm">
-      {items.map((toast) => (
-        <ToastItem key={toast.id} toast={toast} />
+    <div
+      className="pointer-events-none fixed top-4 right-4 z-[110] flex max-w-sm flex-col gap-2"
+      aria-live="polite"
+      aria-relevant="additions"
+    >
+      {items.map((t) => (
+        <div key={t.id} className="pointer-events-auto">
+          <ToastItem toast={t} />
+        </div>
       ))}
     </div>
   );
 }
 
-/** 单个 Toast 项 */
 function ToastItem({ toast }: { toast: ToastItem }) {
   const icons: Record<ToastType, JSX.Element> = {
-    success: <CheckCircle className="w-5 h-5 text-green-500" />,
-    error: <XCircle className="w-5 h-5 text-red-500" />,
-    warning: <AlertCircle className="w-5 h-5 text-yellow-500" />,
-    info: <Info className="w-5 h-5 text-blue-500" />,
+    success: <CheckCircle className="size-5 shrink-0 text-emerald-600" />,
+    error: <XCircle className="size-5 shrink-0 text-rose-600" />,
+    warning: <AlertCircle className="size-5 shrink-0 text-amber-600" />,
+    info: <Info className="size-5 shrink-0 text-sky-600" />,
   };
 
   const styles: Record<ToastType, string> = {
-    success: "bg-green-50 border-green-200 text-green-800",
-    error: "bg-red-50 border-red-200 text-red-800",
-    warning: "bg-yellow-50 border-yellow-200 text-yellow-800",
-    info: "bg-blue-50 border-blue-200 text-blue-800",
+    success:
+      "border-emerald-200/90 bg-emerald-50 text-emerald-950 shadow-[0_10px_40px_-10px_rgba(15,23,42,0.15)]",
+    error:
+      "border-rose-200/90 bg-rose-50 text-rose-950 shadow-[0_10px_40px_-10px_rgba(15,23,42,0.15)]",
+    warning:
+      "border-amber-200/90 bg-amber-50 text-amber-950 shadow-[0_10px_40px_-10px_rgba(15,23,42,0.15)]",
+    info: "border-sky-200/90 bg-sky-50 text-sky-950 shadow-[0_10px_40px_-10px_rgba(15,23,42,0.15)]",
   };
 
   return (
     <div
-      className={`
-        flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg
-        animate-slide-in ${styles[toast.type]}
-      `}
+      className={`flex items-start gap-3 rounded-2xl border px-4 py-3 ${styles[toast.type]}`}
       role="alert"
     >
       {icons[toast.type]}
-      <p className="flex-1 text-sm font-medium">{toast.message}</p>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold leading-snug">{toast.message}</p>
+        {toast.description ? (
+          <p className="mt-0.5 text-xs font-normal leading-relaxed opacity-85">
+            {toast.description}
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }

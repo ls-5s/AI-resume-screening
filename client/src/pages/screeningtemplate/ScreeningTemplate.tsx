@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
+import toast from "../../utils/toast";
 import {
   Plus,
   Trash2,

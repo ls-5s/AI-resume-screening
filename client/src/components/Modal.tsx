@@ -7,9 +7,14 @@ interface ModalProps {
   title?: React.ReactNode;
   children: ReactNode;
   footer?: ReactNode;
-  size?: "sm" | "md" | "lg" | "xl";
+  /** 宽版弹窗（如简历预览） */
+  size?: "sm" | "md" | "lg" | "xl" | "2xl";
   closeOnOverlayClick?: boolean;
   showCloseButton?: boolean;
+  /** 覆盖默认内容区（默认含 padding、max-h-[60vh]、纵向滚动） */
+  contentClassName?: string;
+  /** 追加到面板根节点（如 `flex flex-col max-h-[92vh]` 用于大预览区） */
+  panelClassName?: string;
 }
 
 const sizeClasses = {
@@ -17,6 +22,7 @@ const sizeClasses = {
   md: "max-w-lg",
   lg: "max-w-2xl",
   xl: "max-w-3xl",
+  "2xl": "max-w-6xl",
 };
 
 export function Modal({
@@ -28,6 +34,8 @@ export function Modal({
   size = "md",
   closeOnOverlayClick = true,
   showCloseButton = true,
+  contentClassName,
+  panelClassName = "",
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -70,13 +78,13 @@ export function Modal({
     >
       <div
         ref={modalRef}
-        className={`relative w-full ${sizeClasses[size]} bg-white rounded-2xl shadow-2xl transform animate-in zoom-in-95 fade-in duration-200`}
+        className={`relative w-full ${sizeClasses[size]} bg-white rounded-2xl shadow-2xl transform animate-in zoom-in-95 fade-in duration-200 ${panelClassName}`.trim()}
         role="dialog"
         aria-modal="true"
       >
         {/* 头部 */}
         {(title || showCloseButton) && (
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-zinc-100">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-100 px-5 py-3.5">
             {title &&
               (typeof title === "string" ? (
                 <h2 className="text-base font-semibold text-zinc-900">
@@ -100,11 +108,18 @@ export function Modal({
         )}
 
         {/* 内容区域 */}
-        <div className="px-5 py-4 max-h-[60vh] overflow-y-auto">{children}</div>
+        <div
+          className={
+            contentClassName ??
+            "max-h-[60vh] overflow-y-auto px-5 py-4"
+          }
+        >
+          {children}
+        </div>
 
         {/* 底部按钮区域 */}
         {footer && (
-          <div className="px-5 py-3.5 border-t border-zinc-100 flex justify-end gap-2">
+          <div className="flex shrink-0 justify-end gap-2 border-t border-zinc-100 px-5 py-3.5">
             {footer}
           </div>
         )}

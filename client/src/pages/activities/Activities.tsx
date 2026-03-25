@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, FileText, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import toast from "../../utils/toast";
 import { getActivities } from "../../api/dashboard";
 import type { Activity } from "../../types/dashboard";
 import { ActivityTimelineRow } from "../../components/dashboard/activity-timeline";
