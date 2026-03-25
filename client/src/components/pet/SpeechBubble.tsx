@@ -34,12 +34,12 @@ export function SpeechBubble({ text, visible }: SpeechBubbleProps) {
           exit="exit"
         >
           {/* 气泡主体 */}
-          <div className="relative bg-white rounded-2xl px-4 py-2.5 shadow-lg border border-zinc-100 max-w-[180px] text-center">
-            <p className="text-[13px] font-medium text-zinc-700 leading-snug whitespace-nowrap">
+          <div className="relative bg-white/95 backdrop-blur-sm rounded-2xl px-4 py-2.5 shadow-lg border border-pink-100 max-w-[180px] text-center">
+            <p className="text-[13px] font-medium text-pink-600 leading-snug whitespace-nowrap">
               {text}
             </p>
             {/* 尾巴三角 */}
-            <div className="absolute left-1/2 -bottom-2 -translate-x-1/2 w-3 h-3 bg-white border-r border-b border-zinc-100 rotate-45 shadow-sm" />
+            <div className="absolute left-1/2 -bottom-2 -translate-x-1/2 w-3 h-3 bg-white/95 rotate-45 shadow-sm border-r border-b border-pink-100" />
           </div>
         </motion.div>
       )}
