@@ -44,20 +44,38 @@ import { logActivity } from "../../api/dashboard";
 import type { Resume } from "../../types/resume";
 import type { AiConfig } from "../../types/ai";
 
-// 状态筛选类型
 type StatusFilter = "all" | "pending" | "passed" | "rejected";
 
-// 与 ResumeList 状态徽章一致
-const listStatusStyles = {
-  pending: "bg-amber-50 text-amber-800 border border-amber-200/80",
-  passed: "bg-emerald-50 text-emerald-800 border border-emerald-200/80",
-  rejected: "bg-rose-50 text-rose-800 border border-rose-200/80",
-};
+const STATUS_META = {
+  pending: {
+    badge: "bg-blue-50 text-blue-500 border border-blue-200",
+    dot: "bg-blue-300",
+    label: "待筛选",
+    icon: "⏳",
+  },
+  passed: {
+    badge: "bg-blue-600 text-white border border-blue-600",
+    dot: "bg-blue-200",
+    label: "已通过",
+    icon: "✓",
+  },
+  rejected: {
+    badge: "bg-white text-blue-400 border border-blue-200",
+    dot: "bg-blue-200",
+    label: "已拒绝",
+    icon: "✗",
+  },
+} as const;
 
+const listStatusStyles = {
+  pending: STATUS_META.pending.badge,
+  passed: STATUS_META.passed.badge,
+  rejected: STATUS_META.rejected.badge,
+};
 const listStatusLabels = {
-  pending: "待筛选",
-  passed: "已通过",
-  rejected: "已拒绝",
+  pending: STATUS_META.pending.label,
+  passed: STATUS_META.passed.label,
+  rejected: STATUS_META.rejected.label,
 };
 
 function getInitials(name: string) {
@@ -66,48 +84,38 @@ function getInitials(name: string) {
   return t.slice(0, 1).toUpperCase();
 }
 
-const SCORE_RING_R = 38;
+const SCORE_RING_R = 36;
 const SCORE_RING_C = 2 * Math.PI * SCORE_RING_R;
+
+function getScoreColor(s: number) {
+  if (s >= 80) return { stroke: "#2563eb", text: "text-blue-700", gradeBg: "bg-blue-600 text-white", grade: "优秀" };
+  if (s >= 60) return { stroke: "#60a5fa", text: "text-blue-500", gradeBg: "bg-blue-100 text-blue-700", grade: "良好" };
+  return { stroke: "#bfdbfe", text: "text-blue-300", gradeBg: "bg-blue-50 text-blue-400", grade: "待定" };
+}
 
 function MatchScoreRing({ score }: { score: number }) {
   const s = Math.min(100, Math.max(0, Math.round(score)));
   const dashOffset = SCORE_RING_C - (s / 100) * SCORE_RING_C;
+  const { stroke, text, gradeBg, grade } = getScoreColor(s);
   return (
-    <div
-      className="relative mx-auto flex h-[7.5rem] w-[7.5rem] shrink-0 items-center justify-center"
-      aria-hidden
-    >
-      <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">
-        <circle
-          cx="50"
-          cy="50"
-          r={SCORE_RING_R}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="6"
-          className="text-zinc-100"
-        />
-        <circle
-          cx="50"
-          cy="50"
-          r={SCORE_RING_R}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="6"
-          strokeLinecap="round"
-          strokeDasharray={SCORE_RING_C}
-          strokeDashoffset={dashOffset}
-          className="text-sky-500 transition-[stroke-dashoffset] duration-700 ease-out"
-        />
-      </svg>
-      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl font-bold tabular-nums tracking-tight text-zinc-900">
-          {s}
-        </span>
-        <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
-          匹配分
-        </span>
+    <div className="flex flex-col items-center gap-2" aria-hidden>
+      <div className="relative flex h-28 w-28 shrink-0 items-center justify-center">
+        <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r={SCORE_RING_R} fill="none" stroke="#dbeafe" strokeWidth="8" />
+          <circle
+            cx="50" cy="50" r={SCORE_RING_R} fill="none"
+            stroke={stroke} strokeWidth="8" strokeLinecap="round"
+            strokeDasharray={SCORE_RING_C}
+            strokeDashoffset={dashOffset}
+            className="transition-[stroke-dashoffset] duration-700 ease-out"
+          />
+        </svg>
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+          <span className={`text-[2rem] font-black tabular-nums leading-none ${text}`}>{s}</span>
+          <span className="mt-1 text-[9px] font-bold uppercase tracking-widest text-slate-400">分</span>
+        </div>
       </div>
+      <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${gradeBg}`}>{grade}</span>
     </div>
   );
 }
@@ -117,7 +125,6 @@ const LIST_PAGE_SIZE = 10;
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
-// AI 筛选结果类型
 interface ScreeningResult {
   resumeId: number;
   recommendation: "pass" | "reject" | "pending";
@@ -146,24 +153,17 @@ export function AiScreening() {
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedResumeId, setSelectedResumeId] = useState<number | null>(null);
-  const [screeningResults, setScreeningResults] = useState<
-    Map<number, ScreeningResult>
-  >(new Map());
-  const [screeningResumeId, setScreeningResumeId] = useState<number | null>(
-    null,
-  );
+  const [screeningResults, setScreeningResults] = useState<Map<number, ScreeningResult>>(new Map());
+  const [screeningResumeId, setScreeningResumeId] = useState<number | null>(null);
   const [jobRequirements, setJobRequirements] = useState("");
   const [screeningAll, setScreeningAll] = useState(false);
   const [jobConfigModalOpen, setJobConfigModalOpen] = useState(false);
   const [aiConfigs, setAiConfigs] = useState<AiConfig[]>([]);
-  const [selectedAiConfigId, setSelectedAiConfigId] = useState<number | null>(
-    null,
-  );
+  const [selectedAiConfigId, setSelectedAiConfigId] = useState<number | null>(null);
   const [loadingAiConfigs, setLoadingAiConfigs] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [preFilterConfig, setPreFilterConfig] =
-    useState<PreFilterConfig>(getDefaultPreFilter);
+  const [preFilterConfig, setPreFilterConfig] = useState<PreFilterConfig>(getDefaultPreFilter);
   const [preFilterModalOpen, setPreFilterModalOpen] = useState(false);
   const [reasoningOpen, setReasoningOpen] = useState(false);
   const [phoneExpanded, setPhoneExpanded] = useState(false);
@@ -171,81 +171,38 @@ export function AiScreening() {
 
   const formatDateShort = (dateStr: string) =>
     new Date(dateStr).toLocaleString("zh-CN", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
     });
 
   const filteredResumes = useMemo(() => {
     let list = resumes;
-
-    // 1. 自定义预筛选
     if (!isEmptyPreFilter(preFilterConfig)) {
       const keywords = preFilterConfig.keywords
-        .split(/[,，\s\n]+/)
-        .map((k) => k.trim().toLowerCase())
-        .filter(Boolean);
+        .split(/[,，\s\n]+/).map((k) => k.trim().toLowerCase()).filter(Boolean);
       const mode = preFilterConfig.keywordMode;
-
       list = list.filter((r) => {
         if (keywords.length > 0) {
-          const searchable = [
-            r.name,
-            r.email ?? "",
-            r.phone ?? "",
-            r.parsedContent ?? "",
-            r.summary ?? "",
-          ]
-            .join(" ")
-            .toLowerCase();
+          const searchable = [r.name, r.email ?? "", r.phone ?? "", r.parsedContent ?? "", r.summary ?? ""]
+            .join(" ").toLowerCase();
           const matches = keywords.filter((kw) => searchable.includes(kw));
-          const matchKeywords =
-            mode === "and"
-              ? matches.length === keywords.length
-              : matches.length > 0;
+          const matchKeywords = mode === "and" ? matches.length === keywords.length : matches.length > 0;
           if (!matchKeywords) return false;
         }
-
-        if (preFilterConfig.minScore != null && r.score != null) {
-          if (r.score < preFilterConfig.minScore) return false;
-        }
-
-        if (preFilterConfig.dateFrom.trim()) {
-          const created = r.createdAt.slice(0, 10);
-          if (created < preFilterConfig.dateFrom) return false;
-        }
-        if (preFilterConfig.dateTo.trim()) {
-          const created = r.createdAt.slice(0, 10);
-          if (created > preFilterConfig.dateTo) return false;
-        }
-
+        if (preFilterConfig.minScore != null && r.score != null && r.score < preFilterConfig.minScore) return false;
+        if (preFilterConfig.dateFrom.trim() && r.createdAt.slice(0, 10) < preFilterConfig.dateFrom) return false;
+        if (preFilterConfig.dateTo.trim() && r.createdAt.slice(0, 10) > preFilterConfig.dateTo) return false;
         return true;
       });
     }
-
-    // 2. 搜索框
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      list = list.filter(
-        (r) =>
-          r.name.toLowerCase().includes(q) ||
-          (r.email && r.email.toLowerCase().includes(q)),
-      );
+      list = list.filter((r) => r.name.toLowerCase().includes(q) || (r.email && r.email.toLowerCase().includes(q)));
     }
-
-    // 3. 状态
-    if (statusFilter !== "all") {
-      list = list.filter((r) => r.status === statusFilter);
-    }
-
+    if (statusFilter !== "all") list = list.filter((r) => r.status === statusFilter);
     return list;
   }, [resumes, searchQuery, statusFilter, preFilterConfig]);
 
-  // 按分数降序排序（高分在前，无分数排在最后）
   const sortedResumes = useMemo(() => {
     return [...filteredResumes].sort((a, b) => {
       const scoreA = a.score ?? screeningResults.get(a.id)?.score ?? -1;
@@ -254,26 +211,16 @@ export function AiScreening() {
     });
   }, [filteredResumes, screeningResults]);
 
-  const stats = useMemo(
-    () => ({
-      all: resumes.length,
-      pending: resumes.filter((r) => r.status === "pending").length,
-      passed: resumes.filter((r) => r.status === "passed").length,
-      rejected: resumes.filter((r) => r.status === "rejected").length,
-    }),
-    [resumes],
-  );
+  const stats = useMemo(() => ({
+    all: resumes.length,
+    pending: resumes.filter((r) => r.status === "pending").length,
+    passed: resumes.filter((r) => r.status === "passed").length,
+    rejected: resumes.filter((r) => r.status === "rejected").length,
+  }), [resumes]);
 
-  const listTotalPages = Math.max(
-    1,
-    Math.ceil(sortedResumes.length / LIST_PAGE_SIZE),
-  );
+  const listTotalPages = Math.max(1, Math.ceil(sortedResumes.length / LIST_PAGE_SIZE));
   const paginatedResumes = useMemo(
-    () =>
-      sortedResumes.slice(
-        (listPage - 1) * LIST_PAGE_SIZE,
-        listPage * LIST_PAGE_SIZE,
-      ),
+    () => sortedResumes.slice((listPage - 1) * LIST_PAGE_SIZE, listPage * LIST_PAGE_SIZE),
     [sortedResumes, listPage],
   );
 
@@ -298,30 +245,20 @@ export function AiScreening() {
     return null;
   }, [selectedResumeId, selectedResume, screeningResults]);
 
-  useEffect(() => {
-    setListPage(1);
-  }, [searchQuery, statusFilter, preFilterConfig]);
-
+  useEffect(() => { setListPage(1); }, [searchQuery, statusFilter, preFilterConfig]);
   useEffect(() => {
     setReasoningOpen(Boolean(selectedResult?.reasoning?.trim()));
   }, [selectedResumeId, selectedResult?.reasoning]);
 
-  // 加载简历列表和 AI 配置；优先「主动应用」的模版，否则自动套用默认筛选模版
   useEffect(() => {
     const activeId = localStorage.getItem("active-screening-template");
     if (activeId) {
       localStorage.removeItem("active-screening-template");
       getTemplate(Number(activeId))
+        .then((tpl) => { setPreFilterConfig(tpl.config); return tpl; })
         .then((tpl) => {
-          setPreFilterConfig(tpl.config);
-          return tpl;
-        })
-        .then((tpl) => {
-          if (!isEmptyPreFilter(tpl.config)) {
-            loadResumes(tpl.config);
-          } else {
-            loadResumes();
-          }
+          if (!isEmptyPreFilter(tpl.config)) loadResumes(tpl.config);
+          else loadResumes();
           toast.success(`已应用模版「${tpl.name}」的筛选条件`);
         })
         .catch(() => loadResumes());
@@ -331,9 +268,7 @@ export function AiScreening() {
           const def = list.find((t) => t.isDefault);
           if (def) {
             setPreFilterConfig(def.config);
-            if (!isEmptyPreFilter(def.config)) {
-              return loadResumes(def.config);
-            }
+            if (!isEmptyPreFilter(def.config)) return loadResumes(def.config);
           }
           return loadResumes();
         })
@@ -347,14 +282,10 @@ export function AiScreening() {
       setLoadingAiConfigs(true);
       const configs = await getAiConfigs();
       setAiConfigs(configs);
-      // 默认选择第一个或默认配置
       if (configs.length > 0) {
         const defaultConfig = configs.find((c) => c.isDefault) || configs[0];
         setSelectedAiConfigId(defaultConfig.id);
-        // 如果默认配置有 prompt，则自动填充岗位要求
-        if (defaultConfig.prompt) {
-          setJobRequirements(defaultConfig.prompt);
-        }
+        if (defaultConfig.prompt) setJobRequirements(defaultConfig.prompt);
       }
     } catch (error) {
       console.error("加载AI配置失败:", error);
@@ -363,16 +294,12 @@ export function AiScreening() {
     }
   };
 
-  // 加载简历（可选后端预筛）
-  const loadResumes = async (
-    filters?: Parameters<typeof getFilteredResumes>[0],
-  ) => {
+  const loadResumes = async (filters?: Parameters<typeof getFilteredResumes>[0]) => {
     try {
       setLoading(true);
-      const data =
-        filters && !isEmptyPreFilter(filters as PreFilterConfig)
-          ? await getFilteredResumes(filters)
-          : await getResumes();
+      const data = filters && !isEmptyPreFilter(filters as PreFilterConfig)
+        ? await getFilteredResumes(filters)
+        : await getResumes();
       setResumes(data);
     } catch (error) {
       console.error("加载简历失败:", error);
@@ -381,16 +308,12 @@ export function AiScreening() {
     }
   };
 
-  // 选择简历
-  const handleSelectResume = (resumeId: number) => {
-    setSelectedResumeId(resumeId);
-  };
+  const handleSelectResume = (resumeId: number) => setSelectedResumeId(resumeId);
 
   const getResumeFileUrl = (resume: Resume) => {
     if (!resume.resumeFile) return;
-    const fullPath = resume.resumeFile;
-    const relativePath = fullPath
-      .replace(/^.*[\\/]uploads[\\/]/, "uploads/")
+    const relativePath = resume.resumeFile
+      .replace(/^.*[\/]uploads[\/]/, "uploads/")
       .replace(/\\/g, "/");
     return `${API_BASE_URL}/${relativePath}`;
   };
@@ -401,100 +324,45 @@ export function AiScreening() {
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
-  const handleUpdateStatus = async (
-    resumeId: number,
-    status: "pending" | "passed" | "rejected",
-  ) => {
+  const handleUpdateStatus = async (resumeId: number, status: "pending" | "passed" | "rejected") => {
     const resume = resumes.find((r) => r.id === resumeId);
     try {
       await updateResumeStatus(resumeId, status);
-      setResumes((prev) =>
-        prev.map((r) => (r.id === resumeId ? { ...r, status } : r)),
-      );
+      setResumes((prev) => prev.map((r) => (r.id === resumeId ? { ...r, status } : r)));
       if (status === "passed") {
-        await logActivity({
-          type: "pass",
-          resumeId,
-          resumeName: resume?.name ?? undefined,
-          description: "通过初筛",
-        });
+        await logActivity({ type: "pass", resumeId, resumeName: resume?.name ?? undefined, description: "通过初筛" });
       } else if (status === "rejected") {
-        await logActivity({
-          type: "reject",
-          resumeId,
-          resumeName: resume?.name ?? undefined,
-          description: "未通过筛选",
-        });
+        await logActivity({ type: "reject", resumeId, resumeName: resume?.name ?? undefined, description: "未通过筛选" });
       }
     } catch (error) {
       console.error("更新状态失败:", error);
     }
   };
 
-  // 筛选单个简历
   const handleScreenResume = async (resumeId: number) => {
-    if (!jobRequirements.trim()) {
-      toast.error("请输入岗位要求");
-      return;
-    }
-
-    if (!selectedAiConfigId) {
-      toast.error("请选择 AI 配置");
-      return;
-    }
-
+    if (!jobRequirements.trim()) { toast.error("请输入岗位要求"); return; }
+    if (!selectedAiConfigId) { toast.error("请选择 AI 配置"); return; }
     try {
       setScreeningResumeId(resumeId);
-      const result = await screenResumeWithAi({
-        resumeId,
-        jobRequirements,
-        aiConfigId: selectedAiConfigId,
-      });
-
+      const result = await screenResumeWithAi({ resumeId, jobRequirements, aiConfigId: selectedAiConfigId });
       const resume = resumes.find((r) => r.id === resumeId);
-
       if (resume) {
-        // 把 AI 结果写回本地简历列表，保持与后端 summary/status/score 对齐
-        setResumes((prev) =>
-          prev.map((r) =>
-            r.id === resumeId
-              ? {
-                  ...r,
-                  summary: result.reasoning,
-                  status: mapRecommendationToStatus(result.recommendation),
-                  score: result.score,
-                }
-              : r,
-          ),
-        );
+        setResumes((prev) => prev.map((r) =>
+          r.id === resumeId
+            ? { ...r, summary: result.reasoning, status: mapRecommendationToStatus(result.recommendation), score: result.score }
+            : r,
+        ));
       }
-
       setScreeningResults((prev) => {
         const newMap = new Map(prev);
         newMap.set(resumeId, { ...result, resumeId, resume });
         return newMap;
       });
-
-      await logActivity({
-        type: "screening",
-        resumeId,
-        resumeName: resume?.name ?? undefined,
-        description: result.reasoning ?? undefined,
-      });
-
+      await logActivity({ type: "screening", resumeId, resumeName: resume?.name ?? undefined, description: result.reasoning ?? undefined });
       await loadResumes();
-
-      // 保存岗位要求到 AI 配置
       try {
         await updateAiConfig(selectedAiConfigId!, { prompt: jobRequirements });
-        // 更新本地配置列表中的 prompt
-        setAiConfigs((prev) =>
-          prev.map((config) =>
-            config.id === selectedAiConfigId
-              ? { ...config, prompt: jobRequirements }
-              : config,
-          ),
-        );
+        setAiConfigs((prev) => prev.map((c) => c.id === selectedAiConfigId ? { ...c, prompt: jobRequirements } : c));
       } catch (saveError) {
         console.error("保存岗位要求到AI配置失败:", saveError);
       }
@@ -506,24 +374,11 @@ export function AiScreening() {
     }
   };
 
-  // 批量筛选
   const handleBatchScreen = async () => {
-    if (!jobRequirements.trim()) {
-      toast.error("请输入岗位要求");
-      return;
-    }
-
-    if (!selectedAiConfigId) {
-      toast.error("请选择 AI 配置");
-      return;
-    }
-
+    if (!jobRequirements.trim()) { toast.error("请输入岗位要求"); return; }
+    if (!selectedAiConfigId) { toast.error("请选择 AI 配置"); return; }
     const toScreen = sortedResumes;
-    if (toScreen.length === 0) {
-      toast.error("当前筛选结果为空，无可筛简历");
-      return;
-    }
-
+    if (toScreen.length === 0) { toast.error("当前筛选结果为空，无可筛简历"); return; }
     try {
       setScreeningAll(true);
       const results = await batchScreenResumesWithAi({
@@ -531,65 +386,31 @@ export function AiScreening() {
         jobRequirements,
         aiConfigId: selectedAiConfigId,
       });
-
-      // 批量更新本地简历列表中的 summary/status/score，保持与后端一致
-      setResumes((prev) =>
-        prev.map((r) => {
-          const item = results.find(
-            (res) => res.resumeId === r.id && res.success && res.result,
-          );
-          if (!item || !item.result) return r;
-          return {
-            ...r,
-            summary: item.result.reasoning,
-            status: mapRecommendationToStatus(item.result.recommendation),
-            score: item.result.score,
-          };
-        }),
-      );
-
+      setResumes((prev) => prev.map((r) => {
+        const item = results.find((res) => res.resumeId === r.id && res.success && res.result);
+        if (!item || !item.result) return r;
+        return { ...r, summary: item.result.reasoning, status: mapRecommendationToStatus(item.result.recommendation), score: item.result.score };
+      }));
       setScreeningResults((prev) => {
         const newMap = new Map(prev);
         results.forEach((item) => {
           if (item.success && item.result) {
             const resume = toScreen.find((r) => r.id === item.resumeId);
-            newMap.set(item.resumeId, {
-              ...item.result,
-              resumeId: item.resumeId,
-              resume,
-            });
+            newMap.set(item.resumeId, { ...item.result, resumeId: item.resumeId, resume });
           }
         });
         return newMap;
       });
-
       await Promise.all(
-        results
-          .filter((item) => item.success && item.result)
-          .map((item) => {
-            const r = toScreen.find((res) => res.id === item.resumeId);
-            return logActivity({
-              type: "screening",
-              resumeId: item.resumeId,
-              resumeName: r?.name ?? undefined,
-              description: item.result!.reasoning ?? undefined,
-            });
-          }),
+        results.filter((item) => item.success && item.result).map((item) => {
+          const r = toScreen.find((res) => res.id === item.resumeId);
+          return logActivity({ type: "screening", resumeId: item.resumeId, resumeName: r?.name ?? undefined, description: item.result!.reasoning ?? undefined });
+        }),
       );
-
       await loadResumes();
-
-      // 保存岗位要求到 AI 配置
       try {
         await updateAiConfig(selectedAiConfigId!, { prompt: jobRequirements });
-        // 更新本地配置列表中的 prompt
-        setAiConfigs((prev) =>
-          prev.map((config) =>
-            config.id === selectedAiConfigId
-              ? { ...config, prompt: jobRequirements }
-              : config,
-          ),
-        );
+        setAiConfigs((prev) => prev.map((c) => c.id === selectedAiConfigId ? { ...c, prompt: jobRequirements } : c));
       } catch (saveError) {
         console.error("保存岗位要求到AI配置失败:", saveError);
       }
@@ -613,7 +434,6 @@ export function AiScreening() {
           setPreFilterModalOpen(false);
         }}
       />
-
       <AiScreeningSettingsModal
         open={jobConfigModalOpen}
         onClose={() => setJobConfigModalOpen(false)}
@@ -629,136 +449,122 @@ export function AiScreening() {
         }}
         onBatchScreen={handleBatchScreen}
         screeningAll={screeningAll}
-        batchDisabled={
-          screeningAll ||
-          sortedResumes.length === 0 ||
-          !selectedAiConfigId ||
-          !jobRequirements.trim()
-        }
+        batchDisabled={screeningAll || sortedResumes.length === 0 || !selectedAiConfigId || !jobRequirements.trim()}
       />
 
       <div
-        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(14,165,233,0.08),transparent)]"
+        className="pointer-events-none absolute inset-0 -z-10 bg-[#f0f6ff]"
         aria-hidden
       />
 
-      <div className="mx-auto flex min-h-0 max-w-[1360px] flex-1 flex-col px-4 pb-12 pt-6 sm:px-6 lg:px-8">
-        <header className="mb-6 flex flex-col gap-4 sm:mb-8 lg:flex-row lg:items-end lg:justify-between">
+      <div className="mx-auto flex min-h-0 max-w-[1400px] flex-1 flex-col px-4 pb-12 pt-6 sm:px-6 lg:px-8">
+        <header className="mb-6 flex flex-col gap-4 sm:mb-7 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">
-              AI Screening
-            </p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-900 sm:text-[1.75rem]">
-              AI 智能筛选
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-widest text-blue-600 ring-1 ring-inset ring-blue-200">
+                <Sparkles className="h-3 w-3" />
+                AI Screening
+              </span>
+            </div>
+            <h1 className="mt-2.5 text-[1.6rem] font-black tracking-tight text-blue-950 sm:text-[1.85rem]">
+              智能筛选工作台
             </h1>
-            <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-zinc-500">
-              左侧选人，右侧决策；先配置岗位与模型，再对单人运行 AI
-              筛选或批量处理。
+            <p className="mt-1 max-w-lg text-sm leading-relaxed text-blue-900/60">
+              从左侧选择候选人，右侧查看 AI 评分与推荐理由，一键决策通过或拒绝。
             </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span className="inline-flex items-center rounded-full border border-zinc-200/80 bg-white px-2.5 py-0.5 text-xs font-medium text-zinc-600 shadow-sm">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-white/80 px-3 py-1 text-xs font-semibold text-blue-700 shadow-sm backdrop-blur-sm">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
                 共 {stats.all} 份
               </span>
-              <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-900 ring-1 ring-amber-200/60">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-white/80 px-3 py-1 text-xs font-semibold text-blue-500 shadow-sm backdrop-blur-sm">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-300" />
                 待筛选 {stats.pending}
               </span>
-              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-900 ring-1 ring-emerald-200/60">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white shadow-sm">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-200" />
                 已通过 {stats.passed}
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-white/80 px-3 py-1 text-xs font-semibold text-blue-400 shadow-sm backdrop-blur-sm">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-200" />
+                已拒绝 {stats.rejected}
               </span>
             </div>
           </div>
           <button
             type="button"
             onClick={() => setJobConfigModalOpen(true)}
-            className="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-xl border border-zinc-200/90 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-800 shadow-sm transition-colors hover:border-sky-200 hover:bg-sky-50/50 hover:text-sky-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 lg:self-auto"
+            className="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-xl border border-white/70 bg-white/35 px-4 py-2.5 text-sm font-semibold text-blue-700 shadow-[0_10px_30px_rgba(37,99,235,0.14)] backdrop-blur-xl transition-all hover:bg-white/50 hover:border-blue-200/70 hover:shadow-[0_12px_34px_rgba(37,99,235,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 lg:self-auto"
           >
-            <Settings2 className="h-4 w-4 text-zinc-500" aria-hidden />
+            <Settings2 className="h-4 w-4" aria-hidden />
             岗位与 AI 配置
           </button>
         </header>
-
         <section
-          className="flex min-h-[min(640px,calc(100vh-10rem))] flex-1 flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/90 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_32px_-8px_rgba(15,23,42,0.1)] ring-1 ring-zinc-950/[0.03] backdrop-blur-sm"
+          className="flex min-h-[min(640px,calc(100vh-10rem))] flex-1 flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white/80 shadow-[0_2px_24px_rgba(59,130,246,0.08)] backdrop-blur-md"
           aria-label="AI 筛选工作台"
         >
           <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-12">
-            <aside className="flex min-h-[min(400px,48vh)] flex-col border-b border-zinc-200/70 bg-gradient-to-b from-zinc-50/90 to-zinc-50/40 min-w-0 lg:col-span-4 lg:min-h-0 lg:border-b-0 lg:border-r lg:border-zinc-200/70">
-              <div className="shrink-0 border-b border-zinc-200/60 px-4 pb-3 pt-4">
-                <div className="mb-3 flex items-baseline justify-between gap-2">
-                  <h2 className="text-sm font-semibold text-zinc-900">
-                    候选人
-                  </h2>
+            <aside className="flex min-h-[min(400px,48vh)] flex-col border-b border-blue-100 bg-blue-50/40 min-w-0 lg:col-span-4 lg:min-h-0 lg:border-b-0 lg:border-r lg:border-blue-100">
+              <div className="shrink-0 border-b border-slate-200 px-4 pb-3 pt-4">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <h2 className="text-sm font-bold text-slate-800">候选人列表</h2>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setPreFilterModalOpen(true)}
-                      className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-1 ${
+                      className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1 ${
                         isEmptyPreFilter(preFilterConfig)
-                          ? "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
-                          : "bg-violet-100 text-violet-800 ring-1 ring-violet-200/80"
+                          ? "text-slate-500 hover:bg-blue-50 hover:text-blue-700"
+                          : "bg-blue-100 text-blue-700 ring-1 ring-blue-200"
                       }`}
                     >
                       <Filter className="h-3.5 w-3.5" aria-hidden />
-                      自定义条件
+                      筛选条件
                       {!isEmptyPreFilter(preFilterConfig) && (
-                        <span className="tabular-nums" aria-hidden>
-                          ✓
-                        </span>
+                        <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-blue-500" aria-hidden />
                       )}
                     </button>
-                    <span className="tabular-nums text-xs text-zinc-500">
+                    <span className="tabular-nums text-[11px] text-slate-400">
                       {filteredResumes.length} 条
-                      {statusFilter !== "all" ||
-                      searchQuery.trim() ||
-                      !isEmptyPreFilter(preFilterConfig)
-                        ? " · 已筛选"
-                        : ""}
                     </span>
                   </div>
                 </div>
                 <div className="relative">
-                  <Search
-                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
-                    aria-hidden
-                  />
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
                   <input
                     type="search"
-                    placeholder="搜索姓名或邮箱"
+                    placeholder="搜索姓名或邮箱…"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="h-10 w-full rounded-xl border border-zinc-200/90 bg-white pl-10 pr-3 text-sm text-zinc-900 placeholder:text-zinc-400 shadow-sm transition-shadow focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200/80"
+                    className="h-9 w-full rounded-lg border border-blue-100 bg-white pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                     aria-label="搜索候选人"
                   />
                 </div>
               </div>
 
-              <div
-                className="shrink-0 border-b border-zinc-200/60 px-3 py-2.5"
-                role="group"
-                aria-label="按状态筛选"
-              >
-                <div className="-mx-1 flex gap-1 overflow-x-auto pb-0.5 [scrollbar-width:thin]">
-                  {(
-                    [
-                      { key: "all" as const, label: "全部" },
-                      { key: "pending" as const, label: "待筛选" },
-                      { key: "passed" as const, label: "已通过" },
-                      { key: "rejected" as const, label: "已拒绝" },
-                    ] as const
-                  ).map(({ key, label }) => (
+              <div className="shrink-0 border-b border-slate-200 px-3 py-2" role="group" aria-label="按状态筛选">
+                <div className="flex gap-1 overflow-x-auto pb-0.5 [scrollbar-width:thin]">
+                  {([
+                    { key: "all" as const, label: "全部", color: "" },
+                    { key: "pending" as const, label: "待筛选", color: STATUS_META.pending.dot },
+                    { key: "passed" as const, label: "已通过", color: STATUS_META.passed.dot },
+                    { key: "rejected" as const, label: "已拒绝", color: STATUS_META.rejected.dot },
+                  ] as const).map(({ key, label, color }) => (
                     <button
                       key={key}
                       type="button"
                       aria-pressed={statusFilter === key ? "true" : "false"}
                       onClick={() => setStatusFilter(key)}
-                      className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-all sm:text-[13px] ${
+                      className={`shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
                         statusFilter === key
-                          ? "bg-zinc-900 text-white shadow-md shadow-zinc-900/15"
-                          : "bg-white/80 text-zinc-600 ring-1 ring-zinc-200/80 hover:bg-white hover:text-zinc-900"
+                          ? "bg-blue-600 text-white shadow-sm"
+                          : "text-slate-500 hover:bg-blue-50 hover:text-blue-700"
                       }`}
                     >
-                      {label}{" "}
-                      <span className="tabular-nums opacity-80">
+                      {color && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${color}`} />}
+                      {label}
+                      <span className="tabular-nums opacity-70">
                         {key === "all" ? stats.all : stats[key]}
                       </span>
                     </button>
@@ -768,57 +574,37 @@ export function AiScreening() {
 
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-2">
                 {loading ? (
-                  <ul
-                    className="space-y-2 p-1"
-                    aria-busy="true"
-                    aria-label="加载中"
-                  >
+                  <ul className="space-y-2 p-1" aria-busy="true" aria-label="加载中">
                     {Array.from({ length: 7 }).map((_, i) => (
-                      <li
-                        key={i}
-                        className="h-[4.25rem] animate-pulse rounded-xl bg-zinc-200/40"
-                      />
+                      <li key={i} className="h-16 animate-pulse rounded-xl bg-slate-100" />
                     ))}
                   </ul>
                 ) : filteredResumes.length === 0 ? (
                   <div className="flex flex-col items-center justify-center px-5 py-14 text-center">
-                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100">
-                      <FileText
-                        className="h-6 w-6 text-zinc-400"
-                        strokeWidth={1.5}
-                      />
+                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
+                      <FileText className="h-7 w-7 text-slate-400" strokeWidth={1.5} />
                     </div>
-                    <p className="text-sm font-semibold text-zinc-800">
-                      {resumes.length === 0
-                        ? "还没有简历"
-                        : "没有符合条件的候选人"}
+                    <p className="text-sm font-bold text-slate-800">
+                      {resumes.length === 0 ? "还没有简历" : "没有符合条件的候选人"}
                     </p>
-                    <p className="mt-1 max-w-[14rem] text-xs leading-relaxed text-zinc-500">
-                      {resumes.length === 0
-                        ? "上传后即可在此用 AI 初筛"
-                        : "调整搜索、状态或自定义条件试试"}
+                    <p className="mt-1 max-w-[14rem] text-xs leading-relaxed text-slate-500">
+                      {resumes.length === 0 ? "上传后即可在此用 AI 初筛" : "调整搜索、状态或筛选条件试试"}
                     </p>
                     {resumes.length === 0 && (
                       <Link
                         to="/app/resumes"
-                        className="mt-5 inline-flex items-center rounded-xl bg-zinc-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2"
+                        className="mt-5 inline-flex items-center rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2"
                       >
                         前往简历管理
                       </Link>
                     )}
                   </div>
                 ) : (
-                  <ul
-                    role="listbox"
-                    aria-label="候选人列表"
-                    className="flex flex-col gap-1.5 p-1"
-                  >
+                  <ul role="listbox" aria-label="候选人列表" className="flex flex-col gap-1 p-1">
                     {paginatedResumes.map((resume) => {
-                      const scoreVal =
-                        resume.score ??
-                        screeningResults.get(resume.id)?.score ??
-                        null;
+                      const scoreVal = resume.score ?? screeningResults.get(resume.id)?.score ?? null;
                       const selected = selectedResumeId === resume.id;
+                      const meta = STATUS_META[resume.status];
                       return (
                         <li
                           key={resume.id}
@@ -833,50 +619,46 @@ export function AiScreening() {
                               handleSelectResume(resume.id);
                             }
                           }}
-                          className={`flex cursor-pointer items-center gap-3 rounded-xl border p-2.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 ${
+                          className={`group relative flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1 ${
                             selected
-                              ? "border-sky-200 bg-white shadow-md shadow-sky-900/5 ring-1 ring-sky-100"
-                              : "border-transparent bg-white/40 hover:border-zinc-200/80 hover:bg-white/90"
+                              ? "border-blue-200 bg-white shadow-md shadow-blue-900/5 ring-1 ring-blue-100"
+                              : "border-transparent bg-white/60 hover:border-blue-100 hover:bg-white hover:shadow-sm"
                           }`}
                         >
+                          {selected && (
+                            <span className="absolute bottom-2 left-0 top-2 w-[3px] rounded-r-full bg-blue-500" />
+                          )}
                           <div
-                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold ${
-                              selected
-                                ? "bg-sky-600 text-white"
-                                : "bg-zinc-200/80 text-zinc-600"
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-black ${
+                              selected ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-700 group-hover:bg-blue-100"
                             }`}
                             aria-hidden
                           >
                             {getInitials(resume.name)}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold text-zinc-900">
-                              {resume.name}
-                            </p>
-                            <p className="mt-0.5 truncate text-xs text-zinc-500">
-                              {resume.phone || "无电话"}
-                            </p>
-                          </div>
-                          <div className="flex shrink-0 flex-col items-end gap-1">
-                            {scoreVal != null && (
-                              <span
-                                className={`rounded-lg px-1.5 py-0.5 text-[11px] font-bold tabular-nums ${
-                                  scoreVal >= 80
-                                    ? "bg-sky-100 text-sky-800"
-                                    : scoreVal >= 60
-                                      ? "bg-amber-100 text-amber-900"
-                                      : "bg-zinc-100 text-zinc-700"
-                                }`}
-                              >
-                                {scoreVal}%
+                            <p className="truncate text-sm font-semibold text-blue-950">{resume.name}</p>
+                            <div className="mt-0.5 flex items-center gap-1.5">
+                              <span className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-semibold ${meta.badge}`}>
+                                <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+                                {meta.label}
                               </span>
-                            )}
-                            <span
-                              className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${listStatusStyles[resume.status]}`}
-                            >
-                              {listStatusLabels[resume.status]}
-                            </span>
+                              {resume.phone && (
+                                <span className="truncate text-[11px] text-slate-400">{resume.phone.slice(0, 3)}···</span>
+                              )}
+                            </div>
                           </div>
+                          {scoreVal != null && (
+                            <span
+                              className={`shrink-0 rounded-lg px-2 py-1 text-xs font-black tabular-nums ${
+                                scoreVal >= 80 ? "bg-blue-600 text-white"
+                                  : scoreVal >= 60 ? "bg-blue-100 text-blue-700"
+                                  : "bg-blue-50 text-blue-400"
+                              }`}
+                            >
+                              {scoreVal}
+                            </span>
+                          )}
                         </li>
                       );
                     })}
@@ -885,60 +667,49 @@ export function AiScreening() {
               </div>
 
               {!loading && filteredResumes.length > 0 && (
-                <div className="flex shrink-0 items-center justify-between gap-2 border-t border-zinc-200/70 bg-white/90 px-3 py-2.5 backdrop-blur-sm">
-                  <span className="text-xs tabular-nums text-zinc-500">
-                    {listTotalPages > 1
-                      ? `第 ${listPage} / ${listTotalPages} 页 · ${filteredResumes.length} 条`
-                      : `${filteredResumes.length} 条`}
+                <div className="flex shrink-0 items-center justify-between gap-2 border-t border-slate-200 bg-white px-3 py-2.5">
+                  <span className="text-[11px] tabular-nums text-slate-400">
+                    {listTotalPages > 1 ? `第 ${listPage} / ${listTotalPages} 页 · ${filteredResumes.length} 条` : `${filteredResumes.length} 条`}
                   </span>
                   {listTotalPages > 1 && (
-                    <div className="flex items-center gap-0.5">
+                    <div className="flex items-center gap-1">
                       <button
                         type="button"
                         onClick={() => setListPage((p) => Math.max(1, p - 1))}
                         disabled={listPage <= 1}
-                        className="rounded-lg border border-zinc-200/90 bg-white p-2 text-zinc-600 transition-colors hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 disabled:pointer-events-none disabled:opacity-35"
+                        className="rounded-lg border border-blue-200 bg-white p-1.5 text-blue-400 transition-colors hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:pointer-events-none disabled:opacity-30"
                         aria-label="上一页"
                       >
-                        <ChevronLeft className="h-4 w-4" />
+                        <ChevronLeft className="h-3.5 w-3.5" />
                       </button>
                       <button
                         type="button"
-                        onClick={() =>
-                          setListPage((p) => Math.min(listTotalPages, p + 1))
-                        }
+                        onClick={() => setListPage((p) => Math.min(listTotalPages, p + 1))}
                         disabled={listPage >= listTotalPages}
-                        className="rounded-lg border border-zinc-200/90 bg-white p-2 text-zinc-600 transition-colors hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 disabled:pointer-events-none disabled:opacity-35"
+                        className="rounded-lg border border-blue-200 bg-white p-1.5 text-blue-400 transition-colors hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:pointer-events-none disabled:opacity-30"
                         aria-label="下一页"
                       >
-                        <ChevronRight className="h-4 w-4" />
+                        <ChevronRight className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   )}
                 </div>
               )}
             </aside>
-
             <main className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-white lg:col-span-8">
               {!selectedResume ? (
                 <div className="flex flex-1 flex-col items-center justify-center px-8 py-16 text-center">
-                  <div className="mb-5 flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-sky-100 to-sky-50 shadow-inner ring-1 ring-sky-100">
-                    <Sparkles
-                      className="h-11 w-11 text-sky-500"
-                      strokeWidth={1.5}
-                    />
+                  <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-blue-50 ring-1 ring-blue-100 shadow-lg shadow-blue-100">
+                    <Sparkles className="h-9 w-9 text-blue-500" strokeWidth={1.5} />
                   </div>
-                  <p className="text-base font-semibold text-zinc-800">
-                    选择一位候选人
-                  </p>
-                  <p className="mt-2 max-w-xs text-sm leading-relaxed text-zinc-500">
-                    在左侧列表中选中简历后，可查看联系方式、匹配分与 AI
-                    评估，并在此做出筛选决策。
+                  <p className="text-base font-bold text-blue-950">从左侧选择候选人</p>
+                  <p className="mt-2 max-w-xs text-sm leading-relaxed text-blue-400">
+                    选中简历后可查看联系方式、AI 匹配评分与评估理由，并做出筛选决策。
                   </p>
                   <button
                     type="button"
                     onClick={() => setJobConfigModalOpen(true)}
-                    className="mt-8 inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+                    className="mt-7 inline-flex items-center gap-2 rounded-xl border border-white/70 bg-white/35 px-4 py-2.5 text-sm font-semibold text-blue-700 shadow-[0_8px_28px_rgba(37,99,235,0.12)] backdrop-blur-xl transition-all hover:bg-white/50 hover:border-blue-200/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                   >
                     <Settings2 className="h-4 w-4" />
                     先配置岗位与 AI
@@ -946,16 +717,14 @@ export function AiScreening() {
                 </div>
               ) : (
                 <>
-                  <div className="sticky top-0 z-10 shrink-0 border-b border-zinc-200/70 bg-white/90 px-4 py-4 shadow-sm shadow-zinc-900/[0.03] backdrop-blur-md supports-[backdrop-filter]:bg-white/80 sm:px-6">
+                  <div className="sticky top-0 z-10 shrink-0 border-b border-blue-100 bg-white/80 px-4 py-4 shadow-sm shadow-blue-900/[0.04] backdrop-blur-md sm:px-6">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <h2 className="text-lg font-semibold tracking-tight text-zinc-900 sm:text-xl">
                             {selectedResume.name}
                           </h2>
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${listStatusStyles[selectedResume.status]}`}
-                          >
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${listStatusStyles[selectedResume.status]}`}>
                             {listStatusLabels[selectedResume.status]}
                           </span>
                         </div>
@@ -967,43 +736,31 @@ export function AiScreening() {
                         {selectedResume.resumeFile && (
                           <button
                             type="button"
-                            onClick={() =>
-                              openResumeInNewWindow(selectedResume)
-                            }
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200/90 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+                            onClick={() => openResumeInNewWindow(selectedResume)}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-white/70 bg-white/35 px-3 py-2 text-sm font-medium text-blue-700 shadow-[0_8px_24px_rgba(37,99,235,0.1)] backdrop-blur-xl transition-all hover:bg-white/50 hover:border-blue-200/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                           >
-                            <ExternalLink className="h-4 w-4 text-zinc-400" />
+                            <ExternalLink className="h-4 w-4 text-blue-400" />
                             打开简历
                           </button>
                         )}
                         <button
                           type="button"
                           onClick={() => setJobConfigModalOpen(true)}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200/90 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-white/70 bg-white/35 px-3 py-2 text-sm font-medium text-blue-700 shadow-[0_8px_24px_rgba(37,99,235,0.1)] backdrop-blur-xl transition-all hover:bg-white/50 hover:border-blue-200/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                         >
-                          <Settings2 className="h-4 w-4 text-zinc-400" />
+                          <Settings2 className="h-4 w-4 text-blue-400" />
                           AI 与岗位
                         </button>
                         {selectedResumeId != null && (
                           <button
                             type="button"
                             onClick={() => handleScreenResume(selectedResumeId)}
-                            disabled={
-                              screeningResumeId === selectedResumeId ||
-                              !jobRequirements.trim()
-                            }
-                            title={
-                              !jobRequirements.trim()
-                                ? "请先在「岗位与 AI 配置」中填写岗位要求"
-                                : undefined
-                            }
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-b from-sky-500 to-sky-600 px-3.5 py-2 text-sm font-semibold text-white shadow-md shadow-sky-600/25 transition-all hover:from-sky-600 hover:to-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-45"
+                            disabled={screeningResumeId === selectedResumeId || !jobRequirements.trim()}
+                            title={!jobRequirements.trim() ? "请先在「岗位与 AI 配置」中填写岗位要求" : undefined}
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white shadow-md shadow-blue-600/25 transition-all hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-45"
                           >
                             {screeningResumeId === selectedResumeId ? (
-                              <Loader2
-                                className="h-4 w-4 animate-spin"
-                                aria-hidden
-                              />
+                              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
                             ) : (
                               <Sparkles className="h-4 w-4" aria-hidden />
                             )}
@@ -1013,31 +770,24 @@ export function AiScreening() {
                       </div>
                     </div>
                   </div>
-
                   <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
                     <div className="mx-auto max-w-3xl space-y-5">
                       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-                        <div className="rounded-2xl border border-zinc-200/70 bg-zinc-50/40 p-5 shadow-sm">
-                          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-900">
-                            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-zinc-100">
-                              <User className="h-4 w-4 text-zinc-500" />
+                        <div className="rounded-2xl border border-blue-100 bg-white/80 p-5 shadow-sm backdrop-blur-sm">
+                          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-blue-950">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 ring-1 ring-blue-100">
+                              <User className="h-4 w-4 text-blue-500" />
                             </span>
                             基本信息
                           </h3>
                           <dl className="space-y-3 text-sm">
                             <div>
-                              <dt className="text-xs font-medium text-zinc-400">
-                                邮箱
-                              </dt>
-                              <dd className="mt-0.5 break-all text-zinc-800">
-                                {selectedResume.email || "—"}
-                              </dd>
+                              <dt className="text-xs font-medium text-blue-400">邮箱</dt>
+                              <dd className="mt-0.5 break-all text-blue-900">{selectedResume.email || "—"}</dd>
                             </div>
                             <div>
-                              <dt className="text-xs font-medium text-zinc-400">
-                                电话
-                              </dt>
-                              <dd className="mt-0.5 flex flex-wrap items-center gap-2 text-zinc-800">
+                              <dt className="text-xs font-medium text-blue-400">电话</dt>
+                              <dd className="mt-0.5 flex flex-wrap items-center gap-2 text-blue-900">
                                 {selectedResume.phone
                                   ? phoneExpanded
                                     ? selectedResume.phone
@@ -1045,116 +795,111 @@ export function AiScreening() {
                                       ? `${selectedResume.phone.slice(0, 3)}****${selectedResume.phone.slice(-4)}`
                                       : "***"
                                   : "—"}
-                                {selectedResume.phone &&
-                                  selectedResume.phone.length > 7 && (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setPhoneExpanded((v) => !v)
-                                      }
-                                      className="text-xs font-semibold text-sky-600 hover:text-sky-700 focus-visible:outline-none focus-visible:underline"
-                                    >
-                                      {phoneExpanded ? "收起" : "显示全文"}
-                                    </button>
-                                  )}
+                                {selectedResume.phone && selectedResume.phone.length > 7 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setPhoneExpanded((v) => !v)}
+                                    className="text-xs font-semibold text-blue-500 hover:text-blue-700 focus-visible:outline-none focus-visible:underline"
+                                  >
+                                    {phoneExpanded ? "收起" : "显示全文"}
+                                  </button>
+                                )}
                               </dd>
                             </div>
                           </dl>
                         </div>
 
-                        <div className="rounded-2xl border border-zinc-200/70 bg-gradient-to-br from-sky-50/50 via-white to-zinc-50/30 p-5 shadow-sm">
-                          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-900">
-                            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-sky-100">
-                              <BarChart3 className="h-4 w-4 text-sky-600" />
+                        <div className="rounded-2xl border border-blue-100 bg-blue-50/40 p-5 shadow-sm backdrop-blur-sm">
+                          <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-blue-950">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white ring-1 ring-blue-100">
+                              <BarChart3 className="h-4 w-4 text-blue-500" />
                             </span>
                             匹配度
                           </h3>
                           {selectedResult ? (
-                            <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6">
+                            <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-6">
                               <MatchScoreRing score={selectedResult.score} />
                               <div className="min-w-0 flex-1 text-center sm:text-left">
-                                <p className="text-xs font-medium text-zinc-500">
-                                  维度参考（示意）
-                                </p>
-                                <p className="mt-2 text-sm text-zinc-700">
-                                  <span className="font-semibold text-zinc-900">
-                                    技能
-                                  </span>{" "}
-                                  {Math.min(selectedResult.score + 5, 100)}%
-                                  <span className="mx-2 text-zinc-300">·</span>
-                                  <span className="font-semibold text-zinc-900">
-                                    学历
-                                  </span>{" "}
-                                  {Math.max(selectedResult.score - 25, 0)}%
-                                </p>
+                                <p className="text-xs font-medium uppercase tracking-wide text-blue-400">维度参考（示意）</p>
+                                <div className="mt-3 space-y-2">
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <span className="w-10 shrink-0 font-semibold text-blue-900">技能</span>
+                                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-blue-100">
+                                      <div
+                                        className="h-full rounded-full bg-blue-500 transition-all duration-700"
+                                        style={{ width: `${Math.min(selectedResult.score + 5, 100)}%` }}
+                                      />
+                                    </div>
+                                    <span className="w-8 text-right text-xs tabular-nums text-blue-400">{Math.min(selectedResult.score + 5, 100)}%</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <span className="w-10 shrink-0 font-semibold text-blue-900">学历</span>
+                                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-blue-100">
+                                      <div
+                                        className="h-full rounded-full bg-blue-300 transition-all duration-700"
+                                        style={{ width: `${Math.max(selectedResult.score - 25, 0)}%` }}
+                                      />
+                                    </div>
+                                    <span className="w-8 text-right text-xs tabular-nums text-blue-400">{Math.max(selectedResult.score - 25, 0)}%</span>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           ) : (
                             <div className="flex flex-col items-center py-6 text-center">
-                              <p className="text-sm text-zinc-500">
-                                尚未生成匹配分
-                              </p>
-                              <p className="mt-1 text-xs text-zinc-400">
-                                点击右上角「AI 筛选」运行模型
-                              </p>
+                              <p className="text-sm text-blue-400">尚未生成匹配分</p>
+                              <p className="mt-1 text-xs text-blue-300">点击右上角「AI 筛选」运行模型</p>
                             </div>
                           )}
                         </div>
                       </div>
 
-                      <div className="overflow-hidden rounded-2xl border border-zinc-200/70 bg-white shadow-sm">
+                      <div className="overflow-hidden rounded-2xl border border-blue-100 bg-white/80 shadow-sm backdrop-blur-sm">
                         <button
                           type="button"
                           onClick={() => setReasoningOpen((v) => !v)}
                           aria-expanded={reasoningOpen ? "true" : "false"}
-                          className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors hover:bg-zinc-50/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-400"
+                          className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors hover:bg-blue-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400"
                         >
-                          <span className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
-                            <MessageSquare className="h-4 w-4 shrink-0 text-violet-500" />
+                          <span className="flex items-center gap-2 text-sm font-semibold text-blue-950">
+                            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-100">
+                              <MessageSquare className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+                            </span>
                             AI 评估理由
                           </span>
                           {reasoningOpen ? (
-                            <ChevronUp className="h-4 w-4 shrink-0 text-zinc-400" />
+                            <ChevronUp className="h-4 w-4 shrink-0 text-blue-300" />
                           ) : (
-                            <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400" />
+                            <ChevronDown className="h-4 w-4 shrink-0 text-blue-300" />
                           )}
                         </button>
                         {reasoningOpen && (
-                          <div className="border-t border-zinc-100 bg-zinc-50/30 px-4 py-4">
-                            <AiReasoningContent
-                              text={(selectedResult?.reasoning ?? "").trim()}
-                            />
+                          <div className="border-t border-blue-100 bg-blue-50/30 px-4 py-4">
+                            <AiReasoningContent text={(selectedResult?.reasoning ?? "").trim()} />
                           </div>
                         )}
                       </div>
                     </div>
                   </div>
-
-                  <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-zinc-200/80 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_-12px_rgba(15,23,42,0.08)] backdrop-blur-md sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:px-6">
+                  <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-blue-100 bg-white/80 px-4 py-3 shadow-[0_-4px_16px_rgba(59,130,246,0.06)] backdrop-blur-md sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:px-6">
                     <button
                       type="button"
-                      onClick={() =>
-                        handleUpdateStatus(selectedResume.id, "pending")
-                      }
-                      className="rounded-xl border border-zinc-200/90 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400"
+                      onClick={() => handleUpdateStatus(selectedResume.id, "pending")}
+                      className="rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-semibold text-blue-600 shadow-sm transition-all hover:bg-blue-50 hover:border-blue-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                     >
                       待定
                     </button>
                     <button
                       type="button"
-                      onClick={() =>
-                        handleUpdateStatus(selectedResume.id, "rejected")
-                      }
-                      className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-rose-600/20 transition-colors hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2"
+                      onClick={() => handleUpdateStatus(selectedResume.id, "rejected")}
+                      className="rounded-xl border border-blue-200 bg-white px-5 py-2.5 text-sm font-semibold text-blue-400 shadow-sm transition-all hover:bg-blue-50 hover:text-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
                     >
                       拒绝
                     </button>
                     <button
                       type="button"
-                      onClick={() =>
-                        handleUpdateStatus(selectedResume.id, "passed")
-                      }
-                      className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-emerald-600/20 transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                      onClick={() => handleUpdateStatus(selectedResume.id, "passed")}
+                      className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-600/20 transition-all hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                     >
                       通过
                     </button>
