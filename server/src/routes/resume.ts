@@ -8,7 +8,6 @@ import { eq, desc, inArray, and, or, gte, lte, like } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { extractContactInfo, upload } from "../utils/resume.js";
 import { authenticate } from "../middleware/auth.js";
-import { and } from "drizzle-orm";
 import {
   fetchEmailsWithAttachments,
   saveAttachmentToResume,

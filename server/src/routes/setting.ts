@@ -347,7 +347,7 @@ router.post('/ai/test', authenticate, async (req: Request, res: Response) => {
 router.put('/ai/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
-    const configId = parseInt(req.params.id);
+    const configId = parseInt(req.params.id as string, 10);
     const { name, model, apiUrl, apiKey, prompt, isDefault } = req.body;
     
     const config = await updateAiConfigFull(userId, configId, {
@@ -384,7 +384,7 @@ router.put('/ai/:id', authenticate, async (req: Request, res: Response) => {
 router.delete('/ai/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
-    const configId = parseInt(req.params.id);
+    const configId = parseInt(req.params.id as string, 10);
     
     const success = await deleteAiConfig(userId, configId);
     

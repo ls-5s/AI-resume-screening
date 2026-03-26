@@ -24,9 +24,12 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 const REFRESH_SECRET = process.env.REFRESH_SECRET || 'your-refresh-secret-key';
 const REFRESH_EXPIRES_IN = process.env.REFRESH_EXPIRES_IN || '30d';
 
+// 定义 StringValue 类型（来自 ms 包）
+type StringValue = `${number}` | `${number}${string}` | `${number} ${string}`;
+
 // 生成 Token
 function generateToken(payload: object): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as any });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as StringValue });
 }
 
 // 生成 Refresh Token
@@ -76,7 +79,7 @@ export async function loginUser({ email, password }: LoginParams): Promise<Login
   const token = jwt.sign(
     { id: user.id, email: user.email, username: user.username },
     JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN as any }
+    { expiresIn: JWT_EXPIRES_IN as StringValue }
   );
 
   // 4. 生成 Refresh Token
