@@ -12,16 +12,26 @@ import templateRouter from "./routes/screeningTemplate.js";
 
 const app: Application = express();
 
-// Middleware
-// 强制允许所有跨域
+// Middleware：CORS（须由 Vercel Express 单函数处理整站路由，否则会落到 CDN 无 CORS 头）
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin);
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+  const rawOrigin = req.headers.origin;
+  const origin = Array.isArray(rawOrigin) ? rawOrigin[0] : rawOrigin;
+  if (origin) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+  }
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,PATCH,OPTIONS");
+  const requestedHeaders = req.headers["access-control-request-headers"];
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    typeof requestedHeaders === "string"
+      ? requestedHeaders
+      : "Content-Type, Authorization, X-Requested-With"
+  );
+  res.setHeader("Access-Control-Max-Age", "86400");
 
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
   }
   next();
 });
