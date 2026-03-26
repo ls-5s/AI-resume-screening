@@ -174,15 +174,15 @@ router.get("/resumes", authenticate, async (req: Request, res: Response) => {
         ? gte(resumes.score, Number(minScore))
         : undefined;
 
-    // 日期范围
+    // 日期范围（createdAt 为 TEXT，传 ISO 字符串）
     const dateFromCond = dateFrom?.trim()
-      ? gte(resumes.createdAt, new Date(dateFrom))
+      ? gte(resumes.createdAt, new Date(dateFrom).toISOString())
       : undefined;
     const dateToCond = dateTo?.trim()
       ? (() => {
           const end = new Date(dateTo);
           end.setHours(23, 59, 59, 999);
-          return lte(resumes.createdAt, end);
+          return lte(resumes.createdAt, end.toISOString());
         })()
       : undefined;
 

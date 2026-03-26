@@ -74,19 +74,15 @@ router.post("/screening-templates", authenticate, async (req: Request, res: Resp
       .where(eq(screeningTemplates.userId, userId));
     const isFirst = existing.length === 0;
 
-    const [result] = await db
+    const [row] = await db
       .insert(screeningTemplates)
       .values({
         userId,
         name: name.trim(),
         config: configJson,
-        isDefault: isFirst,
-      });
-
-    const [row] = await db
-      .select()
-      .from(screeningTemplates)
-      .where(eq(screeningTemplates.id, result.insertId));
+        isDefault: isFirst ? 1 : 0,
+      })
+      .returning();
 
     res.json({ code: 200, data: row });
   } catch (error: any) {
@@ -175,7 +171,7 @@ router.delete("/screening-templates/:id", authenticate, async (req: Request, res
       if (first) {
         await db
           .update(screeningTemplates)
-          .set({ isDefault: true })
+          .set({ isDefault: 1 })
           .where(eq(screeningTemplates.id, first.id));
       }
     }
@@ -207,19 +203,15 @@ router.post("/screening-templates/:id/duplicate", authenticate, async (req: Requ
       return res.status(404).json({ code: 404, message: "模板不存在" });
     }
 
-    const [result] = await db
+    const [dup] = await db
       .insert(screeningTemplates)
       .values({
         userId: source.userId,
         name: name || `${source.name} (副本)`,
         config: source.config,
-        isDefault: false,
-      });
-
-    const [dup] = await db
-      .select()
-      .from(screeningTemplates)
-      .where(eq(screeningTemplates.id, result.insertId));
+        isDefault: 0,
+      })
+      .returning();
 
     res.json({ code: 200, data: dup });
   } catch (error: any) {
@@ -250,13 +242,13 @@ router.post("/screening-templates/:id/set-default", authenticate, async (req: Re
     // 取消该用户所有默认标记
     await db
       .update(screeningTemplates)
-      .set({ isDefault: false })
+      .set({ isDefault: 0 })
       .where(eq(screeningTemplates.userId, userId));
 
     // 设为默认
     await db
       .update(screeningTemplates)
-      .set({ isDefault: true })
+      .set({ isDefault: 1 })
       .where(and(eq(screeningTemplates.id, id), eq(screeningTemplates.userId, userId)));
 
     res.json({ code: 200, message: "设置成功" });

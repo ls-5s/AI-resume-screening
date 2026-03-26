@@ -32,7 +32,7 @@ export async function getEmailConfigs(userId: number): Promise<EmailConfigRespon
     .from(emailConfigs)
     .where(and(
       eq(emailConfigs.userId, userId),
-      eq(emailConfigs.isDeleted, false)
+      eq(emailConfigs.isDeleted, 0)
     ));
 
   return configs.map(sanitizeEmailConfig);
@@ -59,7 +59,7 @@ export async function getEmailConfigById(userId: number, configId: number): Prom
     .where(and(
       eq(emailConfigs.id, configId),
       eq(emailConfigs.userId, userId),
-      eq(emailConfigs.isDeleted, false)
+      eq(emailConfigs.isDeleted, 0)
     ));
 
   return config ? sanitizeEmailConfig(config) : null;
@@ -74,11 +74,11 @@ export async function createEmailConfig(
   if (data.isDefault) {
     await db
       .update(emailConfigs)
-      .set({ isDefault: false })
+      .set({ isDefault: 0 })
       .where(and(
         eq(emailConfigs.userId, userId),
-        eq(emailConfigs.isDefault, true),
-        eq(emailConfigs.isDeleted, false)
+        eq(emailConfigs.isDefault, 1),
+        eq(emailConfigs.isDeleted, 0)
       ));
   }
 
@@ -88,7 +88,7 @@ export async function createEmailConfig(
     .from(emailConfigs)
     .where(and(
       eq(emailConfigs.email, data.email),
-      eq(emailConfigs.isDeleted, false)
+      eq(emailConfigs.isDeleted, 0)
     ));
 
   if (existing) {
@@ -99,7 +99,7 @@ export async function createEmailConfig(
       .where(and(
         eq(emailConfigs.email, data.email),
         eq(emailConfigs.userId, userId),
-        eq(emailConfigs.isDeleted, false)
+        eq(emailConfigs.isDeleted, 0)
       ));
     
     if (!ownConfig) {
@@ -107,7 +107,7 @@ export async function createEmailConfig(
     }
   }
 
-  const [result] = await db
+  const [config] = await db
     .insert(emailConfigs)
     .values({
       userId,
@@ -117,27 +117,10 @@ export async function createEmailConfig(
       imapPort: data.imapPort || 993,
       smtpHost: data.smtpHost || 'smtp.qq.com',
       smtpPort: data.smtpPort || 465,
-      isDefault: data.isDefault || false,
-      isDeleted: false,
-    });
-
-  const [config] = await db
-    .select({
-      id: emailConfigs.id,
-      userId: emailConfigs.userId,
-      email: emailConfigs.email,
-      authCode: emailConfigs.authCode,
-      imapHost: emailConfigs.imapHost,
-      imapPort: emailConfigs.imapPort,
-      smtpHost: emailConfigs.smtpHost,
-      smtpPort: emailConfigs.smtpPort,
-      isDefault: emailConfigs.isDefault,
-      isDeleted: emailConfigs.isDeleted,
-      createdAt: emailConfigs.createdAt,
-      updatedAt: emailConfigs.updatedAt,
+      isDefault: data.isDefault ? 1 : 0,
+      isDeleted: 0,
     })
-    .from(emailConfigs)
-    .where(eq(emailConfigs.id, result.insertId));
+    .returning();
 
   return sanitizeEmailConfig(config);
 }
@@ -158,11 +141,11 @@ export async function updateEmailConfig(
   if (data.isDefault) {
     await db
       .update(emailConfigs)
-      .set({ isDefault: false })
+      .set({ isDefault: 0 })
       .where(and(
         eq(emailConfigs.userId, userId),
-        eq(emailConfigs.isDefault, true),
-        eq(emailConfigs.isDeleted, false)
+        eq(emailConfigs.isDefault, 1),
+        eq(emailConfigs.isDeleted, 0)
       ));
   }
 
@@ -173,7 +156,7 @@ export async function updateEmailConfig(
       .from(emailConfigs)
       .where(and(
         eq(emailConfigs.email, data.email),
-        eq(emailConfigs.isDeleted, false)
+        eq(emailConfigs.isDeleted, 0)
       ));
 
     if (conflict) {
@@ -221,7 +204,7 @@ export async function deleteEmailConfig(userId: number, configId: number): Promi
   if (existing.isDefault) {
     await db
       .update(emailConfigs)
-      .set({ isDefault: false })
+      .set({ isDefault: 0 })
       .where(and(
         eq(emailConfigs.id, configId),
         eq(emailConfigs.userId, userId)
@@ -231,7 +214,7 @@ export async function deleteEmailConfig(userId: number, configId: number): Promi
   // 软删除
   await db
     .update(emailConfigs)
-    .set({ isDeleted: true })
+    .set({ isDeleted: 1 })
     .where(and(
       eq(emailConfigs.id, configId),
       eq(emailConfigs.userId, userId)

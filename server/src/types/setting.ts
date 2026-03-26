@@ -14,13 +14,13 @@ export interface EmailConfigResponse {
   id: number;
   userId: number;
   email: string;
-  authCode?: string; // 授权码（可选返回）
+  authCode?: string;
   imapHost: string | null;
-  imapPort: number | null;
+  imtpPort: number | null;
   smtpHost: string | null;
   smtpPort: number | null;
-  isDefault: boolean | null;
-  isDeleted: boolean | null;
-  createdAt: Date;
-  updatedAt: Date;
+  isDefault: number | null;
+  isDeleted: number | null;
+  createdAt: string;
+  updatedAt: string;
 }

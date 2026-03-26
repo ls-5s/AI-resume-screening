@@ -51,8 +51,8 @@ export async function getEmailSendStats(userId: number): Promise<EmailSendStats>
     .where(
       and(
         activityMatch,
-        gte(activities.createdAt, startOfDay),
-        lt(activities.createdAt, endOfDay),
+        gte(activities.createdAt, startOfDay.toISOString()),
+        lt(activities.createdAt, endOfDay.toISOString()),
       ),
     );
 
@@ -65,8 +65,8 @@ export async function getEmailSendStats(userId: number): Promise<EmailSendStats>
     .where(
       and(
         activityMatch,
-        gte(activities.createdAt, monthStart),
-        lt(activities.createdAt, monthEnd),
+        gte(activities.createdAt, monthStart.toISOString()),
+        lt(activities.createdAt, monthEnd.toISOString()),
       ),
     );
 
@@ -124,27 +124,15 @@ export async function createEmailTemplate(
   userId: number,
   data: EmailTemplateInput
 ): Promise<EmailTemplateResponse> {
-  const [result] = await db
+  const [template] = await db
     .insert(emailTemplates)
     .values({
       userId,
       name: data.name,
       subject: data.subject,
       body: data.body,
-    });
-
-  const [template] = await db
-    .select({
-      id: emailTemplates.id,
-      userId: emailTemplates.userId,
-      name: emailTemplates.name,
-      subject: emailTemplates.subject,
-      body: emailTemplates.body,
-      createdAt: emailTemplates.createdAt,
-      updatedAt: emailTemplates.updatedAt,
     })
-    .from(emailTemplates)
-    .where(eq(emailTemplates.id, result.insertId));
+    .returning();
 
   return template;
 }
@@ -224,7 +212,7 @@ export async function getEmailConfigById(
     .where(and(
       eq(emailConfigs.id, configId),
       eq(emailConfigs.userId, userId),
-      eq(emailConfigs.isDeleted, false)
+      eq(emailConfigs.isDeleted, 0)
     ));
 
   if (!config) return null;
@@ -370,7 +358,7 @@ export async function sendEmails(
   }
 
   if (successfulCandidateIds.length > 0) {
-    const now = new Date();
+    const now = new Date().toISOString();
     await db
       .update(resumes)
       .set({ lastEmailSentAt: now })

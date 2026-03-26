@@ -14,8 +14,8 @@ export interface EmailTemplateResponse {
   name: string;
   subject: string;
   body: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // 发送邮件输入
@@ -53,6 +53,6 @@ export interface EmailRecipient {
   status: 'pending' | 'passed' | 'rejected' | 'sent';
   resumeFile: string | null;
   originalFileName: string | null;
-  /** 最近一次群发邮件发送成功时间，有值表示曾发送成功 */
-  lastEmailSentAt: Date | null;
+  /** 最近一次群发邮件发送成功时间，有值表示曾发送成功（SQLite TEXT / ISO） */
+  lastEmailSentAt: string | null;
 }

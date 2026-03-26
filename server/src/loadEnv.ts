@@ -1,6 +1,5 @@
 import { config } from "dotenv";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-config({ path: resolve(__dirname, "../.env") });
+// 始终从 server/ 目录加载 .env（无论构建为 ESM 还是 CJS）
+config({ path: resolve(process.cwd(), ".env") });

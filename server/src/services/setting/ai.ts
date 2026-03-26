@@ -267,25 +267,22 @@ export async function createAiConfig(
   if (data.isDefault === true) {
     await db
       .update(aiConfigs)
-      .set({ isDefault: false })
+      .set({ isDefault: 0 })
       .where(eq(aiConfigs.userId, userId));
   }
 
-  const [createdId] = await db.insert(aiConfigs).values({
-    userId,
-    name: data.name || "新配置",
-    model: data.model || "gpt-4o",
-    apiUrl: data.apiUrl || "https://api.openai.com/v1",
-    apiKey: encrypt(data.apiKey || ""),
-    prompt: data.prompt || "",
-    isDefault: data.isDefault || false,
-  });
-
-  // MySQL 不支持 returning，需要手动查询获取插入的记录
   const [created] = await db
-    .select()
-    .from(aiConfigs)
-    .where(eq(aiConfigs.id, createdId.insertId));
+    .insert(aiConfigs)
+    .values({
+      userId,
+      name: data.name || "新配置",
+      model: data.model || "gpt-4o",
+      apiUrl: data.apiUrl || "https://api.openai.com/v1",
+      apiKey: encrypt(data.apiKey || ""),
+      prompt: data.prompt || "",
+      isDefault: data.isDefault ? 1 : 0,
+    })
+    .returning();
 
   return sanitizeAiConfig(created);
 }
@@ -314,7 +311,7 @@ export async function updateAiConfig(
       ...(data.name !== undefined && { name: data.name }),
       ...(data.model !== undefined && { model: data.model }),
       ...(data.apiUrl !== undefined && { apiUrl: data.apiUrl }),
-      updatedAt: new Date(),
+      updatedAt: new Date().toISOString(),
     })
     .where(eq(aiConfigs.id, configId));
 
@@ -356,7 +353,7 @@ export async function updateAiConfigFull(
   if (data.isDefault === true) {
     await db
       .update(aiConfigs)
-      .set({ isDefault: false })
+      .set({ isDefault: 0 })
       .where(eq(aiConfigs.userId, userId));
   }
 
@@ -366,8 +363,8 @@ export async function updateAiConfigFull(
     ...(data.model !== undefined && { model: data.model }),
     ...(data.apiUrl !== undefined && { apiUrl: data.apiUrl }),
     ...(data.prompt !== undefined && { prompt: data.prompt }),
-    ...(data.isDefault !== undefined && { isDefault: data.isDefault }),
-    updatedAt: new Date(),
+    ...(data.isDefault !== undefined && { isDefault: data.isDefault ? 1 : 0 }),
+    updatedAt: new Date().toISOString(),
   };
   if (typeof data.apiKey === "string" && data.apiKey !== "") {
     setData.apiKey = encrypt(data.apiKey);
