@@ -38,6 +38,15 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 
+// 根路径：部署域名常指向 API，浏览器/探活会访问 `/`，避免无意义 404
+app.get("/", (_req, res) => {
+  res.status(200).json({
+    ok: true,
+    service: "ai-resume-screening-api",
+    docs: "接口前缀 /v1",
+  });
+});
+
 // 静态文件服务 - 提供简历文件访问
 app.use("/uploads", express.static(getUploadsRoot()));
 
