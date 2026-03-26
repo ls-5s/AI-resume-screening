@@ -250,7 +250,6 @@ router.post(
   async (req: Request, res: Response) => {
     try {
       const userId = Number((req as any).user.id);
-      console.log("发送邮件 - userId:", userId, "body:", req.body);
       const { candidateIds, subject, body, fromEmailId } = req.body;
 
       if (!fromEmailId || !subject || !body) {
@@ -266,8 +265,6 @@ router.post(
         body,
         fromEmailId,
       });
-
-      console.log("发送结果:", result);
 
       // 仅对实际发送成功的候选人记活动（用于统计「已发送 / 今日 / 本月」）
       const succeededIds = result.successfulCandidateIds ?? [];
@@ -295,7 +292,6 @@ router.post(
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "发送邮件失败";
-      console.error("发送邮件错误:", err);
       res.status(400).json({
         code: 400,
         message,

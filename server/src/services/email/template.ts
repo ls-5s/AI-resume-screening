@@ -2,6 +2,7 @@ import { db } from '../../db/index.js';
 import { emailTemplates, emailConfigs, resumes, activities } from '../../db/schema.js';
 import { eq, and, desc, isNotNull, isNull, inArray, like, gte, lt, sql } from 'drizzle-orm';
 import nodemailer from 'nodemailer';
+import { decrypt } from '../../utils/crypto';
 import type {
   EmailTemplateInput,
   EmailTemplateResponse,
@@ -211,8 +212,6 @@ export async function getEmailConfigById(
   smtpHost: string | null;
   smtpPort: number | null;
 } | null> {
-  console.log('getEmailConfigById - userId:', userId, 'configId:', configId);
-  
   const [config] = await db
     .select({
       id: emailConfigs.id,
@@ -228,8 +227,8 @@ export async function getEmailConfigById(
       eq(emailConfigs.isDeleted, false)
     ));
 
-  console.log('getEmailConfigById - config:', config);
-  return config || null;
+  if (!config) return null;
+  return { ...config, authCode: decrypt(config.authCode) };
 }
 
 // 变量替换函数
@@ -289,11 +288,8 @@ export async function sendEmails(
   userId: number,
   data: SendEmailInput
 ): Promise<SendEmailResult> {
-  console.log('sendEmails - userId:', userId, 'data:', data);
-  
   // 获取发件邮箱配置
   const emailConfig = await getEmailConfigById(userId, data.fromEmailId);
-  console.log('sendEmails - emailConfig:', emailConfig);
   
   if (!emailConfig) {
     throw new Error('邮箱配置不存在，请检查是否选择了正确的发件邮箱');

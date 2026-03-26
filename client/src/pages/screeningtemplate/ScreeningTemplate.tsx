@@ -553,6 +553,46 @@ function TemplateCardIconButton({
   );
 }
 
+function TemplateCardSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-(--app-ai-border) bg-(--app-surface) p-5 shadow-(--app-shadow-sm)">
+      {/* 顶部：图标 + 名称 + 按钮 */}
+      <div className="flex gap-4">
+        <div className="h-12 w-12 shrink-0 animate-pulse rounded-xl bg-(--app-skeleton)" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="space-y-1.5">
+              <div className="h-3 w-16 animate-pulse rounded bg-(--app-skeleton)" />
+              <div className="h-5 w-36 animate-pulse rounded bg-(--app-skeleton)" />
+              <div className="h-3 w-24 animate-pulse rounded bg-(--app-skeleton)" />
+            </div>
+            <div className="flex gap-1">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-8 w-8 animate-pulse rounded-lg bg-(--app-skeleton)" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 条件概要 */}
+      <div className="mt-5 space-y-1.5">
+        <div className="h-3 w-16 animate-pulse rounded bg-(--app-skeleton)" />
+        <div className="h-4 w-full animate-pulse rounded bg-(--app-skeleton)" />
+        <div className="h-4 w-3/4 animate-pulse rounded bg-(--app-skeleton)" />
+      </div>
+
+      <hr className="my-5 border-0 border-t border-(--app-border-subtle)" />
+
+      {/* 底部按钮 */}
+      <div className="flex items-center justify-between">
+        <div className="h-4 w-20 animate-pulse rounded bg-(--app-skeleton)" />
+        <div className="h-9 w-24 animate-pulse rounded-full bg-(--app-skeleton)" />
+      </div>
+    </div>
+  );
+}
+
 function TemplateCard({
   template,
   onEdit,
@@ -811,7 +851,13 @@ export default function ScreeningTemplate() {
         </header>
 
         {/* Content */}
-        {loading ? null : error ? (
+        {loading ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <TemplateCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : error ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-(--app-danger)/30 bg-(--app-danger-soft) px-6 py-16 text-center">
             <p className="text-sm font-medium text-(--app-danger)">
               {error}

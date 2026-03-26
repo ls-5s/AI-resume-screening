@@ -6,6 +6,7 @@ import fs from 'fs';
 import { db } from '../../db/index.js';
 import { emailConfigs } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
+import { decrypt } from '../../utils/crypto';
 
 export interface EmailMessage {
   from: string;
@@ -26,7 +27,7 @@ export interface FetchEmailOptions {
 }
 
 /**
- * 获取邮箱配置
+ * 获取邮箱配置（解密后返回）
  */
 async function getEmailConfig(userId: number, configId: number) {
   const [config] = await db
@@ -42,7 +43,8 @@ async function getEmailConfig(userId: number, configId: number) {
     throw new Error('无权访问此邮箱配置');
   }
 
-  return config;
+  // authCode 加密存储，使用前解密
+  return { ...config, authCode: decrypt(config.authCode) };
 }
 
 /**
@@ -60,15 +62,6 @@ function connectToImap(config: any): Promise<any> {
         rejectUnauthorized: false,
       },
     };
-
-    // 打印 IMAP 配置信息
-    console.log('===== IMAP 连接配置 =====');
-    console.log('用户:', imapConfig.user);
-    console.log('主机:', imapConfig.host);
-    console.log('端口:', imapConfig.port);
-    console.log('TLS:', imapConfig.tls);
-    console.log('TLS Options:', imapConfig.password);
-    console.log('=========================');
 
     const imap = new Imap(imapConfig);
 
@@ -97,10 +90,8 @@ export async function fetchEmailsWithAttachments(
 
   // 连接到 IMAP
   const imap = await connectToImap(config);
-  console.log('IMAP 连接成功！');
 
   // 获取所有邮箱文件夹
-  console.log('===== 获取邮箱文件夹列表 =====');
   const mailboxes = await new Promise<any>((resolve, reject) => {
     imap.getBoxes('', (err: Error | null, boxes: any) => {
       if (err) {
@@ -115,14 +106,12 @@ export async function fetchEmailsWithAttachments(
   function printMailboxes(boxes: any, prefix = '') {
     for (const [name, box] of Object.entries(boxes)) {
       const fullPath = prefix ? `${prefix}/${name}` : name;
-      console.log(fullPath);
       if ((box as any).children) {
         printMailboxes((box as any).children, fullPath);
       }
     }
   }
   printMailboxes(mailboxes);
-  console.log('===============================');
 
   try {
     return await new Promise((resolve, reject) => {
@@ -224,17 +213,6 @@ export async function fetchEmailsWithAttachments(
 
                 // 只返回包含简历附件的邮件
                 if (attachments.length > 0) {
-                  // 打印邮件列表信息
-                  console.log('===== 邮件信息 =====');
-                  console.log('发件人:', emailInfo.from);
-                  console.log('主题:', emailInfo.subject);
-                  console.log('日期:', emailInfo.date.toLocaleString());
-                  console.log('附件数量:', attachments.length);
-                  attachments.forEach((att, idx) => {
-                    console.log(`  附件${idx + 1}: ${att.filename} (${att.contentType})`);
-                  });
-                  console.log('====================');
-                  
                   emailData = {
                     from: emailInfo.from,
                     subject: emailInfo.subject,
@@ -244,14 +222,14 @@ export async function fetchEmailsWithAttachments(
                   emails.push(emailData);
                 }
               } catch (parseErr) {
-                console.error('解析邮件失败:', parseErr);
+                // 忽略解析错误
               } finally {
                 operationComplete(); // 标记处理完成
               }
             });
 
-            msg.once('error', (msgErr: Error) => {
-              console.error('处理邮件消息失败:', msgErr);
+            msg.once('error', () => {
+              // 忽略消息处理错误
             });
           });
 
@@ -264,38 +242,6 @@ export async function fetchEmailsWithAttachments(
             // 等待所有邮件处理完成
             const checkAndResolve = () => {
               if (pendingOperations === 0) {
-                // 打印所有邮件列表汇总
-                console.log('\n========== 邮件列表汇总 ==========');
-                console.log(`共搜索到 ${allEmails.length} 封邮件，其中 ${emails.length} 封包含简历附件\n`);
-                
-                // 打印所有邮件列表
-                allEmails.forEach((email, idx) => {
-                  const resumeTag = email.hasResume ? '📎 有简历' : '  无简历';
-                  console.log(`[${idx + 1}] 发件人: ${email.from}`);
-                  console.log(`    主题: ${email.subject}`);
-                  console.log(`    日期: ${email.date.toLocaleString()}`);
-                  console.log(`    状态: ${resumeTag}`);
-                  if (email.attachments.length > 0) {
-                    console.log(`    附件: ${email.attachments.join(', ')}`);
-                  }
-                  console.log('----------------------------------------');
-                });
-                
-                console.log('=======================================\n');
-                
-                // 单独打印包含简历的邮件列表（原有功能）
-                if (emails.length > 0) {
-                  console.log('\n========== 简历附件列表 ==========');
-                  emails.forEach((email, idx) => {
-                    console.log(`[${idx + 1}] 发件人: ${email.from}`);
-                    console.log(`    主题: ${email.subject}`);
-                    console.log(`    日期: ${email.date.toLocaleString()}`);
-                    console.log(`    附件: ${email.attachments.map(a => a.filename).join(', ')}`);
-                    console.log('----------------------------------------');
-                  });
-                  console.log('=======================================\n');
-                }
-                
                 imap.end();
                 resolve(emails);
               } else {
@@ -310,7 +256,6 @@ export async function fetchEmailsWithAttachments(
       });
     });
   } catch (error) {
-    console.log('IMAP 连接失败:', error);
     if (imap) {
       imap.end();
     }
@@ -337,8 +282,8 @@ export function saveAttachmentToResume(
   let decodedFilename = filename;
   try {
     decodedFilename = decodeURIComponent(filename);
-  } catch (e) {
-    console.log('文件名解码失败，使用原始文件名:', filename);
+  } catch {
+    // 忽略解码错误，使用原始文件名
   }
 
   // 生成唯一文件名

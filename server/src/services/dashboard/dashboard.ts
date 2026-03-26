@@ -1,6 +1,6 @@
 import { db } from "../../db/index.js";
 import { resumes, activities } from "../../db/schema.js";
-import { eq, sql, desc } from "drizzle-orm";
+import { eq, and, sql, desc } from "drizzle-orm";
 import type { Activity } from "../../db/schema.js";
 
 export interface DashboardStats {
@@ -16,13 +16,14 @@ export interface DashboardStats {
 /**
  * 获取 Dashboard 统计数据
  */
-export async function getDashboardStats(): Promise<DashboardStats> {
+export async function getDashboardStats(userId: number): Promise<DashboardStats> {
   // 获取简历总数
   const [totalResult] = await db
     .select({
       count: sql<number>`count(*)`,
     })
-    .from(resumes);
+    .from(resumes)
+    .where(eq(resumes.userId, userId));
   const total = Number(totalResult?.count || 0);
 
   // 获取待筛选数量
@@ -31,7 +32,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       count: sql<number>`count(*)`,
     })
     .from(resumes)
-    .where(eq(resumes.status, "pending"));
+    .where(and(eq(resumes.userId, userId), eq(resumes.status, "pending")));
   const pending = Number(pendingResult?.count || 0);
 
   // 获取匹配成功数量
@@ -40,7 +41,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       count: sql<number>`count(*)`,
     })
     .from(resumes)
-    .where(eq(resumes.status, "passed"));
+    .where(and(eq(resumes.userId, userId), eq(resumes.status, "passed")));
   const passed = Number(passedResult?.count || 0);
 
   // 获取被拒绝数量
@@ -49,7 +50,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       count: sql<number>`count(*)`,
     })
     .from(resumes)
-    .where(eq(resumes.status, "rejected"));
+    .where(and(eq(resumes.userId, userId), eq(resumes.status, "rejected")));
   const rejected = Number(rejectedResult?.count || 0);
 
   // 获取今天的简历数量
@@ -60,7 +61,10 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       count: sql<number>`count(*)`,
     })
     .from(resumes)
-    .where(sql`${resumes.createdAt} >= ${today.toISOString()}`);
+    .where(and(
+      eq(resumes.userId, userId),
+      sql`${resumes.createdAt} >= ${today.toISOString()}`,
+    ));
   const todayCount = Number(todayResult?.count || 0);
 
   // 获取本周每日简历数量（周一 ~ 周日，按创建日期分组）
@@ -75,7 +79,10 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       count: sql<number>`count(*)`,
     })
     .from(resumes)
-    .where(sql`${resumes.createdAt} >= ${weekStart.toISOString()}`)
+    .where(and(
+      eq(resumes.userId, userId),
+      sql`${resumes.createdAt} >= ${weekStart.toISOString()}`,
+    ))
     .groupBy(sql`(DAYOFWEEK(${resumes.createdAt}) - 1)`);
 
   const DAY_NAMES = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
@@ -94,6 +101,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   const rawActivities = await db
     .select()
     .from(activities)
+    .where(eq(activities.userId, userId))
     .orderBy(desc(activities.createdAt))
     .limit(20);
   const seen = new Set<string>();

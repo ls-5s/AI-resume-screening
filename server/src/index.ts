@@ -47,14 +47,12 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 
 // Start server
 app.listen(PORT, async () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
-  
-  // 启动时检测数据库连接
+  console.log(`后端服务已启动: http://localhost:${PORT}`);
   const dbConnected = await testConnection();
   if (dbConnected) {
-    console.log('✅ Database connected successfully');
+    console.log('数据库连接成功');
   } else {
-    console.log('❌ Database connection failed');
+    console.error('数据库连接失败');
   }
 });
 

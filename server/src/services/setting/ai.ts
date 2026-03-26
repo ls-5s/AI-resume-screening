@@ -1,6 +1,13 @@
 import { db } from "../../db/index";
 import { aiConfigs } from "../../db/schema";
+import type { AiConfig } from "../../db/schema";
 import { eq } from "drizzle-orm";
+import { encrypt, decrypt, mask } from "../../utils/crypto";
+
+// 将 apiKey 脱敏后返回，防止泄露到前端
+function sanitizeAiConfig(config: AiConfig): Omit<AiConfig, "apiKey"> & { apiKey: string } {
+  return { ...config, apiKey: "" };
+}
 
 /**
  * 测试 AI 配置是否有效
@@ -193,7 +200,7 @@ export async function getAiConfigs(userId: number) {
     .from(aiConfigs)
     .where(eq(aiConfigs.userId, userId));
 
-  return configs;
+  return configs.map(sanitizeAiConfig);
 }
 
 /**
@@ -236,9 +243,10 @@ export async function getAiConfig(userId: number) {
     };
   }
 
-  // 返回默认配置，如果没有设置默认则返回第一个
+  // 返回默认配置，如果没有设置默认则返回第一个（均脱敏后返回）
   const defaultConfig = configs.find((c) => c.isDefault);
-  return defaultConfig || configs[0];
+  const found = defaultConfig || configs[0];
+  return found ? sanitizeAiConfig(found) : null;
 }
 
 /**
@@ -268,7 +276,7 @@ export async function createAiConfig(
     name: data.name || "新配置",
     model: data.model || "gpt-4o",
     apiUrl: data.apiUrl || "https://api.openai.com/v1",
-    apiKey: data.apiKey || "",
+    apiKey: encrypt(data.apiKey || ""),
     prompt: data.prompt || "",
     isDefault: data.isDefault || false,
   });
@@ -279,12 +287,8 @@ export async function createAiConfig(
     .from(aiConfigs)
     .where(eq(aiConfigs.id, createdId.insertId));
 
-  return created;
+  return sanitizeAiConfig(created);
 }
-
-/**
- * 更新 AI 配置
- */
 export async function updateAiConfig(
   userId: number,
   configId: number,
@@ -356,26 +360,31 @@ export async function updateAiConfigFull(
       .where(eq(aiConfigs.userId, userId));
   }
 
+  // 只有非空字符串才覆盖已存储的 Key，避免空字符串误覆盖；写入前加密
+  const setData: Record<string, unknown> = {
+    ...(data.name !== undefined && { name: data.name }),
+    ...(data.model !== undefined && { model: data.model }),
+    ...(data.apiUrl !== undefined && { apiUrl: data.apiUrl }),
+    ...(data.prompt !== undefined && { prompt: data.prompt }),
+    ...(data.isDefault !== undefined && { isDefault: data.isDefault }),
+    updatedAt: new Date(),
+  };
+  if (typeof data.apiKey === "string" && data.apiKey !== "") {
+    setData.apiKey = encrypt(data.apiKey);
+  }
+
   await db
     .update(aiConfigs)
-    .set({
-      ...(data.name !== undefined && { name: data.name }),
-      ...(data.model !== undefined && { model: data.model }),
-      ...(data.apiUrl !== undefined && { apiUrl: data.apiUrl }),
-      ...(data.apiKey !== undefined && { apiKey: data.apiKey }),
-      ...(data.prompt !== undefined && { prompt: data.prompt }),
-      ...(data.isDefault !== undefined && { isDefault: data.isDefault }),
-      updatedAt: new Date(),
-    })
+    .set(setData)
     .where(eq(aiConfigs.id, configId));
 
-  // 手动查询返回更新后的记录
+  // 手动查询返回更新后的记录（脱敏后）
   const [updated] = await db
     .select()
     .from(aiConfigs)
     .where(eq(aiConfigs.id, configId));
 
-  return updated;
+  return sanitizeAiConfig(updated);
 }
 
 /**
@@ -459,19 +468,32 @@ export async function screenResumeWithAi(
 }> {
   // 获取 AI 配置
   let config:
-    | Awaited<ReturnType<typeof getAiConfig>>
-    | Awaited<ReturnType<typeof getAiConfigById>>;
+    | Awaited<ReturnType<typeof getAiConfigById>>
+    | (Awaited<ReturnType<typeof getAiConfig>> & { apiKey: string });
 
   if (aiConfigId) {
-    config = await getAiConfigById(userId, aiConfigId);
-    if (!config) {
+    const raw = await getAiConfigById(userId, aiConfigId);
+    if (!raw) {
       return { success: false, error: "AI 配置不存在" };
     }
+    // 解密 apiKey
+    config = raw;
+    config.apiKey = (raw.apiKey != null && raw.apiKey !== "") ? decrypt(raw.apiKey) : "";
   } else {
-    config = await getAiConfig(userId);
+    const found = await getAiConfig(userId);
+    if (!found) {
+      return { success: false, error: "请先配置 AI API Key" };
+    }
+    // getAiConfig 已脱敏；手动取原始记录并解密，以供内部使用
+    const raw = await getAiConfigById(userId, found.id!);
+    config = raw ?? found;
+    config.apiKey = (raw?.apiKey != null && raw.apiKey !== "") ? decrypt(raw.apiKey) : "";
   }
 
-  if (!config || !config.apiKey) {
+  // 实际请求时使用解密后的明文（注意：已在上方解密过，避免重复解密）
+  const apiKey = config.apiKey ?? "";
+
+  if (!apiKey) {
     return { success: false, error: "请先配置 AI API Key" };
   }
 
@@ -489,7 +511,6 @@ export async function screenResumeWithAi(
         (eq as any)(resumes.userId, userId),
       ),
     );
-  // console.log('resume', resume.parsedContent);
   if (!resume) {
     return { success: false, error: "简历不存在" };
   }
@@ -525,7 +546,6 @@ ${resume.parsedContent}
 
 ## 评估理由
 [详细说明该候选人与岗位的匹配情况，包括优势、不足和推荐理由]`;
-  console.log("model:", config.model);
   // 调用 AI API
   const url = config.apiUrl.replace(/\/$/, "");
   const apiType = detectApiType(config.apiUrl);
@@ -552,13 +572,12 @@ ${resume.parsedContent}
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${config.apiKey}`,
+          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify(requestBody),
       },
       600000,
     );
-    console.log("response:", response);
     if (!response.ok) {
       const errorData = (await response.json().catch(() => ({}))) as Record<
         string,
@@ -582,7 +601,6 @@ ${resume.parsedContent}
 
     // 解析 AI 响应，提取评估结果
     const result = parseAiResponse(aiResponse);
-    console.log("result:", result);
 
     const status =
       result.recommendation === "pass"

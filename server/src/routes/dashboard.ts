@@ -11,15 +11,18 @@ const router: Router = express.Router();
 /**
  * 获取 Dashboard 统计数据
  */
-router.get("/dashboard/stats", async (req: Request, res: Response) => {
+router.get("/dashboard/stats", authenticate, async (req: Request, res: Response) => {
   try {
-    const data = await getDashboardStats();
+    const userId = Number((req as any).user?.id);
+    if (!userId) {
+      return res.status(401).json({ code: 401, message: "未授权" });
+    }
+    const data = await getDashboardStats(userId);
     res.json({
       code: 200,
       data,
     });
   } catch (error: any) {
-    console.error("获取 Dashboard 统计失败:", error);
     res.status(500).json({
       code: 500,
       message: error.message || "获取统计失败",
@@ -47,7 +50,6 @@ router.get(
         data,
       });
     } catch (error: any) {
-      console.error("获取活动列表失败:", error);
       res.status(500).json({
         code: 500,
         message: error.message || "获取活动列表失败",
@@ -88,7 +90,6 @@ router.post("/activity", async (req: Request, res: Response) => {
       message: "活动记录成功",
     });
   } catch (error: any) {
-    console.error("记录活动失败:", error);
     res.status(500).json({
       code: 500,
       message: error.message || "记录活动失败",

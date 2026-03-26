@@ -2,9 +2,15 @@ import { db } from '../../db/index.js';
 import { emailConfigs, users } from '../../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import type { EmailConfigInput, EmailConfigResponse } from '../../types/setting.js';
+import { encrypt, mask } from '../../utils/crypto';
 
 // 重新导出类型
 export type { EmailConfigInput, EmailConfigResponse };
+
+// 将 authCode 脱敏后返回，防止泄露到前端
+function sanitizeEmailConfig(config: EmailConfigResponse): EmailConfigResponse {
+  return { ...config, authCode: undefined };
+}
 
 // 获取用户的邮箱配置列表
 export async function getEmailConfigs(userId: number): Promise<EmailConfigResponse[]> {
@@ -29,7 +35,7 @@ export async function getEmailConfigs(userId: number): Promise<EmailConfigRespon
       eq(emailConfigs.isDeleted, false)
     ));
 
-  return configs;
+  return configs.map(sanitizeEmailConfig);
 }
 
 // 获取单个邮箱配置
@@ -56,7 +62,7 @@ export async function getEmailConfigById(userId: number, configId: number): Prom
       eq(emailConfigs.isDeleted, false)
     ));
 
-  return config || null;
+  return config ? sanitizeEmailConfig(config) : null;
 }
 
 // 创建邮箱配置
@@ -106,7 +112,7 @@ export async function createEmailConfig(
     .values({
       userId,
       email: data.email,
-      authCode: data.authCode,
+      authCode: encrypt(data.authCode),
       imapHost: data.imapHost || 'imap.qq.com',
       imapPort: data.imapPort || 993,
       smtpHost: data.smtpHost || 'smtp.qq.com',
@@ -133,7 +139,7 @@ export async function createEmailConfig(
     .from(emailConfigs)
     .where(eq(emailConfigs.id, result.insertId));
 
-  return config;
+  return sanitizeEmailConfig(config);
 }
 
 // 更新邮箱配置
@@ -178,7 +184,10 @@ export async function updateEmailConfig(
   // 构建更新数据
   const updateData: Record<string, unknown> = {};
   if (data.email !== undefined) updateData.email = data.email;
-  if (data.authCode !== undefined) updateData.authCode = data.authCode;
+  // 只有非空字符串才覆盖已存储的授权码，避免空字符串误覆盖；写入前加密
+  if (typeof data.authCode === "string" && data.authCode !== "") {
+    updateData.authCode = encrypt(data.authCode);
+  }
   if (data.imapHost !== undefined) updateData.imapHost = data.imapHost;
   if (data.imapPort !== undefined) updateData.imapPort = data.imapPort;
   if (data.smtpHost !== undefined) updateData.smtpHost = data.smtpHost;

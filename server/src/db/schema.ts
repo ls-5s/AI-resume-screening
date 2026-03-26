@@ -131,7 +131,7 @@ export const activities = mysqlTable(
     type: varchar("type", { length: 50 }).notNull(), // activity 类型: upload(上传简历), screening(AI筛选), pass(通过筛选), reject(拒绝), interview(发送面试邀请)
     resumeId: int("resume_id"), // 关联的简历ID
     resumeName: varchar("resume_name", { length: 255 }), // 简历名称（冗余存储，避免删除后丢失）
-    description: varchar("description", { length: 500 }), // 活动描述
+    description: longtext("description"), // 活动描述（支持 AI 生成的完整评估理由）
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (activities) => ({

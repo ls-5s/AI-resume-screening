@@ -1,7 +1,7 @@
 import express, { Request, Response, Router } from "express";
 import { db } from "../db/index.js";
 import { screeningTemplates } from "../db/schema.js";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { authenticate } from "../middleware/auth.js";
 
 const router: Router = express.Router();
@@ -17,7 +17,7 @@ router.get("/screening-templates/:id", authenticate, async (req: Request, res: R
     const [row] = await db
       .select()
       .from(screeningTemplates)
-      .where(eq(screeningTemplates.id, id));
+      .where(and(eq(screeningTemplates.id, id), eq(screeningTemplates.userId, userId)));
 
     if (!row) {
       return res.status(404).json({ code: 404, message: "模板不存在" });
@@ -25,7 +25,6 @@ router.get("/screening-templates/:id", authenticate, async (req: Request, res: R
 
     res.json({ code: 200, data: row });
   } catch (error: any) {
-    console.error("获取模板详情失败:", error);
     res.status(500).json({ code: 500, message: error.message || "获取失败" });
   }
 });
@@ -47,7 +46,6 @@ router.get("/screening-templates", authenticate, async (req: Request, res: Respo
       data: list,
     });
   } catch (error: any) {
-    console.error("获取模板列表失败:", error);
     res.status(500).json({ code: 500, message: error.message || "获取失败" });
   }
 });
@@ -92,7 +90,6 @@ router.post("/screening-templates", authenticate, async (req: Request, res: Resp
 
     res.json({ code: 200, data: row });
   } catch (error: any) {
-    console.error("创建模板失败:", error);
     res.status(500).json({ code: 500, message: error.message || "创建失败" });
   }
 });
@@ -102,6 +99,10 @@ router.post("/screening-templates", authenticate, async (req: Request, res: Resp
  */
 router.put("/screening-templates/:id", authenticate, async (req: Request, res: Response) => {
   try {
+    const userId = Number((req as any).user?.id);
+    if (!userId) {
+      return res.status(401).json({ code: 401, message: "未授权" });
+    }
     const id = parseInt(req.params.id as string);
     const { name, config } = req.body;
 
@@ -115,7 +116,7 @@ router.put("/screening-templates/:id", authenticate, async (req: Request, res: R
     const [existing] = await db
       .select()
       .from(screeningTemplates)
-      .where(eq(screeningTemplates.id, id));
+      .where(and(eq(screeningTemplates.id, id), eq(screeningTemplates.userId, userId)));
 
     if (!existing) {
       return res.status(404).json({ code: 404, message: "模板不存在" });
@@ -126,16 +127,15 @@ router.put("/screening-templates/:id", authenticate, async (req: Request, res: R
     await db
       .update(screeningTemplates)
       .set({ name: name.trim(), config: configJson })
-      .where(eq(screeningTemplates.id, id));
+      .where(and(eq(screeningTemplates.id, id), eq(screeningTemplates.userId, userId)));
 
     const [updated] = await db
       .select()
       .from(screeningTemplates)
-      .where(eq(screeningTemplates.id, id));
+      .where(and(eq(screeningTemplates.id, id), eq(screeningTemplates.userId, userId)));
 
     res.json({ code: 200, data: updated });
   } catch (error: any) {
-    console.error("更新模板失败:", error);
     res.status(500).json({ code: 500, message: error.message || "更新失败" });
   }
 });
@@ -145,18 +145,24 @@ router.put("/screening-templates/:id", authenticate, async (req: Request, res: R
  */
 router.delete("/screening-templates/:id", authenticate, async (req: Request, res: Response) => {
   try {
+    const userId = Number((req as any).user?.id);
+    if (!userId) {
+      return res.status(401).json({ code: 401, message: "未授权" });
+    }
     const id = parseInt(req.params.id as string);
 
     const [existing] = await db
       .select()
       .from(screeningTemplates)
-      .where(eq(screeningTemplates.id, id));
+      .where(and(eq(screeningTemplates.id, id), eq(screeningTemplates.userId, userId)));
 
     if (!existing) {
       return res.status(404).json({ code: 404, message: "模板不存在" });
     }
 
-    await db.delete(screeningTemplates).where(eq(screeningTemplates.id, id));
+    await db.delete(screeningTemplates).where(
+      and(eq(screeningTemplates.id, id), eq(screeningTemplates.userId, userId)),
+    );
 
     // 如果删除的是默认模板，自动提升第一个为默认
     if (existing.isDefault) {
@@ -176,7 +182,6 @@ router.delete("/screening-templates/:id", authenticate, async (req: Request, res
 
     res.json({ code: 200, message: "删除成功" });
   } catch (error: any) {
-    console.error("删除模板失败:", error);
     res.status(500).json({ code: 500, message: error.message || "删除失败" });
   }
 });
@@ -186,13 +191,17 @@ router.delete("/screening-templates/:id", authenticate, async (req: Request, res
  */
 router.post("/screening-templates/:id/duplicate", authenticate, async (req: Request, res: Response) => {
   try {
+    const userId = Number((req as any).user?.id);
+    if (!userId) {
+      return res.status(401).json({ code: 401, message: "未授权" });
+    }
     const id = parseInt(req.params.id as string);
     const { name } = req.body;
 
     const [source] = await db
       .select()
       .from(screeningTemplates)
-      .where(eq(screeningTemplates.id, id));
+      .where(and(eq(screeningTemplates.id, id), eq(screeningTemplates.userId, userId)));
 
     if (!source) {
       return res.status(404).json({ code: 404, message: "模板不存在" });
@@ -214,7 +223,6 @@ router.post("/screening-templates/:id/duplicate", authenticate, async (req: Requ
 
     res.json({ code: 200, data: dup });
   } catch (error: any) {
-    console.error("复制模板失败:", error);
     res.status(500).json({ code: 500, message: error.message || "复制失败" });
   }
 });
@@ -224,12 +232,16 @@ router.post("/screening-templates/:id/duplicate", authenticate, async (req: Requ
  */
 router.post("/screening-templates/:id/set-default", authenticate, async (req: Request, res: Response) => {
   try {
+    const userId = Number((req as any).user?.id);
+    if (!userId) {
+      return res.status(401).json({ code: 401, message: "未授权" });
+    }
     const id = parseInt(req.params.id as string);
 
     const [target] = await db
       .select()
       .from(screeningTemplates)
-      .where(eq(screeningTemplates.id, id));
+      .where(and(eq(screeningTemplates.id, id), eq(screeningTemplates.userId, userId)));
 
     if (!target) {
       return res.status(404).json({ code: 404, message: "模板不存在" });
@@ -239,17 +251,16 @@ router.post("/screening-templates/:id/set-default", authenticate, async (req: Re
     await db
       .update(screeningTemplates)
       .set({ isDefault: false })
-      .where(eq(screeningTemplates.userId, target.userId));
+      .where(eq(screeningTemplates.userId, userId));
 
     // 设为默认
     await db
       .update(screeningTemplates)
       .set({ isDefault: true })
-      .where(eq(screeningTemplates.id, id));
+      .where(and(eq(screeningTemplates.id, id), eq(screeningTemplates.userId, userId)));
 
     res.json({ code: 200, message: "设置成功" });
   } catch (error: any) {
-    console.error("设置默认模板失败:", error);
     res.status(500).json({ code: 500, message: error.message || "设置失败" });
   }
 });

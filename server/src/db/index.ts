@@ -25,8 +25,7 @@ export async function testConnection(): Promise<boolean> {
     const connection = await pool.getConnection();
     connection.release();
     return true;
-  } catch (error) {
-    console.error('Database connection failed:', error);
+  } catch {
     return false;
   }
 }

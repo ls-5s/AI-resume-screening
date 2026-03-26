@@ -155,6 +155,17 @@
 body {
   margin: 0;
   min-height: 100vh;
+  background-color: #f8f9fc;
+}
+
+html.dark body {
+  background-color: #0d1117;
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not(.dark) body {
+    background-color: #0d1117;
+  }
 }
 
 #root {
@@ -920,9 +931,10 @@ body {
   --color-demo-surface-raised: #1c2333;
   --color-demo-border: rgba(255, 255, 255, 0.10);
   --color-demo-border-subtle: rgba(255, 255, 255, 0.06);
-  --color-demo-text-primary: #e6edf3;
-  --color-demo-text-secondary: #8b949e;
-  --color-demo-text-muted: #484f58;
+  /* 正文层级：muted 勿用过暗灰（旧 #484f58 在深色底上对比不足） */
+  --color-demo-text-primary: #f0f6fc;
+  --color-demo-text-secondary: #b1bac4;
+  --color-demo-text-muted: #8b949e;
   --color-demo-accent: #58a6ff;
   --color-demo-accent-hover: #79c0ff;
   --color-demo-accent-soft: rgba(88, 166, 255, 0.12);
@@ -940,11 +952,11 @@ body {
   /* ── 布局 / 侧栏色（深色模式） ─────────────────────────── */
   --app-sidebar-bg: #161b22;
   --app-sidebar-border: rgba(255, 255, 255, 0.07);
-  --app-sidebar-text-primary: #e6edf3;
-  --app-sidebar-text-secondary: #8b949e;
-  --app-sidebar-text-muted: #484f58;
+  --app-sidebar-text-primary: #f0f6fc;
+  --app-sidebar-text-secondary: #b1bac4;
+  --app-sidebar-text-muted: #8b949e;
   --app-sidebar-hover-bg: rgba(255, 255, 255, 0.06);
-  --app-sidebar-hover-text: #c9d1d9;
+  --app-sidebar-hover-text: #d8dee4;
   --app-sidebar-nav-active-from: rgba(56, 189, 248, 0.12);
   --app-sidebar-nav-active-to: rgba(96, 165, 250, 0.12);
   --app-sidebar-nav-active-text: #38bdf8;
@@ -958,9 +970,9 @@ body {
   --app-border-subtle: rgba(255, 255, 255, 0.06);
   --app-border-strong: rgba(255, 255, 255, 0.18);
 
-  --app-text-primary: #e6edf3;
-  --app-text-secondary: #8b949e;
-  --app-text-muted: #484f58;
+  --app-text-primary: #f0f6fc;
+  --app-text-secondary: #b1bac4;
+  --app-text-muted: #8b949e;
 
   --app-primary: #38bdf8;
   --app-primary-hover: #7dd3fc;
