@@ -1,3 +1,4 @@
+// 本地开发：先于 db 加载，将 server/.env 注入 process.env（Vercel 上无 .env 文件时不影响已有环境变量）
 import "./loadEnv.js";
 import express, { Application, Request, Response, NextFunction } from "express";
 import { testConnection } from "./db/index.js";
