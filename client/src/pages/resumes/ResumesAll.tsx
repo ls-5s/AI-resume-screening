@@ -12,6 +12,7 @@ import {
   DEFAULT_PAGE_SIZE,
 } from "../../components/resumes";
 import { ConfirmModal } from "../../components/Modal";
+import { serverDateToMs } from "../../utils/format";
 
 type StatusFilter = "all" | "pending" | "passed" | "rejected";
 
@@ -87,8 +88,7 @@ export default function ResumesAll() {
 
   const sortedResumes = useMemo(() => {
     return [...resumes].sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      (a, b) => serverDateToMs(b.createdAt) - serverDateToMs(a.createdAt),
     );
   }, [resumes]);
 

@@ -141,6 +141,7 @@ export async function createActivity(params: {
     resumeId: params.resumeId || null,
     resumeName: params.resumeName || "",
     description: params.description || "",
+    createdAt: new Date().toISOString(),
   });
 }
 

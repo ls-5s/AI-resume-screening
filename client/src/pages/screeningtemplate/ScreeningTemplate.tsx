@@ -7,6 +7,7 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "../../utils/toast";
+import { parseServerDate } from "../../utils/format";
 import {
   Plus,
   Trash2,
@@ -122,10 +123,8 @@ function getConditionSummaryLine(config: PreFilterConfig): string {
 }
 
 function formatTemplateDateZh(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) {
-    return "—";
-  }
+  const d = parseServerDate(iso);
+  if (!d) return "—";
   return d.toLocaleDateString("zh-CN", {
     year: "numeric",
     month: "long",

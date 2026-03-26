@@ -42,6 +42,7 @@ import {
   getAiConfigs,
 } from "../../api/ai";
 import { logActivity } from "../../api/dashboard";
+import { formatDateShort } from "../../utils/format";
 import type { Resume } from "../../types/resume";
 import type { AiConfig, AiDimensionScores } from "../../types/ai";
 import {
@@ -280,17 +281,6 @@ export function AiScreening() {
   const [activeTemplateId, setActiveTemplateId] = useState<number | null>(null);
   const [reasoningOpen, setReasoningOpen] = useState(false);
   const [listPage, setListPage] = useState(1);
-
-  const formatDateShort = (dateStr: string) =>
-    new Date(dateStr).toLocaleString("zh-CN", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    });
 
   const filteredResumes = useMemo(() => {
     let list = resumes;

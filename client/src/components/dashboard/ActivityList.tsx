@@ -1,6 +1,7 @@
 import { FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Activity } from "../../types/dashboard";
+import { parseServerDate } from "../../utils/format";
 import { ActivityTimelineRow } from "./activity-timeline";
 
 interface ActivityListProps {
@@ -10,8 +11,8 @@ interface ActivityListProps {
 function deduplicate(activities: Activity[]): Activity[] {
   const seen = new Set<string>();
   return activities.filter((a) => {
-    const t = new Date(a.createdAt).getTime();
-    const minute = Number.isFinite(t) ? Math.floor(t / 60_000) : 0;
+    const t = parseServerDate(a.createdAt)?.getTime() ?? 0;
+    const minute = t > 0 ? Math.floor(t / 60_000) : 0;
     const key = `${a.resumeId ?? ""}-${a.type}-${a.resumeName ?? ""}-${minute}`;
     if (seen.has(key)) return false;
     seen.add(key);

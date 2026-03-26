@@ -75,6 +75,7 @@ router.post(
       const userId = Number((req as any).user?.id) || 1;
 
       // 插入数据库
+      const createdAt = new Date().toISOString();
       await db.insert(resumes).values({
         userId,
         name,
@@ -86,6 +87,7 @@ router.post(
         fileSize,
         parsedContent: parseResult.content,
         status: "pending", // 初始化为待筛选状态
+        createdAt,
       });
 
       // 获取刚插入的记录（按创建时间排序取最新的）
@@ -438,7 +440,8 @@ router.post(
                 .replace(/\.(pdf|docx?|doc)$/i, "")
                 .trim() || originalFileName.replace(/\.(pdf|docx?|doc)$/i, "");
 
-            // 插入数据库
+            const createdAt = new Date().toISOString();
+            // 插入数据库（显式 ISO 时间，避免 SQLite 默认值被写成不可解析字符串）
             await db.insert(resumes).values({
               userId: effectiveUserId,
               name,
@@ -450,6 +453,7 @@ router.post(
               fileSize,
               parsedContent: parseResult.content,
               status: "pending",
+              createdAt,
             });
 
             // 获取刚插入的记录

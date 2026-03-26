@@ -22,6 +22,7 @@ import {
   DEFAULT_PAGE_SIZE,
 } from "../../components/resumes";
 import { ConfirmModal } from "../../components/Modal";
+import { serverDateToMs } from "../../utils/format";
 
 const RECENT_IMPORT_LIMIT = 3;
 
@@ -130,17 +131,13 @@ export default function Resumes() {
 
   const latestImportedResumes = useMemo(() => {
     return [...resumes]
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      )
+      .sort((a, b) => serverDateToMs(b.createdAt) - serverDateToMs(a.createdAt))
       .slice(0, RECENT_IMPORT_LIMIT);
   }, [resumes]);
 
   const allResumesSorted = useMemo(() => {
     return [...resumes].sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      (a, b) => serverDateToMs(b.createdAt) - serverDateToMs(a.createdAt),
     );
   }, [resumes]);
 
