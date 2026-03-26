@@ -56,6 +56,10 @@ request.interceptors.request.use(
 request.interceptors.response.use(
     // 成功响应：只返回业务数据（适配常见的{code, message, data}结构）
     (res) => {
+        // 无正文成功（如 DELETE 返回 204）：没有 { code, data }，不能按信封解析
+        if (res.status === 204 || res.status === 205) {
+            return undefined as unknown as AxiosResponse;
+        }
         const body = res.data as ApiEnvelope;
         // 业务成功（code为0/200都算成功，可根据你的后端调整）
         if ([0, 200, 201].includes(body.code ?? -1)) {
