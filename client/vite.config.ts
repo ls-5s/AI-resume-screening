@@ -9,8 +9,8 @@ export default defineConfig({
   optimizeDeps: {
     include: ['recharts'],
   },
-  // Vercel 部署配置
-  base: process.env.VERCEL ? '/client/' : '/',
+  // 与 Vercel「Root Directory = client」一致：站点根即 dist，资源在 /assets，勿用 /client/ 前缀
+  base: '/',
   server: {
     proxy: {
       '/v1': {
