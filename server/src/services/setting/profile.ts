@@ -7,8 +7,8 @@ interface Profile {
   username: string;
   email: string;
   avatar: string | null;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // 获取用户信息

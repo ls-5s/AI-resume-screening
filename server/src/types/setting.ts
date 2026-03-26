@@ -16,7 +16,7 @@ export interface EmailConfigResponse {
   email: string;
   authCode?: string;
   imapHost: string | null;
-  imtpPort: number | null;
+  imapPort: number | null;
   smtpHost: string | null;
   smtpPort: number | null;
   isDefault: number | null;
