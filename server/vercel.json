@@ -3,6 +3,7 @@
   "framework": null,
   "buildCommand": "pnpm build",
   "installCommand": "pnpm install",
+  "outputDirectory": "dist",
   "rewrites": [
     {
       "source": "/(.*)",
