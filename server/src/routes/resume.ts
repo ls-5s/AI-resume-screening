@@ -71,8 +71,11 @@ router.post(
       const email = req.body.email || extractedInfo.email || "";
       const phone = req.body.phone || extractedInfo.phone || "";
 
-      // 获取用户ID
-      const userId = Number((req as any).user?.id) || 1;
+      // 获取用户ID（必须登录才能上传）
+      const userId = Number((req as any).user?.id);
+      if (!userId) {
+        return res.status(401).json({ code: 401, message: "未授权，请先登录" });
+      }
 
       // 插入数据库
       const createdAt = new Date().toISOString();

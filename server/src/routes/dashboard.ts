@@ -65,8 +65,11 @@ router.post("/activity", async (req: Request, res: Response) => {
   try {
     const { type, resumeId, resumeName, description } = req.body;
 
-    // 获取用户ID（暂时用默认值，后续可以改成从 token 获取）
-    const userId = Number((req as any).user?.id) || 1;
+    // 获取用户ID
+    const userId = Number((req as any).user?.id);
+    if (!userId) {
+      return res.status(401).json({ code: 401, message: "未授权，请先登录" });
+    }
 
     // 验证类型
     const validTypes = ["upload", "screening", "pass", "reject", "interview"];
