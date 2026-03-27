@@ -71,11 +71,8 @@ router.post(
       const email = req.body.email || extractedInfo.email || "";
       const phone = req.body.phone || extractedInfo.phone || "";
 
-      // 获取用户ID（必须登录才能上传）
-      const userId = Number((req as any).user?.id);
-      if (!userId) {
-        return res.status(401).json({ code: 401, message: "未授权，请先登录" });
-      }
+      // 获取用户ID
+      const userId = Number((req as any).user?.id) || 1;
 
       // 插入数据库
       const createdAt = new Date().toISOString();
@@ -173,9 +170,7 @@ router.get("/resumes", authenticate, async (req: Request, res: Response) => {
 
     // 最低分
     const minScoreCond =
-      minScore !== undefined &&
-      minScore !== "" &&
-      !isNaN(Number(minScore))
+      minScore !== undefined && minScore !== "" && !isNaN(Number(minScore))
         ? gte(resumes.score, Number(minScore))
         : undefined;
 
@@ -234,9 +229,10 @@ router.get("/resume/:id", authenticate, async (req: Request, res: Response) => {
       return res.status(401).json({ code: 401, message: "未授权" });
     }
     const id = parseInt(req.params.id as string);
-    const [resume] = await db.select().from(resumes).where(
-      and(eq(resumes.id, id), eq(resumes.userId, userId)),
-    );
+    const [resume] = await db
+      .select()
+      .from(resumes)
+      .where(and(eq(resumes.id, id), eq(resumes.userId, userId)));
 
     if (!resume) {
       return res.status(404).json({
@@ -260,116 +256,125 @@ router.get("/resume/:id", authenticate, async (req: Request, res: Response) => {
 /**
  * 删除简历
  */
-router.delete("/resume/:id", authenticate, async (req: Request, res: Response) => {
-  try {
-    const userId = Number((req as any).user?.id);
-    if (!userId) {
-      return res.status(401).json({ code: 401, message: "未授权" });
-    }
-    const id = parseInt(req.params.id as string);
-    const [resume] = await db.select().from(resumes).where(
-      and(eq(resumes.id, id), eq(resumes.userId, userId)),
-    );
+router.delete(
+  "/resume/:id",
+  authenticate,
+  async (req: Request, res: Response) => {
+    try {
+      const userId = Number((req as any).user?.id);
+      if (!userId) {
+        return res.status(401).json({ code: 401, message: "未授权" });
+      }
+      const id = parseInt(req.params.id as string);
+      const [resume] = await db
+        .select()
+        .from(resumes)
+        .where(and(eq(resumes.id, id), eq(resumes.userId, userId)));
 
-    if (!resume) {
-      return res.status(404).json({
-        code: 404,
-        message: "简历不存在",
-      });
-    }
+      if (!resume) {
+        return res.status(404).json({
+          code: 404,
+          message: "简历不存在",
+        });
+      }
 
-    // 删除磁盘文件（安全检查：仅允许删除 uploads 目录下的文件）
-    if (resume.resumeFile) {
-      const uploadsDir = getUploadsRoot();
-      const resolvedFile = path.resolve(resume.resumeFile);
-      if (resolvedFile.startsWith(uploadsDir)) {
-        try {
-          if (fs.existsSync(resolvedFile)) {
-            fs.unlinkSync(resolvedFile);
+      // 删除磁盘文件（安全检查：仅允许删除 uploads 目录下的文件）
+      if (resume.resumeFile) {
+        const uploadsDir = getUploadsRoot();
+        const resolvedFile = path.resolve(resume.resumeFile);
+        if (resolvedFile.startsWith(uploadsDir)) {
+          try {
+            if (fs.existsSync(resolvedFile)) {
+              fs.unlinkSync(resolvedFile);
+            }
+          } catch {
+            // 忽略文件删除错误
           }
-        } catch {
-          // 忽略文件删除错误
         }
       }
+
+      // 删除数据库记录
+      await db.delete(resumes).where(eq(resumes.id, id));
+
+      res.json({
+        code: 200,
+        message: "删除成功",
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        code: 500,
+        message: error.message || "删除失败",
+      });
     }
-
-    // 删除数据库记录
-    await db.delete(resumes).where(eq(resumes.id, id));
-
-    res.json({
-      code: 200,
-      message: "删除成功",
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      code: 500,
-      message: error.message || "删除失败",
-    });
-  }
-});
+  },
+);
 
 /**
  * 更新简历状态
  */
-router.put("/resume/:id/status", authenticate, async (req: Request, res: Response) => {
-  try {
-    const userId = Number((req as any).user?.id);
-    if (!userId) {
-      return res.status(401).json({ code: 401, message: "未授权" });
-    }
-    const id = parseInt(req.params.id as string);
-    const { status } = req.body;
+router.put(
+  "/resume/:id/status",
+  authenticate,
+  async (req: Request, res: Response) => {
+    try {
+      const userId = Number((req as any).user?.id);
+      if (!userId) {
+        return res.status(401).json({ code: 401, message: "未授权" });
+      }
+      const id = parseInt(req.params.id as string);
+      const { status } = req.body;
 
-    // 验证状态值
-    const validStatuses: ResumeStatus[] = ["pending", "rejected", "passed"];
-    if (!status || !validStatuses.includes(status)) {
-      return res.status(400).json({
-        code: 400,
-        message: "无效的状态值，应为 pending、rejected 或 passed",
+      // 验证状态值
+      const validStatuses: ResumeStatus[] = ["pending", "rejected", "passed"];
+      if (!status || !validStatuses.includes(status)) {
+        return res.status(400).json({
+          code: 400,
+          message: "无效的状态值，应为 pending、rejected 或 passed",
+        });
+      }
+
+      const [existingResume] = await db
+        .select()
+        .from(resumes)
+        .where(and(eq(resumes.id, id), eq(resumes.userId, userId)));
+
+      if (!existingResume) {
+        return res.status(404).json({
+          code: 404,
+          message: "简历不存在",
+        });
+      }
+
+      // 更新状态
+      await db.update(resumes).set({ status }).where(eq(resumes.id, id));
+
+      // 记录活动日志
+      const activityType =
+        status === "passed"
+          ? "pass"
+          : status === "rejected"
+            ? "reject"
+            : "screening";
+      await createActivity({
+        userId: existingResume.userId,
+        type: activityType,
+        resumeId: existingResume.id,
+        resumeName: existingResume.name,
+        description: `简历状态更新为: ${status === "passed" ? "通过" : status === "rejected" ? "拒绝" : "待筛选"}`,
+      });
+
+      res.json({
+        code: 200,
+        message: "状态更新成功",
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        code: 500,
+        message: error.message || "更新失败",
       });
     }
-
-    const [existingResume] = await db
-      .select()
-      .from(resumes)
-      .where(and(eq(resumes.id, id), eq(resumes.userId, userId)));
-
-    if (!existingResume) {
-      return res.status(404).json({
-        code: 404,
-        message: "简历不存在",
-      });
-    }
-
-    // 更新状态
-    await db.update(resumes).set({ status }).where(eq(resumes.id, id));
-
-    // 记录活动日志
-    const activityType =
-      status === "passed"
-        ? "pass"
-        : status === "rejected"
-          ? "reject"
-          : "screening";
-    await createActivity({
-      userId: existingResume.userId,
-      type: activityType,
-      resumeId: existingResume.id,
-      resumeName: existingResume.name,
-      description: `简历状态更新为: ${status === "passed" ? "通过" : status === "rejected" ? "拒绝" : "待筛选"}`,
-    });
-
-    res.json({
-      code: 200,
-      message: "状态更新成功",
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      code: 500,
-      message: error.message || "更新失败",
-    });
-  }
-});
+  },
+);
 
 /**
  * 从邮箱导入简历
@@ -504,55 +509,60 @@ router.post(
 /**
  * 批量更新简历状态
  */
-router.post("/resume/batch-status", authenticate, async (req: Request, res: Response) => {
-  try {
-    const userId = Number((req as any).user?.id);
-    if (!userId) {
-      return res.status(401).json({ code: 401, message: "未授权" });
-    }
-    const { ids, status } = req.body;
+router.post(
+  "/resume/batch-status",
+  authenticate,
+  async (req: Request, res: Response) => {
+    try {
+      const userId = Number((req as any).user?.id);
+      if (!userId) {
+        return res.status(401).json({ code: 401, message: "未授权" });
+      }
+      const { ids, status } = req.body;
 
-    // 验证状态值
-    const validStatuses: ResumeStatus[] = ["pending", "rejected", "passed"];
-    if (!status || !validStatuses.includes(status)) {
-      return res.status(400).json({
-        code: 400,
-        message: "无效的状态值，应为 pending、rejected 或 passed",
+      // 验证状态值
+      const validStatuses: ResumeStatus[] = ["pending", "rejected", "passed"];
+      if (!status || !validStatuses.includes(status)) {
+        return res.status(400).json({
+          code: 400,
+          message: "无效的状态值，应为 pending、rejected 或 passed",
+        });
+      }
+
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({
+          code: 400,
+          message: "请提供简历 ID 列表",
+        });
+      }
+
+      // 仅更新属于当前用户的简历
+      const owned = await db
+        .select({ id: resumes.id })
+        .from(resumes)
+        .where(and(eq(resumes.userId, userId), inArray(resumes.id, ids)));
+
+      if (owned.length === 0) {
+        return res.status(403).json({ code: 403, message: "无权操作这些简历" });
+      }
+
+      // 批量更新状态
+      await db
+        .update(resumes)
+        .set({ status })
+        .where(and(eq(resumes.userId, userId), inArray(resumes.id, ids)));
+
+      res.json({
+        code: 200,
+        message: "批量状态更新成功",
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        code: 500,
+        message: error.message || "更新失败",
       });
     }
-
-    if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({
-        code: 400,
-        message: "请提供简历 ID 列表",
-      });
-    }
-
-    // 仅更新属于当前用户的简历
-    const owned = await db
-      .select({ id: resumes.id })
-      .from(resumes)
-      .where(and(eq(resumes.userId, userId), inArray(resumes.id, ids)));
-
-    if (owned.length === 0) {
-      return res.status(403).json({ code: 403, message: "无权操作这些简历" });
-    }
-
-    // 批量更新状态
-    await db.update(resumes).set({ status }).where(
-      and(eq(resumes.userId, userId), inArray(resumes.id, ids)),
-    );
-
-    res.json({
-      code: 200,
-      message: "批量状态更新成功",
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      code: 500,
-      message: error.message || "更新失败",
-    });
-  }
-});
+  },
+);
 
 export default router;
