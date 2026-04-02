@@ -17,6 +17,65 @@ export const users = sqliteTable("users", {
   updatedAt: text("updated_at").notNull().default("CURRENT_TIMESTAMP"),
 });
 
+// 团队表（需放在 resumes 前，因为 resumes.teamId 引用它）
+export const teams = sqliteTable("teams", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  description: text("description"),
+  ownerId: integer("owner_id")
+    .notNull()
+    .references(() => users.id),
+  createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
+  updatedAt: text("updated_at").notNull().default("CURRENT_TIMESTAMP"),
+});
+
+// 团队成员表
+export const teamMembers = sqliteTable(
+  "team_members",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    teamId: integer("team_id")
+      .notNull()
+      .references(() => teams.id),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id),
+    role: text("role").notNull().default("member"), // owner | admin | member
+    joinedAt: text("joined_at").notNull().default("CURRENT_TIMESTAMP"),
+  },
+  (teamMembers) => ({
+    teamIdIdx: index("team_member_team_id_idx").on(teamMembers.teamId),
+    userIdIdx: index("team_member_user_id_idx").on(teamMembers.userId),
+    uniqueMember: index("unique_team_member").on(teamMembers.teamId, teamMembers.userId),
+  }),
+);
+
+// 团队邀请表
+export const teamInvites = sqliteTable(
+  "team_invites",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    teamId: integer("team_id")
+      .notNull()
+      .references(() => teams.id),
+    inviterId: integer("inviter_id")
+      .notNull()
+      .references(() => users.id),
+    inviteeEmail: text("invitee_email"),
+    token: text("token").notNull().unique(),
+    role: text("role").notNull().default("member"), // admin | member
+    status: text("status").notNull().default("pending"), // pending | accepted | rejected | expired | waiting_approval
+    applicantId: integer("applicant_id").references(() => users.id),
+    expiresAt: text("expires_at").notNull(),
+    createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
+  },
+  (teamInvites) => ({
+    teamIdIdx: index("team_invite_team_id_idx").on(teamInvites.teamId),
+    tokenIdx: index("team_invite_token_idx").on(teamInvites.token),
+    inviteeEmailIdx: index("team_invite_email_idx").on(teamInvites.inviteeEmail),
+  }),
+);
+
 // 简历表
 export const resumes = sqliteTable(
   "resumes",
@@ -25,6 +84,7 @@ export const resumes = sqliteTable(
     userId: integer("user_id")
       .notNull()
       .references(() => users.id),
+    teamId: integer("team_id").references(() => teams.id),
     name: text("name").notNull(),
     email: text("email"),
     phone: text("phone"),
@@ -131,12 +191,18 @@ export const usersRelations = relations(users, ({ many }) => ({
   emailTemplates: many(emailTemplates),
   resumes: many(resumes),
   aiConfigs: many(aiConfigs),
+  teamMemberships: many(teamMembers),
+  ownedTeams: many(teams),
 }));
 
 export const resumesRelations = relations(resumes, ({ one }) => ({
   user: one(users, {
     fields: [resumes.userId],
     references: [users.id],
+  }),
+  team: one(teams, {
+    fields: [resumes.teamId],
+    references: [teams.id],
   }),
 }));
 
@@ -164,6 +230,36 @@ export const aiConfigsRelations = relations(aiConfigs, ({ one }) => ({
 export const activitiesRelations = relations(activities, ({ one }) => ({
   user: one(users, {
     fields: [activities.userId],
+    references: [users.id],
+  }),
+}));
+
+export const teamsRelations = relations(teams, ({ one, many }) => ({
+  owner: one(users, {
+    fields: [teams.ownerId],
+    references: [users.id],
+  }),
+  members: many(teamMembers),
+}));
+
+export const teamMembersRelations = relations(teamMembers, ({ one }) => ({
+  team: one(teams, {
+    fields: [teamMembers.teamId],
+    references: [teams.id],
+  }),
+  user: one(users, {
+    fields: [teamMembers.userId],
+    references: [users.id],
+  }),
+}));
+
+export const teamInvitesRelations = relations(teamInvites, ({ one }) => ({
+  team: one(teams, {
+    fields: [teamInvites.teamId],
+    references: [teams.id],
+  }),
+  inviter: one(users, {
+    fields: [teamInvites.inviterId],
     references: [users.id],
   }),
 }));
@@ -204,3 +300,9 @@ export type Activity = typeof activities.$inferSelect;
 export type NewActivity = typeof activities.$inferInsert;
 export type ScreeningTemplate = typeof screeningTemplates.$inferSelect;
 export type NewScreeningTemplate = typeof screeningTemplates.$inferInsert;
+export type Team = typeof teams.$inferSelect;
+export type NewTeam = typeof teams.$inferInsert;
+export type TeamMemberRecord = typeof teamMembers.$inferSelect;
+export type NewTeamMemberRecord = typeof teamMembers.$inferInsert;
+export type TeamInvite = typeof teamInvites.$inferSelect;
+export type NewTeamInvite = typeof teamInvites.$inferInsert;

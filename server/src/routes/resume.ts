@@ -2,7 +2,7 @@ import express, { Request, Response, Router } from "express";
 import path from "path";
 import fs from "fs";
 import { db } from "../db/index.js";
-import { resumes, emailConfigs, activities } from "../db/schema.js";
+import { resumes, activities } from "../db/schema.js";
 import { parseDocument, getFileType } from "../services/resume/parser.js";
 import { eq, desc, inArray, and, or, gte, lte, like } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
@@ -14,6 +14,7 @@ import {
   saveAttachmentToResume,
 } from "../services/resume/fetcher.js";
 import { createActivity } from "../services/dashboard/dashboard.js";
+import { getUserVisibleTeamIds, getUserTeam } from "../services/team/team.js";
 
 // 简历状态类型
 type ResumeStatus = "pending" | "rejected" | "passed";
@@ -78,10 +79,15 @@ router.post(
       const email = req.body.email || extractedInfo.email || "";
       const phone = req.body.phone || extractedInfo.phone || "";
 
+      // 自动获取用户所属的团队（优先 owner 的团队）
+      const team = await getUserTeam(userId);
+      const teamId = team.id > 0 ? team.id : null;
+
       // 插入数据库
       const createdAt = new Date().toISOString();
       await db.insert(resumes).values({
         userId,
+        teamId,
         name,
         email,
         phone,
@@ -142,6 +148,7 @@ router.get("/resumes", authenticate, async (req: Request, res: Response) => {
     if (!userId) {
       return res.status(401).json({ code: 401, message: "未授权" });
     }
+
     const {
       keywords,
       keywordMode = "or",
@@ -196,8 +203,17 @@ router.get("/resumes", authenticate, async (req: Request, res: Response) => {
         ? eq(resumes.status, status)
         : undefined;
 
-    const whereClause = and(
+    // 获取用户所属的所有团队 ID
+    const teamIds = await getUserVisibleTeamIds(userId);
+
+    // 可见条件：自己上传的 OR 属于团队的
+    const visibleCondition = or(
       eq(resumes.userId, userId),
+      teamIds.length > 0 ? inArray(resumes.teamId, teamIds) : undefined,
+    );
+
+    const whereClause = and(
+      visibleCondition,
       keywordCondition,
       minScoreCond,
       dateFromCond,
@@ -224,7 +240,7 @@ router.get("/resumes", authenticate, async (req: Request, res: Response) => {
 });
 
 /**
- * 获取简历详情
+ * 获取简历详情（支持团队可见）
  */
 router.get("/resume/:id", authenticate, async (req: Request, res: Response) => {
   try {
@@ -236,12 +252,25 @@ router.get("/resume/:id", authenticate, async (req: Request, res: Response) => {
     const [resume] = await db
       .select()
       .from(resumes)
-      .where(and(eq(resumes.id, id), eq(resumes.userId, userId)));
+      .where(eq(resumes.id, id));
 
     if (!resume) {
       return res.status(404).json({
         code: 404,
         message: "简历不存在",
+      });
+    }
+
+    // 可见性检查：自己上传的 或 属于团队的
+    const teamIds = await getUserVisibleTeamIds(userId);
+    const canView =
+      resume.userId === userId ||
+      (resume.teamId !== null && teamIds.includes(resume.teamId));
+
+    if (!canView) {
+      return res.status(403).json({
+        code: 403,
+        message: "无权查看此简历",
       });
     }
 
@@ -258,7 +287,7 @@ router.get("/resume/:id", authenticate, async (req: Request, res: Response) => {
 });
 
 /**
- * 删除简历
+ * 删除简历（支持团队可见，仅上传者可删除）
  */
 router.delete(
   "/resume/:id",
@@ -270,15 +299,32 @@ router.delete(
         return res.status(401).json({ code: 401, message: "未授权" });
       }
       const id = parseInt(req.params.id as string);
-      const [resume] = await db
-        .select()
-        .from(resumes)
-        .where(and(eq(resumes.id, id), eq(resumes.userId, userId)));
+      const [resume] = await db.select().from(resumes).where(eq(resumes.id, id));
 
       if (!resume) {
         return res.status(404).json({
           code: 404,
           message: "简历不存在",
+        });
+      }
+
+      // 可见性检查 + 权限检查：仅上传者可删除（保护团队资源不被其他成员误删）
+      const teamIds = await getUserVisibleTeamIds(userId);
+      const canView =
+        resume.userId === userId ||
+        (resume.teamId !== null && teamIds.includes(resume.teamId));
+
+      if (!canView) {
+        return res.status(403).json({
+          code: 403,
+          message: "无权删除此简历",
+        });
+      }
+
+      if (resume.userId !== userId) {
+        return res.status(403).json({
+          code: 403,
+          message: "仅上传者可删除简历",
         });
       }
 
@@ -314,7 +360,7 @@ router.delete(
 );
 
 /**
- * 更新简历状态
+ * 更新简历状态（支持团队可见）
  */
 router.put(
   "/resume/:id/status",
@@ -340,12 +386,25 @@ router.put(
       const [existingResume] = await db
         .select()
         .from(resumes)
-        .where(and(eq(resumes.id, id), eq(resumes.userId, userId)));
+        .where(eq(resumes.id, id));
 
       if (!existingResume) {
         return res.status(404).json({
           code: 404,
           message: "简历不存在",
+        });
+      }
+
+      // 可见性检查：自己上传的 或 属于团队的
+      const teamIds = await getUserVisibleTeamIds(userId);
+      const canView =
+        existingResume.userId === userId ||
+        (existingResume.teamId !== null && teamIds.includes(existingResume.teamId));
+
+      if (!canView) {
+        return res.status(403).json({
+          code: 403,
+          message: "无权操作此简历",
         });
       }
 
@@ -399,6 +458,10 @@ router.post(
           message: "请选择邮箱配置",
         });
       }
+
+      // 自动获取用户所属的团队（优先 owner 的团队）
+      const team = await getUserTeam(effectiveUserId);
+      const teamId = team.id > 0 ? team.id : null;
 
       // 从邮箱获取邮件（包含简历附件）
       const emails = await fetchEmailsWithAttachments({
@@ -456,6 +519,7 @@ router.post(
             // 插入数据库（显式 ISO 时间，避免 SQLite 默认值被写成不可解析字符串）
             await db.insert(resumes).values({
               userId: effectiveUserId,
+              teamId,
               name,
               email: candidateEmail,
               phone: extractedInfo.phone || "",
@@ -511,7 +575,7 @@ router.post(
 );
 
 /**
- * 批量更新简历状态
+ * 批量更新简历状态（支持团队可见）
  */
 router.post(
   "/resume/batch-status",
@@ -540,13 +604,20 @@ router.post(
         });
       }
 
-      // 仅更新属于当前用户的简历
-      const owned = await db
-        .select({ id: resumes.id })
-        .from(resumes)
-        .where(and(eq(resumes.userId, userId), inArray(resumes.id, ids)));
+      // 获取用户所属的所有团队 ID
+      const teamIds = await getUserVisibleTeamIds(userId);
 
-      if (owned.length === 0) {
+      // 查询所有符合可见条件的简历（自己上传的 OR 属于团队的）
+      const allResumes = await db
+        .select({ id: resumes.id, userId: resumes.userId, teamId: resumes.teamId })
+        .from(resumes)
+        .where(inArray(resumes.id, ids));
+
+      const accessibleIds = allResumes
+        .filter((r) => r.userId === userId || (r.teamId !== null && teamIds.includes(r.teamId)))
+        .map((r) => r.id);
+
+      if (accessibleIds.length === 0) {
         return res.status(403).json({ code: 403, message: "无权操作这些简历" });
       }
 
@@ -554,7 +625,7 @@ router.post(
       await db
         .update(resumes)
         .set({ status })
-        .where(and(eq(resumes.userId, userId), inArray(resumes.id, ids)));
+        .where(inArray(resumes.id, accessibleIds));
 
       res.json({
         code: 200,

@@ -1,7 +1,7 @@
 // 本地开发：先于 db 加载，将 server/.env 注入 process.env（Vercel 上无 .env 文件时不影响已有环境变量）
 import "./loadEnv.js";
 import express, { Application, Request, Response, NextFunction } from "express";
-import { testConnection } from "./db/index.js";
+import { testConnection, ensureTables } from "./db/index.js";
 import { getUploadsRoot } from "./utils/uploadPaths.js";
 
 import loginRouter from "./routes/login.js";
@@ -10,6 +10,7 @@ import emailRouter from "./routes/emailTemplate.js";
 import resumeRouter from "./routes/resume.js";
 import dashboardRouter from "./routes/dashboard.js";
 import templateRouter from "./routes/screeningTemplate.js";
+import teamRouter from "./routes/team.js";
 
 const app: Application = express();
 
@@ -58,6 +59,7 @@ app.use("/v1", emailRouter);
 app.use("/v1", resumeRouter);
 app.use("/v1", dashboardRouter);
 app.use("/v1", templateRouter);
+app.use("/v1", teamRouter);
 
 // Express 全局错误处理中间件
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
@@ -91,5 +93,7 @@ if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
     } else {
       console.error("数据库连接失败");
     }
+    // 自动建表（仅本地开发，生产由 drizzle-kit push 管理）
+    await ensureTables();
   });
 }

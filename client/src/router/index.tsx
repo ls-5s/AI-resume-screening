@@ -17,6 +17,7 @@ const ScreeningTemplate = lazy(() => import("../pages/screeningtemplate/Screenin
 const ThemeDemo = lazy(() => import("../pages/demo/ThemeDemo"));
 const Settings = lazy(() => import("../pages/settings/Settings"));
 const EmailTemplates = lazy(() => import("../pages/emails/EmailTemplates"));
+const InvitePage = lazy(() => import("../pages/invite/InvitePage"));
 
 // 路由守卫：检查是否已登录
 const requireAuth = () => {
@@ -116,6 +117,14 @@ const router = createBrowserRouter([
       },
     ],
     errorElement: <NotFound />,
+  },
+  {
+    path: "/invite/:token",
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <InvitePage />
+      </Suspense>
+    ),
   },
   {
     path: "*",

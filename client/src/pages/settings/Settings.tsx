@@ -1,12 +1,13 @@
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Bot, Mail, User } from "lucide-react";
+import { Bot, Mail, User, Users } from "lucide-react";
 import { EmailConfigList } from "../../components/setting/email";
 import { ProfileSettings } from "../../components/setting/profile";
 import { AiSettings } from "../../components/setting/ai";
+import { TeamSettings } from "../../components/setting/team";
 
 export default function Settings() {
-  type TabKey = "profile" | "ai" | "email";
+  type TabKey = "profile" | "ai" | "email" | "team";
   const [searchParams, setSearchParams] = useSearchParams();
 
   const tabs = useMemo(
@@ -30,13 +31,19 @@ export default function Settings() {
           sub: "IMAP / SMTP",
           icon: Mail,
         },
+        {
+          key: "team" as const,
+          label: "成员管理",
+          sub: "团队与权限",
+          icon: Users,
+        },
       ] as const,
     [],
   );
 
   const tabParam = searchParams.get("tab");
   const activeTab: TabKey =
-    tabParam === "profile" || tabParam === "ai" || tabParam === "email"
+    tabParam === "profile" || tabParam === "ai" || tabParam === "email" || tabParam === "team"
       ? tabParam
       : "profile";
 
@@ -112,6 +119,7 @@ export default function Settings() {
         {activeTab === "profile" && <ProfileSettings />}
         {activeTab === "ai" && <AiSettings />}
         {activeTab === "email" && <EmailConfigList />}
+        {activeTab === "team" && <TeamSettings />}
       </div>
     </div>
   );
