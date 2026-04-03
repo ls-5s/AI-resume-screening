@@ -10,7 +10,7 @@ import {
   deleteEmailConfig,
   testEmailConfig,
 } from '../services/setting/email.js';
-import { getAiConfig, getAiConfigs, getAiConfigById, createAiConfig, updateAiConfigFull, deleteAiConfig, testAiConfig, screenResumeWithAi, batchScreenResumesWithAi } from '../services/setting/ai.js';
+import { getAiConfig, getAiConfigs, getAiConfigById, createAiConfig, updateAiConfigFull, deleteAiConfig, testAiConfig, screenResumeWithAi, batchScreenResumesWithAi, generateInterviewQuestions } from '../services/setting/ai.js';
 
 const router: RouterType = Router();
 
@@ -480,6 +480,41 @@ router.post('/ai/batch-screen', authenticate, async (req: Request, res: Response
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : '批量 AI 筛选简历失败';
+    res.status(400).json({
+      code: 400,
+      message,
+    });
+  }
+});
+
+// 生成面试题
+router.post('/ai/interview-questions', authenticate, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    const { resumeId, customFocus, aiConfigId } = req.body;
+
+    if (!resumeId) {
+      return res.status(400).json({
+        code: 400,
+        message: '请提供简历 ID',
+      });
+    }
+
+    const result = await generateInterviewQuestions(userId, resumeId, customFocus, aiConfigId);
+
+    if (!result.success) {
+      return res.status(400).json({
+        code: 400,
+        message: result.error,
+      });
+    }
+
+    res.status(200).json({
+      code: 200,
+      data: result.result,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '生成面试题失败';
     res.status(400).json({
       code: 400,
       message,

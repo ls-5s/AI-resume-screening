@@ -14,10 +14,12 @@ const ResumesAll = lazy(() => import("../pages/resumes/ResumesAll"));
 
 const Aiscreening = lazy(() => import("../pages/aiscreening/aiscreening"));
 const ScreeningTemplate = lazy(() => import("../pages/screeningtemplate/ScreeningTemplate"));
+const InterviewQuestions = lazy(() => import("../pages/interview/InterviewQuestions"));
 const ThemeDemo = lazy(() => import("../pages/demo/ThemeDemo"));
 const Settings = lazy(() => import("../pages/settings/Settings"));
 const EmailTemplates = lazy(() => import("../pages/emails/EmailTemplates"));
 const InvitePage = lazy(() => import("../pages/invite/InvitePage"));
+const ShareQuestion = lazy(() => import("../pages/share/ShareQuestion"));
 
 // 路由守卫：检查是否已登录
 const requireAuth = () => {
@@ -84,6 +86,14 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: "interview-questions",
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <InterviewQuestions />
+          </Suspense>
+        ),
+      },
+      {
         path: "screening-template",
         element: (
           <Suspense fallback={<PageLoader />}>
@@ -123,6 +133,14 @@ const router = createBrowserRouter([
     element: (
       <Suspense fallback={<PageLoader />}>
         <InvitePage />
+      </Suspense>
+    ),
+  },
+  {
+    path: "/share/:data",
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <ShareQuestion />
       </Suspense>
     ),
   },

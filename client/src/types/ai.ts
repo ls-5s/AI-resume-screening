@@ -54,3 +54,16 @@ export interface BatchScreenResult {
   result?: AiScreeningResult;
   error?: string;
 }
+
+export interface InterviewQuestion {
+  category: string;
+  question: string;
+  keyPoints: string[];
+  difficulty: "基础" | "中等" | "进阶";
+  followUp?: string;
+}
+
+export interface InterviewQuestionResult {
+  questions: InterviewQuestion[];
+  summary: string;
+}

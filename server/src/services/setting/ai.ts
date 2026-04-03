@@ -1,8 +1,9 @@
 import { db } from "../../db/index";
-import { aiConfigs } from "../../db/schema";
+import { aiConfigs, resumes } from "../../db/schema";
 import type { AiConfig } from "../../db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, inArray, or } from "drizzle-orm";
 import { encrypt, decrypt, mask } from "../../utils/crypto";
+import { getUserVisibleTeamIds } from "../team/team.js";
 
 // 将 apiKey 脱敏后返回，防止泄露到前端
 function sanitizeAiConfig(config: AiConfig): Omit<AiConfig, "apiKey"> & { apiKey: string } {
@@ -494,18 +495,23 @@ export async function screenResumeWithAi(
     return { success: false, error: "请先配置 AI API Key" };
   }
 
-  // 获取简历内容
-  const { db } = await import("../../db/index.js");
-  const { resumes } = await import("../../db/schema.js");
-  const { eq, and } = await import("drizzle-orm");
+  // 获取简历内容（支持团队可见）
+  // 获取用户可见的团队 ID
+  const teamIds = await getUserVisibleTeamIds(userId);
+
+  // 可见条件：自己上传的 OR 属于团队的
+  const visibleCondition = or(
+    eq(resumes.userId, userId),
+    teamIds.length > 0 ? inArray(resumes.teamId, teamIds) : undefined,
+  );
 
   const [resume] = await db
     .select()
     .from(resumes)
     .where(
-      (and as any)(
-        (eq as any)(resumes.id, resumeId),
-        (eq as any)(resumes.userId, userId),
+      and(
+        eq(resumes.id, resumeId),
+        visibleCondition,
       ),
     );
   if (!resume) {
@@ -617,9 +623,9 @@ ${resume.parsedContent}
           : null,
       })
       .where(
-        (and as any)(
-          (eq as any)(resumes.id, resumeId),
-          (eq as any)(resumes.userId, userId),
+        and(
+          eq(resumes.id, resumeId),
+          visibleCondition,
         ),
       );
 
@@ -631,9 +637,9 @@ ${resume.parsedContent}
       })
       .from(resumes)
       .where(
-        (and as any)(
-          (eq as any)(resumes.id, resumeId),
-          (eq as any)(resumes.userId, userId),
+        and(
+          eq(resumes.id, resumeId),
+          visibleCondition,
         ),
       );
 
@@ -847,4 +853,416 @@ export async function batchScreenResumesWithAi(
     success: true,
     results,
   };
+}
+
+// ==================== 面试题生成 ====================
+
+export interface InterviewQuestion {
+  category: string;
+  question: string;
+  keyPoints: string[];
+  difficulty: "基础" | "中等" | "进阶";
+  followUp?: string;
+}
+
+export interface GenerateInterviewQuestionsResult {
+  success: boolean;
+  result?: {
+    questions: InterviewQuestion[];
+    summary: string;
+  };
+  error?: string;
+}
+
+/**
+ * 使用 AI 生成面试题
+ */
+export async function generateInterviewQuestions(
+  userId: number,
+  resumeId: number,
+  customFocus?: string,
+  aiConfigId?: number,
+): Promise<GenerateInterviewQuestionsResult> {
+  // 获取 AI 配置
+  let config:
+    | Awaited<ReturnType<typeof getAiConfigById>>
+    | (Awaited<ReturnType<typeof getAiConfig>> & { apiKey: string });
+
+  if (aiConfigId) {
+    const raw = await getAiConfigById(userId, aiConfigId);
+    if (!raw) {
+      return { success: false, error: "AI 配置不存在" };
+    }
+    config = raw;
+    config.apiKey = (raw.apiKey != null && raw.apiKey !== "") ? decrypt(raw.apiKey) : "";
+  } else {
+    const found = await getAiConfig(userId);
+    if (!found) {
+      return { success: false, error: "请先配置 AI API Key" };
+    }
+    const raw = await getAiConfigById(userId, found.id!);
+    config = raw ?? found;
+    config.apiKey = (raw?.apiKey != null && raw.apiKey !== "") ? decrypt(raw.apiKey) : "";
+  }
+
+  const apiKey = config.apiKey ?? "";
+  if (!apiKey) {
+    return { success: false, error: "请先配置 AI API Key" };
+  }
+
+  // 获取简历内容（支持团队可见）
+  const teamIds = await getUserVisibleTeamIds(userId);
+  const visibleCondition = or(
+    eq(resumes.userId, userId),
+    teamIds.length > 0 ? inArray(resumes.teamId, teamIds) : undefined,
+  );
+
+  const [resume] = await db
+    .select()
+    .from(resumes)
+    .where(
+      and(
+        eq(resumes.id, resumeId),
+        visibleCondition,
+      ),
+    );
+
+  if (!resume) {
+    return { success: false, error: "简历不存在" };
+  }
+
+  // 构建面试题生成提示词
+  const customFocusSection = customFocus?.trim()
+    ? `\n\n面试官重点关注方向（请加强对以下内容的考察）：\n${customFocus.trim()}`
+    : "";
+
+  const prompt = `你是资深技术面试官。请根据以下简历内容，生成针对性的面试题。
+
+  简历内容：
+  ${resume.parsedContent || ""}
+  ${customFocusSection}
+  
+  生成至少 5 道面试题，覆盖以下方面（尽量每类都出题）：
+  1. 项目经历深挖（考察简历中提到的项目，从背景、职责、技术细节、难点、成果等角度切入）
+  2. 技术知识点（根据项目使用的技术栈，深挖原理和实践）
+  3. 候选人的薄弱环节或需要验证的能力（追问验证）
+  
+  请严格按以下格式输出（使用特殊分隔符分隔每道题）：
+  
+  # 面试题
+
+## 题目1
+  - **类别**：项目经历深挖 / 技术知识点 / 追问验证 / 行为面试
+  - **问题**：面试题正文
+  - **考察要点**：要点1、要点2、要点3...
+  - **难度**：基础 / 中等 / 进阶
+  - **追问方向**：如果候选人回答较好，可以追问的方向（若无则写“无”）
+  
+## 题目2
+  - **类别**：...
+  - **问题**：...
+  - **考察要点**：...
+  - **追问方向**：...
+  
+  （依次列出至少5道题，可继续增加题目3、4、5...）
+  
+  注意：
+  - 不要输出任何 JSON 结构或代码块。
+  - 不要输出难度等级。
+- 不要输出考察重点总结。
+- 每个题目必须包含类别、问题、考察要点、追问方向。
+  - “考察要点”用逗号或顿号分隔即可。
+  - 确保生成内容专业、针对简历、有深度。`;
+
+  // 调用 AI API
+  const url = config.apiUrl.replace(/\/$/, "");
+  const apiType = detectApiType(config.apiUrl);
+  const requestBody = buildRequestBody(apiType, config.model, "text-generation");
+
+  if ("messages" in requestBody) {
+    (requestBody as any).messages = [{ role: "user", content: prompt }];
+  } else if ("input" in requestBody) {
+    (requestBody as any).input = {
+      messages: [{ role: "user", content: prompt }],
+    };
+  }
+
+  try {
+    const response = await fetchWithTimeout(
+      url,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(requestBody),
+      },
+      600000,
+    );
+
+    if (!response.ok) {
+      const errorData = (await response.json().catch(() => ({}))) as Record<string, any>;
+      const message = parseApiError(response.status, errorData, apiType);
+      return { success: false, error: message };
+    }
+
+    const data = (await response.json()) as Record<string, any>;
+    console.log("文字",data);
+    let aiResponse = "";
+    if (apiType === "aliyun-native") {
+      aiResponse = data.output?.choices?.[0]?.message?.content || "";
+    } else {
+      aiResponse = data.choices?.[0]?.message?.content || "";
+    }
+
+    // 解析 AI 响应
+    const result = parseInterviewQuestionsResponse(aiResponse);
+
+    return {
+      success: true,
+      result,
+    };
+  } catch (error) {
+    return handleRequestError(error);
+  }
+}
+
+/**
+ * 解析面试题响应：依次尝试 JSON → Markdown → 原始文本兜底
+ */
+function parseInterviewQuestionsResponse(aiResponse: string): {
+  questions: InterviewQuestion[];
+  summary: string;
+} {
+  const raw = (aiResponse || "").trim();
+
+  // ── 1. 尝试 JSON 解析 ──────────────────────────────────────────
+  const jsonResult = tryParseJson(raw);
+  if (jsonResult) return jsonResult;
+
+  // ── 2. 尝试 Markdown 解析 ─────────────────────────────────────
+  const mdResult = tryParseMarkdown(raw);
+  if (mdResult) return mdResult;
+
+  // ── 3. 原始文本兜底 ────────────────────────────────────────────
+  return {
+    questions: [],
+    summary: raw,
+  };
+}
+
+/** 从 AI 响应中提取 JSON（支持去 markdown 代码块包裹） */
+function extractJsonFromResponse(raw: string): string | null {
+  // 去掉 markdown 代码块包裹
+  const withoutFence = raw
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+
+  // 策略1：尝试直接解析整个文本
+  try {
+    const parsed = JSON.parse(withoutFence);
+    if (parsed && (parsed.questions || parsed.问题 || parsed.summary || parsed.总结)) {
+      return withoutFence;
+    }
+  } catch {
+    // 解析失败，继续尝试其他策略
+  }
+
+  // 策略2：从第一个 { 开始，找到完整的 JSON 对象
+  const firstBrace = withoutFence.indexOf("{");
+  if (firstBrace === -1) return null;
+
+  // 使用栈来匹配括号，正确处理嵌套
+  const stack: number[] = [];
+  let lastValidPos = -1;
+
+  for (let i = firstBrace; i < withoutFence.length; i++) {
+    const char = withoutFence[i];
+    const prevChar = i > 0 ? withoutFence[i - 1] : "";
+
+    // 跳过字符串内的括号
+    if (char === '"' && prevChar !== "\\") {
+      // 在字符串内，跳过直到下一个未转义的引号
+      i++;
+      while (i < withoutFence.length) {
+        const c = withoutFence[i];
+        const pc = withoutFence[i - 1];
+        if (c === '"' && pc !== "\\") break;
+        i++;
+      }
+      continue;
+    }
+
+    if (char === "{") {
+      stack.push(i);
+    } else if (char === "}") {
+      if (stack.length > 0) {
+        stack.pop();
+        if (stack.length === 0) {
+          lastValidPos = i;
+          break;
+        }
+      }
+    }
+  }
+
+  if (lastValidPos === -1) return null;
+
+  const jsonCandidate = withoutFence.slice(firstBrace, lastValidPos + 1);
+
+  // 验证是否是有效 JSON
+  try {
+    const parsed = JSON.parse(jsonCandidate);
+    if (parsed && (parsed.questions || parsed.问题 || parsed.summary || parsed.总结)) {
+      return jsonCandidate;
+    }
+  } catch {
+    // JSON 解析失败，继续尝试
+  }
+
+  // 策略3：查找 questions 或 问题 数组，并构建完整 JSON
+  const questionsMatch = withoutFence.match(/"questions"\s*:\s*(\[[\s\S]*?\])\s*,?\s*(?=\n|}|$)/i)
+    || withoutFence.match(/"问题"\s*:\s*(\[[\s\S]*?\])\s*,?\s*(?=\n|}|$)/i);
+
+  if (questionsMatch) {
+    try {
+      const questionsArr = JSON.parse(questionsMatch[1]);
+      if (Array.isArray(questionsArr) && questionsArr.length > 0) {
+        // 尝试找到 summary 或 总结 字段
+        const summaryMatch = withoutFence.match(/"summary"\s*:\s*"([^"]*(?:\\(?:\"|n|t|r))*)"/i)
+          || withoutFence.match(/"总结"\s*:\s*"([^"]*(?:\\(?:\"|n|t|r))*)"/i);
+        const summary = summaryMatch ? summaryMatch[1].replace(/\\n/g, "\n").replace(/\\"/g, '"') : "";
+        return JSON.stringify({ questions: questionsArr, summary });
+      }
+    } catch {
+      // 解析失败
+    }
+  }
+
+  return null;
+}
+
+function tryParseJson(raw: string): {
+  questions: InterviewQuestion[];
+  summary: string;
+} | null {
+  const jsonStr = extractJsonFromResponse(raw);
+  if (!jsonStr) return null;
+
+  try {
+    const parsed = JSON.parse(jsonStr) as {
+      summary?: string;
+      总结?: string;
+      questions?: unknown[];
+      问题?: unknown[];
+    };
+
+    // 兼容中文字段名
+    const summary =
+      (typeof parsed.summary === "string" ? parsed.summary.trim() : "")
+      || (typeof parsed.总结 === "string" ? parsed.总结.trim() : "");
+    // 兼容中文字段名
+    const rawQuestions = Array.isArray(parsed.questions) ? parsed.questions
+      : Array.isArray(parsed.问题) ? parsed.问题 : [];
+
+    if (rawQuestions.length === 0) return null;
+
+    const questions: InterviewQuestion[] = [];
+
+    for (const item of rawQuestions) {
+      if (!item || typeof item !== "object") continue;
+
+      const obj = item as Record<string, unknown>;
+
+      // 兼容中文字段名
+      const category =
+        (typeof obj.category === "string" ? obj.category.trim() : "")
+        || (typeof obj["类型"] === "string" ? (obj["类型"] as string).trim() : "")
+        || "面试考察";
+      const question =
+        (typeof obj.question === "string" ? obj.question.trim() : "")
+        || (typeof obj["问题"] === "string" ? (obj["问题"] as string).trim() : "");
+      const difficultyRaw = obj.difficulty ?? obj["难度"];
+      const difficulty: InterviewQuestion["difficulty"] =
+        difficultyRaw === "基础"
+          ? "基础"
+          : difficultyRaw === "进阶"
+            ? "进阶"
+            : "中等";
+
+      // 兼容中文字段名
+      const keyPointsRaw = obj.keyPoints ?? obj["考察要点"];
+      const keyPoints = Array.isArray(keyPointsRaw)
+        ? keyPointsRaw
+            .map((k) => (typeof k === "string" ? k.trim() : ""))
+            .filter(Boolean)
+        : [];
+
+      // 兼容中文字段名
+      const followUpRaw = obj.followUp ?? obj["追问"];
+      const followUp =
+        typeof followUpRaw === "string" ? followUpRaw.trim() : undefined;
+
+      if (!question) continue;
+
+      questions.push({ category, question, keyPoints, difficulty, followUp });
+    }
+
+    if (questions.length === 0) return null;
+
+    return { questions, summary };
+  } catch {
+    return null;
+  }
+}
+
+function tryParseMarkdown(raw: string): {
+  questions: InterviewQuestion[];
+  summary: string;
+} | null {
+  const summaryMatch = raw.match(/##\s*面试[题概览列表]+\n?([\s\S]*?)(?=##|\n###|\n##\s|$)/i);
+  const summary = summaryMatch ? summaryMatch[1].trim() : "";
+
+  // 匹配 "### 类别名" 或 "### [类别名]" 开头的问题块
+  const blockPattern =
+    /###\s*(?:\[([^\]]+?)\]|([^\n#]+))\n\*\*题目\*\*[:：]\s*([^\n]+)\n(?:(?:  \n)?\*\*考察要点\*\*[:：]\n)((?:  - .+\n|- .+\n|  .+\n)*)(?:\*\*难度\*\*[:：]\s*([^\n]+)\n)?(?:  \n)?(?:\*\*追问\*\*[:：]\s*([^\n]+))?/gi;
+
+  const questions: InterviewQuestion[] = [];
+  let match: RegExpExecArray | null;
+
+  while ((match = blockPattern.exec(raw)) !== null) {
+    const category = (match[1] ?? match[2] ?? "").trim();
+    const question = match[3]?.trim() ?? "";
+    const rawKeyPoints = match[4] ?? "";
+    const difficultyRaw = match[5]?.trim();
+    const followUp = match[6]?.trim();
+
+    if (!question) continue;
+
+    const keyPoints = rawKeyPoints
+      .split("\n")
+      .map((k) => k.replace(/^-\s*/, "").replace(/^  /, "").trim())
+      .filter(Boolean);
+
+    const difficulty: InterviewQuestion["difficulty"] =
+      difficultyRaw === "基础"
+        ? "基础"
+        : difficultyRaw === "进阶"
+          ? "进阶"
+          : "中等";
+
+    questions.push({
+      category,
+      question,
+      keyPoints,
+      difficulty,
+      followUp: followUp || undefined,
+    });
+  }
+
+  if (questions.length === 0) return null;
+
+  return { questions, summary };
 }

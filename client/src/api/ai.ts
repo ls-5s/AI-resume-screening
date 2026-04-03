@@ -1,5 +1,5 @@
 import instance from "../utils/http";
-import type { AiConfig, UpdateAiConfigData, CreateAiConfigData, AiScreeningResult, BatchScreenResult } from "../types/ai";
+import type { AiConfig, UpdateAiConfigData, CreateAiConfigData, AiScreeningResult, BatchScreenResult, InterviewQuestionResult } from "../types/ai";
 
 /**
  * 测试 AI 配置
@@ -68,4 +68,15 @@ export const batchScreenResumesWithAi = async (data: {
   aiConfigId?: number;
 }): Promise<BatchScreenResult[]> => {
   return instance.post('/v1/ai/batch-screen', data);
+};
+
+/**
+ * 使用 AI 生成面试题
+ */
+export const generateInterviewQuestions = async (data: {
+  resumeId: number;
+  customFocus?: string;
+  aiConfigId?: number;
+}): Promise<InterviewQuestionResult> => {
+  return instance.post("/v1/ai/interview-questions", data);
 };
