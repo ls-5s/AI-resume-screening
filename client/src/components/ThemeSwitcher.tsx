@@ -1,5 +1,5 @@
 import { motion, LayoutGroup } from "framer-motion";
-import { Sun, Moon, Monitor } from "lucide-react";
+import { Sun, Moon } from "lucide-react";
 import { useThemeStore, type ThemeMode } from "../store/theme";
 
 const SPRING = {
@@ -27,12 +27,6 @@ const OPTIONS: {
     label: "深色",
     icon: Moon,
     title: "深色模式",
-  },
-  {
-    value: "system",
-    label: "系统",
-    icon: Monitor,
-    title: "跟随系统",
   },
 ];
 
@@ -74,7 +68,7 @@ export function ThemeSwitcher({ compact = false }: { compact?: boolean }) {
       className="w-full rounded-2xl bg-(--app-border-subtle) p-[3px] ring-1 ring-(--app-border) dark:bg-white/4 dark:ring-white/10"
     >
       <LayoutGroup id="theme-switcher">
-        <div className="grid grid-cols-3 gap-[3px]">
+        <div className="grid grid-cols-2 gap-[3px]">
           {OPTIONS.map((opt) => {
             const isActive = mode === opt.value;
             const Icon = opt.icon;

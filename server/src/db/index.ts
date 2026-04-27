@@ -2,23 +2,22 @@ import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "./schema";
 
-// 环境变量由以下来源提供（优先级从高到低）：
-//   1. Vercel Dashboard / vercel env add（生产环境）
-//   2. process.env（Vercel Build / 本地 .env 经 dotenv 注入）
-// 注意：不要在生产代码中引用 loadEnv.ts，它仅用于本地 tsx 开发。
+const databaseUrl = process.env.DATABASE_URL?.trim();
 const tursoUrl = process.env.TURSO_DATABASE_URL?.trim();
 const tursoToken = process.env.TURSO_AUTH_TOKEN?.trim();
 
-if (!tursoUrl) {
+// 优先使用 DATABASE_URL（支持本地 SQLite），其次使用 Turso
+const dbUrl = databaseUrl || tursoUrl;
+
+if (!dbUrl) {
   throw new Error(
-    "TURSO_DATABASE_URL 未配置。请在 Vercel Dashboard → Settings → Environment Variables 中添加 " +
-    "TURSO_DATABASE_URL 和 TURSO_AUTH_TOKEN，或在本地 .env 中配置（详见 server/.env.example）。",
+    "DATABASE_URL 未配置。请在 .env 中添加 DATABASE_URL（本地 SQLite）或 TURSO_DATABASE_URL（Turso 云数据库）。",
   );
 }
 
 const client = createClient({
-  url: tursoUrl,
-  authToken: tursoToken,
+  url: dbUrl,
+  authToken: databaseUrl ? undefined : tursoToken, // SQLite 不需要 token
 });
 
 export const db = drizzle(client, { schema });
@@ -41,6 +40,19 @@ export async function ensureTables(): Promise<void> {
   if (process.env.NODE_ENV === "production" || process.env.VERCEL) return;
 
   const migrations = [
+    // users 表（其他表都依赖它）
+    `CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL,
+      email TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      avatar TEXT,
+      github_id TEXT UNIQUE,
+      github_username TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+    // teams 表（需放在 resumes 前，因为 resumes.team_id 引用它）
     `CREATE TABLE IF NOT EXISTS teams (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -59,17 +71,101 @@ export async function ensureTables(): Promise<void> {
     )`,
     `CREATE INDEX IF NOT EXISTS team_member_team_id_idx ON team_members(team_id)`,
     `CREATE INDEX IF NOT EXISTS team_member_user_id_idx ON team_members(user_id)`,
-    // resumes.team_id 列（可能已在旧迁移中创建，用 IF NOT EXISTS 不支持，忽略错误）
-    `ALTER TABLE resumes ADD COLUMN team_id INTEGER REFERENCES teams(id)`,
+    // resumes 表
+    `CREATE TABLE IF NOT EXISTS resumes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      team_id INTEGER REFERENCES teams(id),
+      name TEXT NOT NULL,
+      email TEXT,
+      phone TEXT,
+      resume_file TEXT,
+      original_file_name TEXT,
+      file_type TEXT,
+      file_size INTEGER,
+      summary TEXT,
+      parsed_content TEXT,
+      score INTEGER,
+      dimension_scores TEXT,
+      status TEXT DEFAULT 'pending' NOT NULL,
+      last_email_sent_at TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE INDEX IF NOT EXISTS resume_user_id_idx ON resumes(user_id)`,
+    `CREATE INDEX IF NOT EXISTS resume_email_idx ON resumes(email)`,
+    // email_configs 表
+    `CREATE TABLE IF NOT EXISTS email_configs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      email TEXT NOT NULL,
+      auth_code TEXT NOT NULL,
+      imap_host TEXT DEFAULT 'imap.qq.com',
+      imap_port INTEGER DEFAULT 993,
+      smtp_host TEXT DEFAULT 'smtp.qq.com',
+      smtp_port INTEGER DEFAULT 465,
+      is_default INTEGER DEFAULT 0,
+      is_deleted INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+    // email_templates 表
+    `CREATE TABLE IF NOT EXISTS email_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      name TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      body TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE INDEX IF NOT EXISTS email_template_user_id_idx ON email_templates(user_id)`,
+    // ai_configs 表
+    `CREATE TABLE IF NOT EXISTS ai_configs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      name TEXT NOT NULL DEFAULT '默认配置',
+      model TEXT NOT NULL DEFAULT 'gpt-4o',
+      api_url TEXT NOT NULL DEFAULT 'https://api.openai.com/v1',
+      api_key TEXT,
+      prompt TEXT,
+      is_default INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE INDEX IF NOT EXISTS ai_config_user_id_idx ON ai_configs(user_id)`,
+    // activities 表
+    `CREATE TABLE IF NOT EXISTS activities (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      type TEXT NOT NULL,
+      resume_id INTEGER,
+      resume_name TEXT,
+      description TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE INDEX IF NOT EXISTS activity_user_id_idx ON activities(user_id)`,
+    `CREATE INDEX IF NOT EXISTS activity_created_at_idx ON activities(created_at)`,
+    // screening_templates 表
+    `CREATE TABLE IF NOT EXISTS screening_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      name TEXT NOT NULL,
+      config TEXT NOT NULL,
+      is_default INTEGER DEFAULT 0 NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE INDEX IF NOT EXISTS screening_template_user_id_idx ON screening_templates(user_id)`,
     // 团队邀请表
     `CREATE TABLE IF NOT EXISTS team_invites (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       team_id INTEGER NOT NULL REFERENCES teams(id),
       inviter_id INTEGER NOT NULL REFERENCES users(id),
-      invitee_email TEXT NOT NULL,
+      invitee_email TEXT,
       token TEXT NOT NULL UNIQUE,
       role TEXT NOT NULL DEFAULT 'member',
       status TEXT NOT NULL DEFAULT 'pending',
+      applicant_id INTEGER REFERENCES users(id),
       expires_at TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`,

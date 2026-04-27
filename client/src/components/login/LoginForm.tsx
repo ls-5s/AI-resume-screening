@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
-import { Eye, EyeOff, CheckCircle2, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, CheckCircle2, AlertCircle, Github } from "lucide-react";
 import { login } from "../../api/login";
+import { getGithubAuthUrl } from "../../api/auth";
 import { useLoginStore } from "../../store/Login";
 import toast from "../../utils/toast";
 
@@ -184,6 +185,58 @@ export function LoginForm() {
           </>
         )}
       </button>
+
+      {/* 分隔线 */}
+      <div className="relative my-4">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-border" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-background px-2 text-muted-foreground">或</span>
+        </div>
+      </div>
+
+      {/* GitHub 登录按钮 */}
+      <GithubLoginButton />
     </form>
+  );
+}
+
+// GitHub 登录按钮组件
+function GithubLoginButton() {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleGithubLogin = async () => {
+    setIsLoading(true);
+    try {
+      const { url } = await getGithubAuthUrl();
+      window.location.href = url;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "获取授权链接失败");
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleGithubLogin}
+      disabled={isLoading}
+      className="flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+    >
+      {isLoading ? (
+        <span className="inline-flex items-center justify-center gap-2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin" aria-hidden>
+            <path d="M21 12a9 9 0 11-6.219-8.56" />
+          </svg>
+          跳转中...
+        </span>
+      ) : (
+        <>
+          <Github size={18} />
+          使用 GitHub 登录
+        </>
+      )}
+    </button>
   );
 }

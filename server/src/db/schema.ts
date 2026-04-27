@@ -13,6 +13,8 @@ export const users = sqliteTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   avatar: text("avatar"),
+  githubId: text("github_id").unique(),
+  githubUsername: text("github_username"),
   createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
   updatedAt: text("updated_at").notNull().default("CURRENT_TIMESTAMP"),
 });

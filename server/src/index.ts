@@ -5,6 +5,9 @@ import { testConnection, ensureTables } from "./db/index.js";
 import { getUploadsRoot } from "./utils/uploadPaths.js";
 
 import loginRouter from "./routes/login.js";
+import authRouter from "./routes/auth.js";
+import githubRouter from "./routes/github.js";
+import githubAuthRouter from "./routes/githubAuth.js";
 import settingRouter from "./routes/setting.js";
 import emailRouter from "./routes/emailTemplate.js";
 import resumeRouter from "./routes/resume.js";
@@ -53,6 +56,9 @@ app.get("/", (_req, res) => {
 app.use("/uploads", express.static(getUploadsRoot()));
 
 // route
+app.use("/v1/auth", authRouter);
+app.use("/v1/auth", githubRouter);
+app.use("/v1/auth", githubAuthRouter);
 app.use("/v1", loginRouter);
 app.use("/v1", settingRouter);
 app.use("/v1", emailRouter);

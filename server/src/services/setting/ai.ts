@@ -88,7 +88,7 @@ function buildRequestBody(
   model: string,
   task?: string,
 ): Record<string, unknown> {
-  const basePayload = { model, max_tokens: 600 };
+  const basePayload = { model, max_tokens: 4000 };
 
   switch (apiType) {
     case "aliyun-native":
@@ -882,6 +882,7 @@ export async function generateInterviewQuestions(
   resumeId: number,
   customFocus?: string,
   aiConfigId?: number,
+  questionCount?: number,
 ): Promise<GenerateInterviewQuestionsResult> {
   // 获取 AI 配置
   let config:
@@ -932,6 +933,7 @@ export async function generateInterviewQuestions(
   }
 
   // 构建面试题生成提示词
+  const count = questionCount && questionCount > 0 ? questionCount : 5;
   const customFocusSection = customFocus?.trim()
     ? `\n\n面试官重点关注方向（请加强对以下内容的考察）：\n${customFocus.trim()}`
     : "";
@@ -942,7 +944,7 @@ export async function generateInterviewQuestions(
   ${resume.parsedContent || ""}
   ${customFocusSection}
   
-  生成至少 5 道面试题，覆盖以下方面（尽量每类都出题）：
+  生成至少 ${count} 道面试题，覆盖以下方面（尽量每类都出题）：
   1. 项目经历深挖（考察简历中提到的项目，从背景、职责、技术细节、难点、成果等角度切入）
   2. 技术知识点（根据项目使用的技术栈，深挖原理和实践）
   3. 候选人的薄弱环节或需要验证的能力（追问验证）
@@ -964,15 +966,16 @@ export async function generateInterviewQuestions(
   - **考察要点**：...
   - **追问方向**：...
   
-  （依次列出至少5道题，可继续增加题目3、4、5...）
+  （依次列出至少${count}道题，可继续增加题目3、4、5...）
   
   注意：
   - 不要输出任何 JSON 结构或代码块。
-  - 不要输出难度等级。
-- 不要输出考察重点总结。
-- 每个题目必须包含类别、问题、考察要点、追问方向。
+  - 不要输出难度等级
+  - 必须先输出"## 面试考察重点"作为独立段落，总结本次面试的考察重点（2-3句话）
+  - 然后再输出"# 面试题"和具体题目列表
+- 每个题目必须包含类别、问题、考察要点、追问方向
   - “考察要点”用逗号或顿号分隔即可。
-  - 确保生成内容专业、针对简历、有深度。`;
+  - 确保生成内容专业、针对简历、有深度`;
 
   // 调用 AI API
   const url = config.apiUrl.replace(/\/$/, "");
@@ -1045,10 +1048,14 @@ function parseInterviewQuestionsResponse(aiResponse: string): {
   const mdResult = tryParseMarkdown(raw);
   if (mdResult) return mdResult;
 
-  // ── 3. 原始文本兜底 ────────────────────────────────────────────
+  // ── 3. 兜底：尝试从原始文本中提取 summary ────────────────────
+  // 提取 "面试考察重点" 后面的文字
+  const summaryFallbackMatch = raw.match(/面试考察重点[：:\s\n]*([\s\S]*?)(?=#{1,3}\s*题目|##\s*面试题|$)/i);
+  const summaryFallback = summaryFallbackMatch ? summaryFallbackMatch[1].trim() : raw.slice(0, 200);
+
   return {
     questions: [],
-    summary: raw,
+    summary: summaryFallback,
   };
 }
 
@@ -1222,42 +1229,41 @@ function tryParseMarkdown(raw: string): {
   questions: InterviewQuestion[];
   summary: string;
 } | null {
-  const summaryMatch = raw.match(/##\s*面试[题概览列表]+\n?([\s\S]*?)(?=##|\n###|\n##\s|$)/i);
-  const summary = summaryMatch ? summaryMatch[1].trim() : "";
+  // 匹配 "面试考察重点" 或 "## 面试考察重点" 后跟段落后跟 "# 面试题" 的格式
+  const summaryMatch = raw.match(/(?:##\s*)?面试考察重点[\s\S]*?(?=#\s*面试题|##\s*题目|$)/i);
+  const summary = summaryMatch ? summaryMatch[0]
+    .replace(/^##\s*面试考察重点[\s\n]*/i, "")
+    .replace(/^面试考察重点[\s\n]*/i, "")
+    .trim() : "";
 
-  // 匹配 "### 类别名" 或 "### [类别名]" 开头的问题块
+  // 匹配 "## 题目1" 或 "## 题目 1" 格式的问题块（支持多行）
   const blockPattern =
-    /###\s*(?:\[([^\]]+?)\]|([^\n#]+))\n\*\*题目\*\*[:：]\s*([^\n]+)\n(?:(?:  \n)?\*\*考察要点\*\*[:：]\n)((?:  - .+\n|- .+\n|  .+\n)*)(?:\*\*难度\*\*[:：]\s*([^\n]+)\n)?(?:  \n)?(?:\*\*追问\*\*[:：]\s*([^\n]+))?/gi;
+    /##\s*题目\s*(\d+)\s*\n\s*-\s*\*\*类别\*\*[：:]\s*([^\n]+)\s*\n\s*-\s*\*\*问题\*\*[：:]\s*([^\n]+)\s*(?:\n\s*-\s*\*\*考察要点\*\*[：:]\s*([^\n]+))?\s*(?:\n\s*-\s*\*\*追问方向\*\*[：:]\s*([^\n]+))?/gi;
 
   const questions: InterviewQuestion[] = [];
   let match: RegExpExecArray | null;
 
   while ((match = blockPattern.exec(raw)) !== null) {
-    const category = (match[1] ?? match[2] ?? "").trim();
+    const category = (match[2] ?? "").trim();
     const question = match[3]?.trim() ?? "";
-    const rawKeyPoints = match[4] ?? "";
-    const difficultyRaw = match[5]?.trim();
-    const followUp = match[6]?.trim();
+    const rawKeyPoints = match[4]?.trim() ?? "";
+    const followUp = match[5]?.trim();
 
     if (!question) continue;
 
+    // 考察要点用逗号、顿号或换行分隔
     const keyPoints = rawKeyPoints
-      .split("\n")
-      .map((k) => k.replace(/^-\s*/, "").replace(/^  /, "").trim())
-      .filter(Boolean);
-
-    const difficulty: InterviewQuestion["difficulty"] =
-      difficultyRaw === "基础"
-        ? "基础"
-        : difficultyRaw === "进阶"
-          ? "进阶"
-          : "中等";
+      ? rawKeyPoints
+          .split(/[，,、\n]+/)
+          .map((k) => k.replace(/^-\s*/, "").replace(/^  /, "").trim())
+          .filter(Boolean)
+      : [];
 
     questions.push({
       category,
       question,
       keyPoints,
-      difficulty,
+      difficulty: "中等",
       followUp: followUp || undefined,
     });
   }

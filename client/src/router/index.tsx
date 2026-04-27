@@ -7,6 +7,7 @@ import { useLoginStore } from "../store/Login";
 
 // 懒加载页面组件
 const Login = lazy(() => import("../pages/login/Login"));
+const GithubCallback = lazy(() => import("../pages/auth/GithubCallback"));
 const Dashboard = lazy(() => import("../pages/dashboard/Dashboard"));
 const Activities = lazy(() => import("../pages/activities/Activities"));
 const Resumes = lazy(() => import("../pages/resumes/Resumes"));
@@ -15,7 +16,6 @@ const ResumesAll = lazy(() => import("../pages/resumes/ResumesAll"));
 const Aiscreening = lazy(() => import("../pages/aiscreening/aiscreening"));
 const ScreeningTemplate = lazy(() => import("../pages/screeningtemplate/ScreeningTemplate"));
 const InterviewQuestions = lazy(() => import("../pages/interview/InterviewQuestions"));
-const ThemeDemo = lazy(() => import("../pages/demo/ThemeDemo"));
 const Settings = lazy(() => import("../pages/settings/Settings"));
 const EmailTemplates = lazy(() => import("../pages/emails/EmailTemplates"));
 const InvitePage = lazy(() => import("../pages/invite/InvitePage"));
@@ -38,6 +38,18 @@ const router = createBrowserRouter([
         <Login />
       </Suspense>
     ),
+  },
+  {
+    path: "/auth/login",
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <Login />
+      </Suspense>
+    ),
+  },
+  {
+    path: "/auth/github/callback",
+    element: <GithubCallback />,
   },
   {
     path: "/app",
@@ -98,14 +110,6 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<PageLoader />}>
             <ScreeningTemplate />
-          </Suspense>
-        ),
-      },
-      {
-        path: "demo",
-        element: (
-          <Suspense fallback={<PageLoader />}>
-            <ThemeDemo />
           </Suspense>
         ),
       },

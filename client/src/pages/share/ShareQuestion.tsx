@@ -19,7 +19,7 @@ interface ShareData {
 function decodeShareData(encoded: string): ShareData | null {
   try {
     const padded = encoded.replace(/-/g, "+").replace(/_/g, "/");
-    const decoded = atob(padded);
+    const decoded = decodeURIComponent(escape(atob(padded)));
     return JSON.parse(decoded) as ShareData;
   } catch {
     return null;

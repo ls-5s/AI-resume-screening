@@ -330,8 +330,10 @@ router.post('/ai/test', authenticate, async (req: Request, res: Response) => {
     
     const result = await testAiConfig({ model, apiUrl, apiKey, task });
     
+    // 始终返回 200，让前端业务代码处理 success/failure
+    // 不论连接是否成功，都应该把结果返回给前端展示
     res.status(200).json({
-      code: result.success ? 200 : 400,
+      code: 200,
       data: result,
     });
   } catch (err) {
@@ -491,7 +493,7 @@ router.post('/ai/batch-screen', authenticate, async (req: Request, res: Response
 router.post('/ai/interview-questions', authenticate, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
-    const { resumeId, customFocus, aiConfigId } = req.body;
+    const { resumeId, customFocus, aiConfigId, questionCount } = req.body;
 
     if (!resumeId) {
       return res.status(400).json({
@@ -500,7 +502,7 @@ router.post('/ai/interview-questions', authenticate, async (req: Request, res: R
       });
     }
 
-    const result = await generateInterviewQuestions(userId, resumeId, customFocus, aiConfigId);
+    const result = await generateInterviewQuestions(userId, resumeId, customFocus, aiConfigId, questionCount);
 
     if (!result.success) {
       return res.status(400).json({

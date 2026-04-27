@@ -77,6 +77,7 @@ export const generateInterviewQuestions = async (data: {
   resumeId: number;
   customFocus?: string;
   aiConfigId?: number;
+  questionCount?: number;
 }): Promise<InterviewQuestionResult> => {
   return instance.post("/v1/ai/interview-questions", data);
 };

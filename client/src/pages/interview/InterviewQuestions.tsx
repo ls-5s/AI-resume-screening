@@ -30,31 +30,23 @@ import type { AiConfig, InterviewQuestion } from "../../types/ai";
 import { Modal } from "../../components/Modal";
 import { formatFileSize } from "../../utils/format";
 import { extractQuestionsFromRaw } from "../../utils/formatInterviewToMarkdown";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 // ============================================================================
-// Exam Question List Component (for raw text parsing)
+// Exam Question List Component (renders Markdown)
 // ============================================================================
-
-// 题目分隔符常量
-const QUESTION_SEPARATOR = "<<<QUESTION_SEPARATOR>>>";
 
 interface ExamQuestionListProps {
   rawText: string;
 }
 
 function ExamQuestionList({ rawText }: ExamQuestionListProps) {
-  // 使用分隔符分割题目
-  const parts = rawText.split(QUESTION_SEPARATOR).filter(s => s.trim());
-  const blocks = parts.map(part => {
-    const lines = part.trim().split("\n").filter(s => s.trim());
-    // 第一行通常是标题
-    const title = lines[0] || "";
-    // 其余是内容
-    const items = lines.slice(1);
-    return { title, items };
-  });
+  // 提取面试题部分（## 面试题 之后的内容）
+  const contentMatch = rawText.match(/#?\s*面试题([\s\S]*)$/i);
+  const content = contentMatch ? contentMatch[1].trim() : rawText;
 
-  if (blocks.length === 0) {
+  if (!content.trim()) {
     return (
       <div className="text-center text-sm text-(--app-text-muted)">
         无法解析题目内容，请重新生成
@@ -63,252 +55,16 @@ function ExamQuestionList({ rawText }: ExamQuestionListProps) {
   }
 
   return (
-    <div className="space-y-4">
-      {blocks.map((block, bi) => (
-        <div key={bi} className="rounded-lg border border-(--app-border) bg-(--app-bg) p-4">
-          {block.title && (
-            <div className="mb-3 flex items-center gap-2 border-b border-(--app-border) pb-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded bg-(--app-primary) text-xs font-semibold text-white">
-                {bi + 1}
-              </span>
-              <span className="text-sm font-medium text-(--app-text-primary)">
-                {block.title.replace(/^#+\s*/, "")}
-              </span>
-            </div>
-          )}
-          <div className="space-y-2">
-            {block.items.map((item, ii) => {
-              // 解析 Markdown 列表项
-              if (item.startsWith("- **")) {
-                const match = item.match(/^- \*\*(.+?)\*\*：?(.+)$/);
-                if (match) {
-                  const [, label, value] = match;
-                  // 隐藏考察要点和追问方向
-                  if (["考察要点", "追问方向"].includes(label)) {
-                    return null;
-                  }
-                  return (
-                    <div key={ii} className="flex gap-2">
-                      <span className="shrink-0 text-xs font-medium text-(--app-text-secondary)">
-                        {label}：
-                      </span>
-                      <span className="text-sm text-(--app-text-primary) whitespace-pre-wrap">
-                        {value}
-                      </span>
-                    </div>
-                  );
-                }
-              }
-              // 普通文本
-              return (
-                <p key={ii} className="text-sm text-(--app-text-primary) whitespace-pre-wrap">
-                  {item.replace(/\*\*(.+?)\*\*/g, "$1")}
-                </p>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+    <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:text-(--app-text-primary) prose-p:text-(--app-text-secondary) prose-li:text-(--app-text-secondary) prose-strong:text-(--app-text-primary)">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
     </div>
   );
 }
 
 // ============================================================================
-// 文档样式的面试题展示
+// Document-style interview questions (renders structured data with Markdown)
 // ============================================================================
 
-/**
- * Parse exam questions from raw text
- */
-function parseExamQuestions(raw: string): Array<{
-  question: string;
-  category?: string;
-  difficulty?: string;
-  keyPoints?: string[];
-  followUp?: string;
-}> {
-  const results: Array<{
-    question: string;
-    category?: string;
-    difficulty?: string;
-    keyPoints?: string[];
-    followUp?: string;
-  }> = [];
-
-  // Remove markdown code blocks
-  const text = raw
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/i, "")
-    .trim();
-
-  // Strategy 1: Try to extract JSON
-  const jsonMatch = text.match(/\{[\s\S]*\}\s*$/);
-  if (jsonMatch) {
-    try {
-      const parsed = JSON.parse(jsonMatch[0]);
-      const questions = parsed.questions || parsed.问题 || [];
-      if (Array.isArray(questions) && questions.length > 0) {
-        for (const q of questions) {
-          const question = q.question || q.问题 || "";
-          if (question) {
-            results.push({
-              question,
-              category: q.category || q.类型 || "",
-              difficulty: q.difficulty || q.难度 || "中等",
-              keyPoints: Array.isArray(q.keyPoints) ? q.keyPoints
-                : Array.isArray(q.考察要点) ? q.考察要点 : [],
-              followUp: q.followUp || q.追问 || "",
-            });
-          }
-        }
-        if (results.length > 0) return results;
-      }
-    } catch {
-      // JSON parse failed
-    }
-  }
-
-  // Strategy 2: Split by numbered questions
-  // Match patterns like: 题目一、xxx, 1. xxx, 一、xxx, ## xxx
-  const lines = text.split("\n");
-  let currentQuestion: {
-    question: string;
-    category?: string;
-    difficulty?: string;
-    keyPoints?: string[];
-    followUp?: string;
-  } | null = null;
-  let currentKeyPoints: string[] = [];
-  let currentFollowUp: string | null = null;
-
-  const questionStartPatterns = [
-    /^题目([一二三四五六七八九十\d]+)[：:]\s*/,
-    /^第([一二三四五六七八九十\d]+)题[：:]\s*/,
-    /^##?\s*([一二三四五六七八九十\d]+)[.、:：]\s*/,
-    /^(\d+)[.、:：]\s*/,
-    /^【(.+?)】\s*/,
-  ];
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-
-    let isNewQuestion = false;
-
-    for (const pattern of questionStartPatterns) {
-      const match = line.match(pattern);
-      if (match) {
-        isNewQuestion = true;
-        break;
-      }
-    }
-
-    // Check for difficulty indicator
-    if (/难度[：:]/i.test(line)) {
-      if (currentQuestion) {
-        const diffMatch = line.match(/难度[：:]\s*(基础|中等|进阶)/i);
-        if (diffMatch) currentQuestion.difficulty = diffMatch[1];
-      }
-      continue;
-    }
-
-    // Check for category indicator
-    if (/类型[：:]/i.test(line) || /分类[：:]/i.test(line)) {
-      if (currentQuestion) {
-        const catMatch = line.match(/(?:类型|分类)[：:]\s*(.+)/i);
-        if (catMatch) currentQuestion.category = catMatch[1].trim();
-      }
-      continue;
-    }
-
-    // Check for key points
-    if (/考察要点[：:]/.test(line) || /要点[：:]/.test(line)) {
-      if (currentQuestion) {
-        const kpMatch = line.replace(/^[ 　]*[-*]\s*/, "").replace(/考察要点[：:]\s*/, "").replace(/要点[：:]\s*/, "").trim();
-        if (kpMatch) currentKeyPoints.push(kpMatch);
-      }
-      continue;
-    }
-
-    // Check for follow up
-    if (/追问[方向：:]/.test(line)) {
-      if (currentQuestion) {
-        const fuMatch = line.match(/追问[方向：:]\s*(.+)/i);
-        if (fuMatch) currentFollowUp = fuMatch[1].trim();
-      }
-      continue;
-    }
-
-    // List items might be key points
-    if (/^[-*]\s/.test(line) || /^[-*]/.test(line)) {
-      if (currentQuestion) {
-        const point = line.replace(/^[-*]\s*/, "").trim();
-        if (point && point.length > 2) {
-          currentKeyPoints.push(point);
-        }
-      }
-      continue;
-    }
-
-    // Continue building current question
-    if (currentQuestion && !isNewQuestion) {
-      // If line is short and looks like continuation
-      if (line.length < 100 && !/[。？]$/.test(line)) {
-        currentQuestion.question += " " + line;
-      }
-      continue;
-    }
-
-    // Save previous question
-    if (currentQuestion) {
-      if (currentKeyPoints.length > 0) currentQuestion.keyPoints = currentKeyPoints;
-      if (currentFollowUp) currentQuestion.followUp = currentFollowUp;
-      results.push(currentQuestion);
-      currentKeyPoints = [];
-      currentFollowUp = null;
-    }
-
-    // Start new question
-    if (isNewQuestion) {
-      // Remove the title part from the line
-      let questionText = line;
-      for (const pattern of questionStartPatterns) {
-        questionText = questionText.replace(pattern, "");
-      }
-      currentQuestion = {
-        question: questionText.trim(),
-        difficulty: "中等",
-      };
-    }
-  }
-
-  // Save last question
-  if (currentQuestion) {
-    if (currentKeyPoints.length > 0) currentQuestion.keyPoints = currentKeyPoints;
-    if (currentFollowUp) currentQuestion.followUp = currentFollowUp;
-    results.push(currentQuestion);
-  }
-
-  // Strategy 3: If no structured questions found, split by double newlines
-  if (results.length === 0) {
-    const paragraphs = text.split(/\n\n+/);
-    for (const para of paragraphs) {
-      const cleaned = para.trim().replace(/^\n+/, "");
-      if (cleaned.length > 20) {
-        results.push({
-          question: cleaned,
-          difficulty: "中等",
-        });
-      }
-    }
-  }
-
-  return results;
-}
-
-/**
- * 文档样式的面试题展示（用于结构化数据）
- */
 function QuestionDocument({
   questions,
   summary,
@@ -322,10 +78,15 @@ function QuestionDocument({
 
   const handleCopy = () => {
     const text = [
-      "面试题",
+      "# 面试题",
+      candidateName ? `候选人：${candidateName}` : "",
       "",
-      ...questions.map((q, i) => `${i + 1}. ${q.question}`),
-    ].join("\n");
+      summary ? `## 面试考察重点\n${summary}` : "",
+      ...questions.map((q, i) =>
+        `## 题目${i + 1}\n\n**类别**：${q.category}\n\n**问题**：${q.question}${q.keyPoints.length > 0 ? `\n\n**考察要点**：\n${q.keyPoints.map(k => `- ${k}`).join("\n")}` : ""}${q.followUp ? `\n\n**追问方向**：${q.followUp}` : ""}`
+      ).join("\n\n---\n\n"),
+    ].filter(Boolean).join("\n\n");
+
     navigator.clipboard.writeText(text).then(() => {
       toast.success("已复制到剪贴板");
     });
@@ -495,7 +256,7 @@ function QuestionDocument({
         </button>
         <button
           onClick={handleShare}
-          className="flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 px-3 py-1.5 text-sm text-purple-700 transition-colors hover:border-purple-400 hover:bg-purple-100 dark:border-purple-800 dark:bg-purple-950/40 dark:text-purple-300"
+          className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm text-blue-700 transition-colors hover:border-blue-400 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300"
         >
           <Share2 className="h-4 w-4" />
           分享
@@ -517,18 +278,38 @@ function QuestionDocument({
           )}
         </div>
 
-        {/* Questions list */}
+        {/* Questions list - render as Markdown */}
         <div className="p-6">
-          <div className="space-y-4">
-            {questions.map((question, index) => (
-              <div key={index}>
-                <h3 className="text-lg font-semibold text-(--app-text-primary)">{question.question}</h3>
-                <p className="text-sm text-(--app-text-secondary)">{question.category}</p>
-                <p className="text-sm text-(--app-text-secondary)">{question.difficulty}</p>
-                <p className="text-sm text-(--app-text-secondary)">{question.keyPoints}</p>
-                <p className="text-sm text-(--app-text-secondary)">{question.followUp}</p>
+          {/* Summary section - 总结概括风格 */}
+          {summary && (
+            <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-5 dark:border-blue-900 dark:bg-blue-950/30">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-blue-700 dark:text-blue-300">
+                <Sparkles className="h-4 w-4" />
+                面试考察重点
+              </h3>
+              <div className="text-sm leading-relaxed text-blue-800 dark:text-blue-200 whitespace-pre-wrap">
+                {summary}
               </div>
-            ))}
+            </div>
+          )}
+
+          {/* Questions */}
+          <div className="prose prose-sm max-w-none dark:prose-invert">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{`
+## 面试题
+
+${questions.map((q, i) => `
+### 题目 ${i + 1}
+
+**类别**：${q.category}
+
+**问题**：${q.question}
+
+${q.keyPoints.length > 0 ? `**考察要点**：\n${q.keyPoints.map(k => `- ${k}`).join("\n")}` : ""}
+
+${q.followUp ? `**追问方向**：${q.followUp}` : ""}
+`).join("\n---\n")}
+`}</ReactMarkdown>
           </div>
         </div>
 
@@ -864,6 +645,7 @@ export default function InterviewQuestions() {
 
   const [customFocus, setCustomFocus] = useState("");
   const [showFocusInput, setShowFocusInput] = useState(false);
+  const [questionCount, setQuestionCount] = useState(5);
 
   const [generating, setGenerating] = useState(false);
   const [questions, setQuestions] = useState<InterviewQuestion[]>([]);
@@ -923,6 +705,10 @@ export default function InterviewQuestions() {
       toast.error("请先选择 AI 配置");
       return;
     }
+    if (questionCount === 0) {
+      toast.error("题目数量不能为 0，请设置合理的题目数量");
+      return;
+    }
 
     setGenerating(true);
     setQuestions([]);
@@ -932,6 +718,7 @@ export default function InterviewQuestions() {
         resumeId: selectedResume.id,
         customFocus: customFocus.trim() || undefined,
         aiConfigId: selectedAiConfigId,
+        questionCount,
       });
       // 优先使用结构化数据，兜底从 raw summary 中提取题目
       const extractedQuestions = result.questions.length > 0
@@ -958,7 +745,7 @@ export default function InterviewQuestions() {
       summary ? `面试考察重点：\n${summary}\n` : "",
       ...questions.map(
         (q, i) =>
-          `${i + 1}. 【${q.category}】${q.question}\n考察要点：\n${q.keyPoints.map((k) => `  - ${k}`).join("\n")}${q.followUp ? `\n追问方向：${q.followUp}` : ""}`,
+          `${i + 1}. 【${q.category}】${q.question}`,
       ),
     ].filter(Boolean);
     navigator.clipboard.writeText(blocks.join("\n\n")).then(() => {
@@ -1011,18 +798,12 @@ export default function InterviewQuestions() {
     });
   };
 
-  const difficultyStats = {
-    "基础": questions.filter((q) => q.difficulty === "基础").length,
-    "中等": questions.filter((q) => q.difficulty === "中等").length,
-    "进阶": questions.filter((q) => q.difficulty === "进阶").length,
-  };
-
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-5 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 shadow-md">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 shadow-md">
             <BookOpen className="h-5 w-5 text-white" />
           </div>
           <div>
@@ -1091,6 +872,36 @@ export default function InterviewQuestions() {
               </div>
             </div>
 
+            {/* Question count */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-(--app-text-secondary)">题目数量</label>
+              <div className="flex items-center rounded-lg border border-(--app-border) bg-(--app-bg)">
+                <button
+                  type="button"
+                  onClick={() => setQuestionCount(Math.max(0, questionCount - 1))}
+                  className="px-2.5 py-2 text-(--app-text-secondary) hover:text-(--app-primary) transition-colors"
+                >
+                  -
+                </button>
+                <input
+                  type="number"
+                  min={0}
+                  max={20}
+                  value={questionCount}
+                  onChange={(e) => setQuestionCount(Math.max(0, Math.min(20, parseInt(e.target.value) || 0)))}
+                  className="w-12 border-x border-(--app-border) bg-transparent py-2 text-center text-sm text-(--app-text-primary) focus:outline-none [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setQuestionCount(Math.min(20, questionCount + 1))}
+                  className="px-2.5 py-2 text-(--app-text-secondary) hover:text-(--app-primary) transition-colors"
+                >
+                  +
+                </button>
+              </div>
+              <span className="text-sm text-(--app-text-muted)">道</span>
+            </div>
+
             {/* Custom focus */}
             <button
               onClick={() => setShowFocusInput((v) => !v)}
@@ -1137,7 +948,7 @@ export default function InterviewQuestions() {
           <button
             onClick={handleGenerate}
             disabled={generating || !selectedAiConfigId}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 px-6 py-3 font-medium text-white shadow-md transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-600 px-6 py-3 font-medium text-white shadow-md transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {generating ? (
               <>
@@ -1156,12 +967,12 @@ export default function InterviewQuestions() {
 
       {/* Generating skeleton */}
       {generating && (
-        <div className="rounded-2xl border border-purple-200 bg-purple-50 p-8 text-center dark:border-purple-900 dark:bg-purple-950/20">
-          <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-purple-500" />
-          <p className="text-sm font-medium text-purple-700 dark:text-purple-300">
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-8 text-center dark:border-blue-900 dark:bg-blue-950/20">
+          <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-blue-500" />
+          <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
             AI 正在分析简历并生成面试题...
           </p>
-          <p className="mt-1 text-xs text-purple-500 dark:text-purple-400">
+          <p className="mt-1 text-xs text-blue-500 dark:text-blue-400">
             根据简历内容，结合项目经历和技术栈，生成针对性问题
           </p>
         </div>
@@ -1180,7 +991,7 @@ export default function InterviewQuestions() {
             <div className="flex items-center gap-2">
               <button
                 onClick={handleShare}
-                className="flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 px-3 py-1.5 text-sm text-purple-700 transition-colors hover:border-purple-400 hover:bg-purple-100 dark:border-purple-800 dark:bg-purple-950/40 dark:text-purple-300 dark:hover:border-purple-700 dark:hover:bg-purple-900/40"
+                className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm text-blue-700 transition-colors hover:border-blue-400 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:border-blue-700 dark:hover:bg-blue-900/40"
               >
                 <Share2 className="h-4 w-4" />
                 分享
@@ -1204,15 +1015,15 @@ export default function InterviewQuestions() {
 
           {/* Overview + raw fallback
           {(summary || questions.length > 0) && (
-            <div className="rounded-2xl border border-purple-200 bg-purple-50 p-5  ">
-              <h3 className="mb-2 flex items-center gap-2 text-sm font-medium text-purple-700 dark:text-purple-300 overflow-x-hidden">
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5  ">
+              <h3 className="mb-2 flex items-center gap-2 text-sm font-medium text-blue-700 dark:text-blue-300 overflow-x-hidden">
                 <Sparkles className="h-4 w-4" />
                 面试考察重点
               </h3>
               {summary ? (
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{summary}</ReactMarkdown>
               ) : (
-                <p className="text-sm text-purple-400 dark:text-purple-500">
+                <p className="text-sm text-blue-400 dark:text-blue-500">
                   AI 已生成面试题，请查看下方列表
                 </p>
               )}

@@ -24,29 +24,6 @@
   --app-primary-soft: rgb(14 165 233 / 0.1);
   --app-accent-soft: rgb(59 130 246 / 0.1);
 
-  /* ThemeDemo 等：浅色 token（须写在 .dark 之前，避免第二个 :root 覆盖深色） */
-  --color-demo-bg: #f4f4f6;
-  --color-demo-surface: #ffffff;
-  --color-demo-surface-raised: #fafafa;
-  --color-demo-border: rgba(0, 0, 0, 0.07);
-  --color-demo-border-subtle: rgba(0, 0, 0, 0.04);
-  --color-demo-text-primary: #18181b;
-  --color-demo-text-secondary: #52525b;
-  --color-demo-text-muted: #a1a1aa;
-  --color-demo-accent: #0ea5e9;
-  --color-demo-accent-hover: #0284c7;
-  --color-demo-accent-soft: rgba(14, 165, 233, 0.1);
-  --color-demo-accent-ring: rgba(14, 165, 233, 0.2);
-  --color-demo-success: #22c55e;
-  --color-demo-success-soft: rgba(34, 197, 94, 0.1);
-  --color-demo-warning: #f59e0b;
-  --color-demo-warning-soft: rgba(245, 158, 11, 0.1);
-  --color-demo-danger: #ef4444;
-  --color-demo-danger-soft: rgba(239, 68, 68, 0.1);
-  --color-demo-purple: #a855f7;
-  --color-demo-purple-soft: rgba(168, 85, 247, 0.1);
-  --color-demo-cyan: #06b6d4;
-
   /* ── 布局 / 侧栏色板 ─────────────────────────────────────── */
   --app-sidebar-bg: #ffffff;
   --app-sidebar-border: rgba(0, 0, 0, 0.05);
@@ -926,28 +903,6 @@ html.dark body {
   --app-accent-soft: rgb(96 165 250 / 0.12);
 
   /* 深色 token：深蓝灰调，非纯黑，层次分明 */
-  --color-demo-bg: #0d1117;
-  --color-demo-surface: #161b22;
-  --color-demo-surface-raised: #1c2333;
-  --color-demo-border: rgba(255, 255, 255, 0.10);
-  --color-demo-border-subtle: rgba(255, 255, 255, 0.06);
-  /* 正文层级：muted 勿用过暗灰（旧 #484f58 在深色底上对比不足） */
-  --color-demo-text-primary: #f0f6fc;
-  --color-demo-text-secondary: #b1bac4;
-  --color-demo-text-muted: #8b949e;
-  --color-demo-accent: #58a6ff;
-  --color-demo-accent-hover: #79c0ff;
-  --color-demo-accent-soft: rgba(88, 166, 255, 0.12);
-  --color-demo-accent-ring: rgba(88, 166, 255, 0.20);
-  --color-demo-success: #3fb950;
-  --color-demo-success-soft: rgba(63, 185, 80, 0.12);
-  --color-demo-warning: #d29922;
-  --color-demo-warning-soft: rgba(210, 153, 34, 0.12);
-  --color-demo-danger: #f85149;
-  --color-demo-danger-soft: rgba(248, 81, 73, 0.12);
-  --color-demo-purple: #bc8cff;
-  --color-demo-purple-soft: rgba(188, 140, 255, 0.12);
-  --color-demo-cyan: #39c5cf;
 
   /* ── 布局 / 侧栏色（深色模式） ─────────────────────────── */
   --app-sidebar-bg: #161b22;

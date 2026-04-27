@@ -13,9 +13,17 @@ export default defineConfig({
   base: '/',
   server: {
     proxy: {
+      // API 代理
       '/v1': {
         target: process.env.VERCEL ? 'https://' + process.env.VERCEL_BRANCH_URL : 'http://localhost:3000',
         changeOrigin: true,
+      },
+      // GitHub API 代理（解决中国大陆无法直接访问 GitHub 的问题）
+      '/github-api': {
+        target: 'https://github.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/github-api/, ''),
+        secure: true,
       },
     },
   },

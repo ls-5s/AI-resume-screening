@@ -17,6 +17,7 @@
     "@libsql/client": "^0.17.2",
     "@vercel/functions": "^3.4.3",
     "@vercel/node": "^3.2.11",
+    "axios": "^1.15.2",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^17.3.1",
