@@ -61,12 +61,14 @@ router.get("/activities", authenticate, async (req: Request, res: Response) => {
 /**
  * 记录活动
  */
-router.post("/activity", async (req: Request, res: Response) => {
+router.post("/activity", authenticate, async (req: Request, res: Response) => {
   try {
-    const { type, resumeId, resumeName, description } = req.body;
+    const userId = Number((req as any).user?.id);
+    if (!userId) {
+      return res.status(401).json({ code: 401, message: "未授权" });
+    }
 
-    // 获取用户ID（暂时用默认值，后续可以改成从 token 获取）
-    const userId = Number((req as any).user?.id) || 1;
+    const { type, resumeId, resumeName, description } = req.body;
 
     // 验证类型
     const validTypes = ["upload", "screening", "pass", "reject", "interview"];

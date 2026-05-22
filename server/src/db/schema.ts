@@ -4,7 +4,7 @@ import {
   integer,
   index,
 } from "drizzle-orm/sqlite-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 // 用户表
 export const users = sqliteTable("users", {
@@ -15,8 +15,8 @@ export const users = sqliteTable("users", {
   avatar: text("avatar"),
   githubId: text("github_id").unique(),
   githubUsername: text("github_username"),
-  createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
-  updatedAt: text("updated_at").notNull().default("CURRENT_TIMESTAMP"),
+  createdAt: text("created_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: text("updated_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 // 团队表（需放在 resumes 前，因为 resumes.teamId 引用它）
@@ -27,8 +27,8 @@ export const teams = sqliteTable("teams", {
   ownerId: integer("owner_id")
     .notNull()
     .references(() => users.id),
-  createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
-  updatedAt: text("updated_at").notNull().default("CURRENT_TIMESTAMP"),
+  createdAt: text("created_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: text("updated_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 // 团队成员表
@@ -43,7 +43,7 @@ export const teamMembers = sqliteTable(
       .notNull()
       .references(() => users.id),
     role: text("role").notNull().default("member"), // owner | admin | member
-    joinedAt: text("joined_at").notNull().default("CURRENT_TIMESTAMP"),
+    joinedAt: text("joined_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
   },
   (teamMembers) => ({
     teamIdIdx: index("team_member_team_id_idx").on(teamMembers.teamId),
@@ -69,7 +69,7 @@ export const teamInvites = sqliteTable(
     status: text("status").notNull().default("pending"), // pending | accepted | rejected | expired | waiting_approval
     applicantId: integer("applicant_id").references(() => users.id),
     expiresAt: text("expires_at").notNull(),
-    createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
+    createdAt: text("created_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
   },
   (teamInvites) => ({
     teamIdIdx: index("team_invite_team_id_idx").on(teamInvites.teamId),
@@ -100,7 +100,7 @@ export const resumes = sqliteTable(
     dimensionScores: text("dimension_scores"),
     status: text("status").default("pending").notNull(),
     lastEmailSentAt: text("last_email_sent_at"),
-    createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
+    createdAt: text("created_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
   },
   (resumes) => ({
     userIdIdx: index("resume_user_id_idx").on(resumes.userId),
@@ -122,8 +122,8 @@ export const emailConfigs = sqliteTable("email_configs", {
   smtpPort: integer("smtp_port").default(465),
   isDefault: integer("is_default").default(0),
   isDeleted: integer("is_deleted").default(0),
-  createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
-  updatedAt: text("updated_at").notNull().default("CURRENT_TIMESTAMP"),
+  createdAt: text("created_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: text("updated_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 // 邮件模板表
@@ -137,8 +137,8 @@ export const emailTemplates = sqliteTable(
     name: text("name").notNull(),
     subject: text("subject").notNull(),
     body: text("body").notNull(),
-    createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
-    updatedAt: text("updated_at").notNull().default("CURRENT_TIMESTAMP"),
+    createdAt: text("created_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
+    updatedAt: text("updated_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
   },
   (emailTemplates) => ({
     userIdIdx: index("email_template_user_id_idx").on(emailTemplates.userId),
@@ -159,8 +159,8 @@ export const aiConfigs = sqliteTable(
     apiKey: text("api_key"),
     prompt: text("prompt"),
     isDefault: integer("is_default").default(0),
-    createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
-    updatedAt: text("updated_at").notNull().default("CURRENT_TIMESTAMP"),
+    createdAt: text("created_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
+    updatedAt: text("updated_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
   },
   (aiConfigs) => ({
     userIdIdx: index("ai_config_user_id_idx").on(aiConfigs.userId),
@@ -179,7 +179,7 @@ export const activities = sqliteTable(
     resumeId: integer("resume_id"),
     resumeName: text("resume_name"),
     description: text("description"),
-    createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
+    createdAt: text("created_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
   },
   (activities) => ({
     userIdIdx: index("activity_user_id_idx").on(activities.userId),
@@ -277,8 +277,8 @@ export const screeningTemplates = sqliteTable(
     name: text("name").notNull(),
     config: text("config").notNull(),
     isDefault: integer("is_default").default(0).notNull(),
-    createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
-    updatedAt: text("updated_at").notNull().default("CURRENT_TIMESTAMP"),
+    createdAt: text("created_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
+    updatedAt: text("updated_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
   },
   (screeningTemplates) => ({
     userIdIdx: index("screening_template_user_id_idx").on(

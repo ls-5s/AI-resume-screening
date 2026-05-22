@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Modal, ConfirmModal } from "../../components/Modal";
+import { parseServerDate } from "../../utils/format";
 import {
   getEmailTemplates,
   createEmailTemplate,
@@ -209,8 +210,9 @@ export function EmailTemplateList({
   };
 
   const formatDate = (date: string | Date | null) => {
-    if (!date) return "-";
-    return new Date(date).toLocaleDateString("zh-CN", {
+    const d = parseServerDate(date);
+    if (!d) return "-";
+    return d.toLocaleDateString("zh-CN", {
       year: "numeric",
       month: "short",
       day: "numeric",

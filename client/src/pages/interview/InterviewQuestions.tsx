@@ -76,21 +76,7 @@ function QuestionDocument({
 }) {
   const documentRef = useRef<HTMLDivElement>(null);
 
-  const handleCopy = () => {
-    const text = [
-      "# 面试题",
-      candidateName ? `候选人：${candidateName}` : "",
-      "",
-      summary ? `## 面试考察重点\n${summary}` : "",
-      ...questions.map((q, i) =>
-        `## 题目${i + 1}\n\n**类别**：${q.category}\n\n**问题**：${q.question}${q.keyPoints.length > 0 ? `\n\n**考察要点**：\n${q.keyPoints.map(k => `- ${k}`).join("\n")}` : ""}${q.followUp ? `\n\n**追问方向**：${q.followUp}` : ""}`
-      ).join("\n\n---\n\n"),
-    ].filter(Boolean).join("\n\n");
 
-    navigator.clipboard.writeText(text).then(() => {
-      toast.success("已复制到剪贴板");
-    });
-  };
 
   const handleExportPDF = () => {
     if (!documentRef.current) return;
@@ -206,60 +192,18 @@ function QuestionDocument({
     };
   };
 
-  const handleShare = async () => {
-    const payload = {
-      questions,
-      summary,
-      candidateName,
-    };
-    const json = JSON.stringify(payload);
-    const encoded = btoa(unescape(encodeURIComponent(json)))
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/, "");
-    const url = `${window.location.origin}/share/${encoded}`;
 
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `面试题 - ${candidateName || "候选人"}`,
-          text: `AI 为 ${candidateName || "候选人"} 生成了 ${questions.length} 道面试题`,
-          url,
-        });
-        return;
-      } catch {
-        // 用户取消
-      }
-    }
-    navigator.clipboard.writeText(url).then(() => {
-      toast.success("分享链接已复制");
-    });
-  };
 
   return (
     <div>
       {/* Action buttons */}
       <div className="mb-4 flex items-center justify-end gap-2">
         <button
-          onClick={handleCopy}
-          className="flex items-center gap-1.5 rounded-lg border border-(--app-border) px-3 py-1.5 text-sm text-(--app-text-secondary) transition-colors hover:border-(--app-primary) hover:text-(--app-primary)"
-        >
-          <Copy className="h-4 w-4" />
-          复制
-        </button>
-        <button
           onClick={handleExportPDF}
           className="flex items-center gap-1.5 rounded-lg border border-(--app-border) px-3 py-1.5 text-sm text-(--app-text-secondary) transition-colors hover:border-(--app-primary) hover:text-(--app-primary)"
         >
           <Printer className="h-4 w-4" />
           导出PDF
-        </button>
-        <button
-          onClick={handleShare}
-          className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm text-blue-700 transition-colors hover:border-blue-400 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300"
-        >
-          <Share2 className="h-4 w-4" />
-          分享
         </button>
       </div>
 
@@ -984,9 +928,7 @@ export default function InterviewQuestions() {
           {/* Stats bar */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <span className="text-sm font-medium text-(--app-text-secondary)">
-                生成多道面试题
-              </span>
+
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -1010,6 +952,7 @@ export default function InterviewQuestions() {
                 <Copy className="h-4 w-4" />
                 复制全部
               </button>
+
             </div>
           </div>
 
