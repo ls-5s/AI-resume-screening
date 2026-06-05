@@ -51,7 +51,6 @@ export function formatQuestionsToMarkdown(params: {
 
   // 面试题列表
   questions.forEach((q, i) => {
-    const difficulty = normalizeDifficulty(q.difficulty);
     parts.push(`## ${i + 1}. ${q.question}`);
     parts.push("");
 
@@ -80,7 +79,6 @@ export function formatQuestionsToMarkdown(params: {
  * 将单道题目格式化为简洁的 Markdown（无考察重点）
  */
 export function formatSingleQuestion(question: InterviewQuestion, index: number): string {
-  const difficulty = normalizeDifficulty(question.difficulty);
   const parts: string[] = [];
 
   parts.push(`## ${index + 1}. ${question.question}`);
@@ -180,8 +178,6 @@ export function extractQuestionsFromRaw(raw: string): InterviewQuestion[] {
       const result: InterviewQuestion[] = [];
 
       for (const match of matches) {
-        // 去掉标题部分，保留正文
-        const titlePart = match[1] ?? "";
         let content = match[2] ?? "";
 
         // 提取考察要点
