@@ -649,8 +649,8 @@ export default function InterviewQuestions() {
       toast.error("请先选择 AI 配置");
       return;
     }
-    if (questionCount === 0) {
-      toast.error("题目数量不能为 0，请设置合理的题目数量");
+    if (!questionCount || questionCount < 1) {
+      toast.error("请设置合理的题目数量");
       return;
     }
 
@@ -822,17 +822,17 @@ export default function InterviewQuestions() {
               <div className="flex items-center rounded-lg border border-(--app-border) bg-(--app-bg)">
                 <button
                   type="button"
-                  onClick={() => setQuestionCount(Math.max(0, questionCount - 1))}
+                  onClick={() => setQuestionCount(Math.max(1, questionCount - 1))}
                   className="px-2.5 py-2 text-(--app-text-secondary) hover:text-(--app-primary) transition-colors"
                 >
                   -
                 </button>
                 <input
                   type="number"
-                  min={0}
+                  min={1}
                   max={20}
                   value={questionCount}
-                  onChange={(e) => setQuestionCount(Math.max(0, Math.min(20, parseInt(e.target.value) || 0)))}
+                  onChange={(e) => setQuestionCount(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
                   className="w-12 border-x border-(--app-border) bg-transparent py-2 text-center text-sm text-(--app-text-primary) focus:outline-none [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
                 <button

@@ -502,6 +502,14 @@ router.post('/ai/interview-questions', authenticate, async (req: Request, res: R
       });
     }
 
+    // 验证题目数量
+    if (questionCount !== undefined && (!Number.isInteger(questionCount) || questionCount < 1 || questionCount > 50)) {
+      return res.status(400).json({
+        code: 400,
+        message: '题目数量需要在 1-50 之间',
+      });
+    }
+
     const result = await generateInterviewQuestions(userId, resumeId, customFocus, aiConfigId, questionCount);
 
     if (!result.success) {
