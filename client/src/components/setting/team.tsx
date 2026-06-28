@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import toast from "../../utils/toast";
 import { SettingSkeleton } from "./SettingSkeleton";
-import type { Team, TeamMember, MemberRole, InviteLink, PendingInvite } from "../../types/team";
+import type { TeamOrNull, TeamMember, MemberRole, InviteLink, PendingInvite } from "../../types/team";
 import {
   getTeam,
   createTeam as createTeamApi,
@@ -787,7 +787,7 @@ export function TeamSettings() {
   useEffect(() => {
     const checkTeam = async () => {
       try {
-        const team = await getTeam();
+        const team = await getTeam() as TeamOrNull;
         setHasTeam(team.hasTeam ?? false);
       } catch {
         setHasTeam(false);
