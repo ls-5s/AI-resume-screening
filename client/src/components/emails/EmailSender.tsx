@@ -1,66 +1,60 @@
-/**
- * 邮件发送组件
- * 选择收件人、模板、预览并批量发送邮件
- */
+// ============================================================================
+// EmailSender — 邮件批量发送组件
+//
+// ## 页面布局（左右分栏）
+//   左侧（7/12）：邮件撰写区 — 模板选择 + 发件邮箱 + 主题 + 正文 + 底部发送条件步骤条
+//   右侧（5/12）：收件人列表 — 搜索 + 状态筛选标签 + 全选 + 逐个勾选
+//
+// ## 核心数据流
+//   1. 初始化：并行加载模板 + 邮箱配置 + 收件人 → 自动选默认邮箱
+//   2. 如果有 initialTemplateId（从模板列表页跳转来），自动选中并填入主题/正文
+//   3. 选择模板 → 自动填入模板的主题和正文
+//   4. 勾选收件人 → 更新 candidateIds 数组
+//   5. 点击发送 → 校验四条件 → 调 sendEmails API → 清空表单 → 刷新收件人
+//
+// ## 发送前置条件（四步，底部步骤条可视化展示）
+//   发件邮箱 ✓ + 主题 ✓ + 正文 ✓ + 收件人 ≥ 1 ✓ → canSend = true
+// ============================================================================
 
 import { useState, useEffect, useRef, useId } from "react";
 import {
-  Send,
-  Mail,
-  Phone,
-  Search,
-  User,
-  FileText,
-  Check,
-  Settings,
-  ChevronDown,
-  X,
-  Loader2,
+  Send, Mail, Phone, Search, User, FileText,
+  Check, Settings, ChevronDown, X, Loader2,
 } from "lucide-react";
 import {
-  getEmailTemplates,
-  sendEmails,
-  getEmailRecipients,
+  getEmailTemplates, sendEmails, getEmailRecipients,
 } from "../../api/email-template";
 import { getEmailConfigs } from "../../api/email";
 import toast from "../../utils/toast";
 import type { EmailTemplate, EmailRecipient } from "../../types/email-template";
 import type { EmailConfig } from "../../types/email";
 
-// ─── 常量 ────────────────────────────────────────────────────────────────
+// ============================================================================
+// 常量
+// ============================================================================
 
+// 复用卡片样式（左右两栏共用）
 const CARD =
   "overflow-hidden rounded-3xl border border-(--app-border) bg-(--app-surface) shadow-(--app-shadow-sm) ring-1 ring-(--app-border-subtle)";
 
-/** 列表行状态：简洁字牌（无圆点、无描边，靠浅色底区分） */
+// 收件人状态映射：pending/passed/rejected/sent → 标签样式（字牌，无圆点无描边，靠浅色底区分）
 const STATUS_META = {
-  pending: {
-    pill: "bg-(--app-warning-soft) text-(--app-warning)",
-    label: "待筛选",
-  },
-  passed: {
-    pill: "bg-(--app-success-soft) text-(--app-success)",
-    label: "已通过",
-  },
-  rejected: {
-    pill: "bg-(--app-danger-soft) text-(--app-danger)",
-    label: "已拒绝",
-  },
-  sent: {
-    pill: "bg-(--app-success-soft) text-(--app-success)",
-    label: "发送成功",
-  },
+  pending: { pill: "bg-(--app-warning-soft) text-(--app-warning)", label: "待筛选" },
+  passed:  { pill: "bg-(--app-success-soft) text-(--app-success)", label: "已通过" },
+  rejected:{ pill: "bg-(--app-danger-soft) text-(--app-danger)", label: "已拒绝" },
+  sent:    { pill: "bg-(--app-success-soft) text-(--app-success)", label: "发送成功" },
 } as const;
 
+// 右侧收件人状态筛选标签列表
 const STATUS_FILTERS = [
   { value: "all" as const, label: "全部" },
   { value: "pending" as const, label: "待筛选" },
   { value: "passed" as const, label: "已通过" },
   { value: "rejected" as const, label: "已拒绝" },
-  /** 后端 last_email_sent_at 有值：曾群发邮件成功 */
-  { value: "sent" as const, label: "发送成功" },
+  { value: "sent" as const, label: "发送成功" }, // 后端 last_email_sent_at 有值即表示曾群发成功
 ];
 
+// 发送条件四步：发件邮箱 → 主题 → 正文 → 收件人（用于底部步骤条）
 const READY_STEPS = [
   { key: "account", msg: "发件邮箱" },
   { key: "subject", msg: "主题" },
@@ -68,18 +62,22 @@ const READY_STEPS = [
   { key: "recipients", msg: "收件人" },
 ] as const;
 
+// 发送表单数据结构
 type SendForm = {
-  templateId: number;
-  candidateIds: number[];
-  subject: string;
-  body: string;
-  fromEmailId: number;
+  templateId: number;      // 选中的模板 ID（0 表示不使用模板）
+  candidateIds: number[];  // 已勾选的收件人 ID 列表
+  subject: string;          // 邮件主题
+  body: string;             // 邮件正文
+  fromEmailId: number;      // 发件邮箱配置 ID
 };
 
 type StatusFilter = (typeof STATUS_FILTERS)[number]["value"];
 
-// ─── 子组件 ──────────────────────────────────────────────────────────────
+// ============================================================================
+// 子组件
+// ============================================================================
 
+// NativeSelect — 原生 <select> 封装，带 label + 下拉箭头
 function NativeSelect({
   value,
   onChange,
@@ -135,6 +133,9 @@ function NativeSelect({
   );
 }
 
+// RecipientRow — 单个收件人行
+// 显示：复选框 + 姓名 + 状态标签 + 邮箱/电话 + 简历文件图标
+// 点击整行切换勾选状态
 function RecipientRow({
   recipient,
   checked,
@@ -218,7 +219,8 @@ function RecipientRow({
   );
 }
 
-/** 发送条件检查步骤条 */
+// ProgressStepper — 四步发送条件步骤条（发件邮箱 → 主题 → 正文 → 收件人）
+// 每步一个圆点：✓ 绿色 = 满足条件 / 数字 = 未满足
 function ProgressStepper({
   steps,
 }: {
@@ -305,31 +307,44 @@ interface EmailSenderProps {
   onTemplateCount?: (count: number) => void;
 }
 
+// ============================================================================
+// EmailSender — 邮件发送主组件
+// ============================================================================
+
 export function EmailSender({
   onRefresh,
-  initialTemplateId,
-  onInitialTemplateApplied,
-  onTemplateCount,
+  initialTemplateId,        // 从模板列表页"去使用"跳转时传入的模板 ID
+  onInitialTemplateApplied, // 模板应用后的回调（通知父组件清除 initialTemplateId）
+  onTemplateCount,          // 传递模板数量给父组件
 }: EmailSenderProps) {
-  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
-  const [emailConfigs, setEmailConfigs] = useState<EmailConfig[]>([]);
-  const [recipients, setRecipients] = useState<EmailRecipient[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  // --- 数据状态 ---
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);   // 可用模板列表
+  const [emailConfigs, setEmailConfigs] = useState<EmailConfig[]>([]); // 发件邮箱配置列表
+  const [recipients, setRecipients] = useState<EmailRecipient[]>([]);  // 收件人列表
+  const [loading, setLoading] = useState(false);                       // 初始化加载中
+  const [sending, setSending] = useState(false);                       // 发送中
 
+  // --- 筛选状态 ---
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all"); // 右侧状态标签筛选
+  const [searchQuery, setSearchQuery] = useState("");                    // 右侧搜索框
+
+  // --- 发送表单（所有字段集中管理，避免分散的 useState） ---
   const [sendForm, setSendForm] = useState<SendForm>({
-    templateId: 0,
-    candidateIds: [],
+    templateId: 0,       // 0 = 未选择模板
+    candidateIds: [],    // 已勾选的收件人 ID
     subject: "",
     body: "",
-    fromEmailId: 0,
+    fromEmailId: 0,      // 0 = 未选择发件邮箱
   });
 
+  // 防止 initialTemplateId 被多次应用（useRef 跨渲染持久化）
   const appliedInitialIdRef = useRef<number | null>(null);
 
-  // ─── 数据加载 ────────────────────────────────────────────────────────
+  // ==========================================================================
+  // 数据加载
+  // ==========================================================================
+
+  // 单独加载收件人列表（发送完成后刷新用）
   const loadRecipients = async () => {
     try {
       const data = await getEmailRecipients();
@@ -339,17 +354,20 @@ export function EmailSender({
     }
   };
 
+  // 初始化：并行加载模板 + 邮箱配置 + 收件人，完成后自动选默认邮箱
   useEffect(() => {
-    let cancelled = false;
+    let cancelled = false; // 防止组件卸载后 setState
     const load = async () => {
       setLoading(true);
       try {
+        // 并行请求，减少等待时间
         const [tpl, cfg] = await Promise.all([getEmailTemplates(), getEmailConfigs()]);
         if (cancelled) return;
         setTemplates(tpl);
         setEmailConfigs(cfg);
         onTemplateCount?.(tpl.length);
         await loadRecipients();
+        // 自动选中默认邮箱配置，没有则选第一个
         const def = cfg.find((c) => c.isDefault) ?? cfg[0];
         if (def) setSendForm((p) => ({ ...p, fromEmailId: def.id }));
       } catch (err) {
@@ -362,6 +380,8 @@ export function EmailSender({
     return () => { cancelled = true; };
   }, [onTemplateCount]);
 
+  // 应用外部传入的 initialTemplateId（从模板列表"去使用"跳转来）
+  // appliedInitialIdRef 确保同一个 ID 只应用一次
   useEffect(() => {
     if (loading || !initialTemplateId || templates.length === 0) return;
     if (appliedInitialIdRef.current === initialTemplateId) return;
@@ -373,12 +393,16 @@ export function EmailSender({
         subject: tpl.subject,
         body: tpl.body,
       }));
-      appliedInitialIdRef.current = initialTemplateId;
-      onInitialTemplateApplied?.();
+      appliedInitialIdRef.current = initialTemplateId; // 标记已应用
+      onInitialTemplateApplied?.(); // 通知父组件已应用
     }
   }, [loading, initialTemplateId, templates, onInitialTemplateApplied]);
 
-  // ─── 派生数据 ────────────────────────────────────────────────────────
+  // ==========================================================================
+  // 派生数据
+  // ==========================================================================
+
+  // 各状态收件人统计（用于右侧筛选标签上的数字）
   const stats = {
     all: recipients.length,
     pending: recipients.filter((r) => r.status === "pending").length,
@@ -387,6 +411,7 @@ export function EmailSender({
     sent: recipients.filter((r) => r.status === "sent").length,
   };
 
+  // 两步前端筛选：状态标签 → 搜索框
   const filteredRecipients = recipients
     .filter((r) => {
       if (statusFilter === "all") return true;
@@ -402,23 +427,26 @@ export function EmailSender({
       );
     });
 
-  const selectedCount = sendForm.candidateIds.length;
+  const selectedCount = sendForm.candidateIds.length; // 已勾选数量
+  // 当前筛选结果是否全部被勾选（控制全选/取消全选按钮状态）
   const allFilteredSelected =
     filteredRecipients.length > 0 &&
     filteredRecipients.every((r) => sendForm.candidateIds.includes(r.id));
 
+  // 发送条件四步检查：把 READY_STEPS 映射为 { ok: boolean } 供步骤条渲染
   const readySteps = READY_STEPS.map((s) => ({
     ok:
       s.key === "account"
-        ? emailConfigs.length > 0
+        ? emailConfigs.length > 0       // 至少有一个邮箱配置
         : s.key === "subject"
-          ? !!sendForm.subject.trim()
+          ? !!sendForm.subject.trim()   // 主题非空
           : s.key === "body"
-            ? !!sendForm.body.trim()
-            : selectedCount > 0,
+            ? !!sendForm.body.trim()    // 正文非空
+            : selectedCount > 0,         // 至少勾选一个收件人
     msg: s.msg,
   }));
 
+  // 四条件全满足 + 未在发送中 → 允许点击发送
   const canSend =
     emailConfigs.length > 0 &&
     !!sendForm.subject.trim() &&
@@ -426,7 +454,11 @@ export function EmailSender({
     selectedCount > 0 &&
     !sending;
 
-  // ─── 事件处理 ────────────────────────────────────────────────────────
+  // ==========================================================================
+  // 事件处理
+  // ==========================================================================
+
+  // 选择模板 → 自动填入模板的主题和正文到表单
   const handleSelectTemplate = (templateId: number) => {
     const tpl = templates.find((t) => t.id === templateId);
     if (tpl) {
@@ -439,6 +471,7 @@ export function EmailSender({
     }
   };
 
+  // 全选/取消全选：全选 → 合并当前筛选结果到 candidateIds（去重）/ 取消全选 → 从 candidateIds 中排除当前筛选结果
   const handleToggleAll = () => {
     setSendForm((p) => ({
       ...p,
@@ -449,12 +482,15 @@ export function EmailSender({
     }));
   };
 
+  // 发送邮件：四步校验 → 调 sendEmails API → 成功则清空表单 + 刷新收件人列表
   const handleSend = async () => {
+    // 前端四步校验（与 canSend 一致，但提供更具体的 toast 提示）
     if (!sendForm.fromEmailId) { toast.error("请选择发件邮箱"); return; }
     if (!sendForm.subject.trim()) { toast.error("请填写邮件主题"); return; }
     if (!sendForm.body.trim()) { toast.error("请填写邮件正文"); return; }
     if (selectedCount === 0) { toast.error("请选择收件人"); return; }
 
+    // 快照当前勾选列表（防止发送过程中用户修改勾选）
     const batch = [...sendForm.candidateIds];
     setSending(true);
     try {
@@ -466,7 +502,9 @@ export function EmailSender({
         fromEmailId: sendForm.fromEmailId,
       });
 
+      // 发送结果反馈：全部成功 → 自定义消息 / 部分失败 → "发送完成：成功 X 封"
       toast.success(result.success ? result.message : `发送完成：成功 ${result.sentCount} 封`);
+      // 清空表单（但保留发件邮箱选择）
       setSendForm((p) => ({
         ...p,
         candidateIds: [],
@@ -474,7 +512,7 @@ export function EmailSender({
         body: "",
         templateId: 0,
       }));
-      await loadRecipients();
+      await loadRecipients(); // 刷新收件人状态（已发送的会标记为 sent）
       onRefresh?.();
     } catch (err) {
       console.error("发送失败:", err);
@@ -484,15 +522,21 @@ export function EmailSender({
     }
   };
 
-  // ─── 渲染 ────────────────────────────────────────────────────────────
+  // ==========================================================================
+  // 渲染
+  // ==========================================================================
+
   if (loading) return <SenderSkeleton />;
 
   return (
     <div className="grid h-full min-h-0 grid-cols-1 gap-6 overflow-hidden lg:grid-cols-12 lg:items-stretch lg:gap-6">
-      {/* ── 左侧：邮件撰写（与右侧收件卡片同高） ── */}
+      {/* ====================================================================
+          左侧（7/12）：邮件撰写区
+          结构：头部（图标+标题+发送按钮）→ 表单（模板/邮箱/主题/正文）→ 底部步骤条
+      ==================================================================== */}
       <section className="flex min-h-0 flex-col lg:col-span-7">
         <div className={`${CARD} flex h-full min-h-0 flex-col`}>
-          {/* 卡片头部：简洁图标 + 标题 + 发送按钮 */}
+          {/* 头部：图标 + 标题 + 模板计数 + 发送按钮 */}
           <div className="flex shrink-0 items-center justify-between border-b border-(--app-border) bg-(--app-surface-raised)/80 px-6 py-4">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-(--app-primary) to-(--app-primary-hover) text-(--app-surface) shadow-sm">
@@ -525,11 +569,11 @@ export function EmailSender({
             </button>
           </div>
 
-          {/* 中间可滚动 + 底部发送条件贴底，避免大块留白 */}
+          {/* 表单区域（可滚动）+ 底部步骤条（固定贴底） */}
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-6 pt-6 [scrollbar-gutter:stable]">
               <div className="shrink-0 space-y-6">
-                {/* 发件设置：模板 + 发件邮箱（横向两列） */}
+                {/* 模板 + 发件邮箱：两列并排 */}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <NativeSelect
                     label="邮件模板"
@@ -557,6 +601,7 @@ export function EmailSender({
                   />
                 </div>
 
+                {/* 无邮箱配置时的警告提示 */}
                 {emailConfigs.length === 0 && (
                   <div className="flex items-center gap-2 rounded-xl border border-(--app-warning-soft) bg-(--app-warning-soft)/60 px-4 py-2.5 text-xs text-(--app-warning)">
                     <Settings size={13} strokeWidth={1.75} className="shrink-0" />
@@ -564,7 +609,7 @@ export function EmailSender({
                   </div>
                 )}
 
-                {/* 邮件主题 */}
+                {/* 邮件主题输入框（带 Mail 图标） */}
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold text-(--app-text-secondary)">
                     邮件主题 <span className="text-(--app-danger)">*</span>
@@ -587,7 +632,7 @@ export function EmailSender({
                 </div>
               </div>
 
-              {/* 正文区吃掉卡片剩余高度，减少「发送条件」下方空白感 */}
+              {/* 邮件正文：flex-1 占满剩余高度，支持 resize-y 手动拖拽 */}
               <div className="mt-6 flex min-h-0 flex-1 flex-col pb-2">
                 <label className="mb-1.5 block shrink-0 text-xs font-semibold text-(--app-text-secondary)">
                   邮件正文 <span className="text-(--app-danger)">*</span>
@@ -603,7 +648,7 @@ export function EmailSender({
               </div>
             </div>
 
-            {/* 底部就绪步骤条：固定在卡片底部 */}
+            {/* 底部步骤条：固定在卡片底部，可视化显示四项发送条件是否满足 */}
             <div className="flex shrink-0 items-center justify-between border-t border-(--app-border) bg-(--app-surface-raised)/40 px-6 py-3">
               <span className="text-xs text-(--app-text-muted)">发送条件</span>
               <ProgressStepper steps={readySteps} />
@@ -612,10 +657,13 @@ export function EmailSender({
         </div>
       </section>
 
-      {/* ── 右侧：收件人列表（与左侧撰写区同高，列表区自适应撑满） ── */}
+      {/* ====================================================================
+          右侧（5/12）：收件人列表
+          结构：头部（标题+已选计数+清空按钮）→ 搜索框+状态标签 → 全选栏 → 列表
+      ==================================================================== */}
       <aside className="flex min-h-0 flex-col lg:col-span-5">
         <div className={`flex h-full min-h-0 flex-col ${CARD}`}>
-          {/* 头部 */}
+          {/* 头部：图标 + 标题 + 已选计数 + 清空按钮 */}
           <div className="shrink-0 border-b border-(--app-border) bg-(--app-surface-raised)/80 px-5 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -645,9 +693,9 @@ export function EmailSender({
             </div>
           </div>
 
-          {/* 搜索 + 筛选 */}
+          {/* 搜索 + 状态筛选标签 */}
           <div className="shrink-0 space-y-3 px-5 py-4">
-            {/* 搜索框 */}
+            {/* 搜索框：Search 图标左置 + 清除 X 按钮右置 */}
             <div className="relative">
               <Search
                 className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-(--app-text-muted)"
@@ -672,7 +720,7 @@ export function EmailSender({
               )}
             </div>
 
-            {/* 状态筛选标签 */}
+            {/* 状态筛选标签按钮组：全部/待筛选/已通过/已拒绝/发送成功 */}
             <div className="flex flex-wrap gap-1.5">
               {STATUS_FILTERS.map(({ value, label }) => {
                 const count =
@@ -701,8 +749,9 @@ export function EmailSender({
             </div>
           </div>
 
-          {/* 收件人列表：占满卡片剩余高度，内部滚动 */}
+          {/* 收件人列表区域：占满卡片剩余高度，内部滚动 */}
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-b-2xl">
+            {/* 空状态：根据 searchQuery/statusFilter 显示不同的提示文字 */}
             {filteredRecipients.length === 0 ? (
               <div className="flex min-h-48 flex-1 flex-col items-center justify-center px-4 py-14 text-center">
                 <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-(--app-skeleton) shadow-sm ring-1 ring-(--app-border)/80">
@@ -725,7 +774,7 @@ export function EmailSender({
               </div>
             ) : (
               <div className="flex min-h-0 flex-1 flex-col">
-                {/* 全选操作栏 */}
+                {/* 全选操作栏：全选/取消全选 + 当前筛选结果计数 */}
                 <div className="flex shrink-0 items-center justify-between border-b border-(--app-border) bg-(--app-surface)/90 px-3 py-2.5 backdrop-blur-sm">
                   <button
                     type="button"
@@ -750,7 +799,7 @@ export function EmailSender({
                   </span>
                 </div>
 
-                {/* 列表 */}
+                {/* 逐个收件人行：勾选/取消 → toggle candidateId 在 sendForm.candidateIds 中的存在 */}
                 <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-contain p-2 pr-1 [scrollbar-gutter:stable]">
                   {filteredRecipients.map((r) => (
                     <RecipientRow

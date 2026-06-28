@@ -1,35 +1,28 @@
 /**
  * AI 面试题生成页 (路由: /app/interview-questions)
- * 基于简历内容 AI 生成定制化面试问题，支持分享
+ *
+ * ## 页面流程（三步向导）
+ *   步骤 1 — 选择简历：下拉搜索已上传简历 / 上传新简历
+ *   步骤 2 — 配置选项：选择 AI 配置 + 题目数量 + 可选自定义考察重点
+ *   步骤 3 — 生成结果：调用 AI API → 展示结构化面试题 + 导出/复制/分享
+ *
+ * ## 数据流
+ *   handleGenerate() → generateInterviewQuestions API → 后端调 AI
+ *     → 返回 { questions: InterviewQuestion[], summary: string }
+ *     → 优先用 questions 数组渲染结构文档
+ *     → 兜底：extractQuestionsFromRaw(summary) 从 Markdown 字符串提取
+ *     → 分享：buildShareUrl() JSON→base64url 编码到 /share/:data 路由
  */
 
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "../../utils/toast";
 import {
-  Sparkles,
-  Copy,
-  ChevronDown,
-  BookOpen,
-  Upload,
-  FileText,
-  Search,
-  X,
-  Loader2,
-  RotateCw,
-  File,
-  CheckCircle2,
-  Share2,
-  Printer,
+  Sparkles, Copy, ChevronDown, BookOpen, Upload, FileText,
+  Search, X, Loader2, RotateCw, File, CheckCircle2, Share2, Printer,
 } from "lucide-react";
-import {
-  getResumes,
-  uploadResume,
-} from "../../api/resume";
-import {
-  getAiConfigs,
-  generateInterviewQuestions,
-} from "../../api/ai";
+import { getResumes, uploadResume } from "../../api/resume";
+import { getAiConfigs, generateInterviewQuestions } from "../../api/ai";
 import type { Resume } from "../../types/resume";
 import type { AiConfig, InterviewQuestion } from "../../types/ai";
 import { Modal } from "../../components/Modal";
@@ -39,7 +32,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 // ============================================================================
-// Exam Question List Component (renders Markdown)
+// ExamQuestionList — AI 返回非结构化文本时的兜底渲染
+// 从 Markdown 字符串中正则匹配 "## 面试题" 之后的内容，用 ReactMarkdown 渲染
 // ============================================================================
 
 interface ExamQuestionListProps {
@@ -47,10 +41,11 @@ interface ExamQuestionListProps {
 }
 
 function ExamQuestionList({ rawText }: ExamQuestionListProps) {
-  // 提取面试题部分（## 面试题 之后的内容）
+  // 正则提取 "面试题" 标题后的所有内容，忽略 AI 返回的其他说明文字
   const contentMatch = rawText.match(/#?\s*面试题([\s\S]*)$/i);
   const content = contentMatch ? contentMatch[1].trim() : rawText;
 
+  // 空内容兜底
   if (!content.trim()) {
     return (
       <div className="text-center text-sm text-(--app-text-muted)">
@@ -59,6 +54,7 @@ function ExamQuestionList({ rawText }: ExamQuestionListProps) {
     );
   }
 
+  // 用 Tailwind prose 排版 + ReactMarkdown 渲染 GFM 语法
   return (
     <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:text-(--app-text-primary) prose-p:text-(--app-text-secondary) prose-li:text-(--app-text-secondary) prose-strong:text-(--app-text-primary)">
       <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
@@ -67,22 +63,22 @@ function ExamQuestionList({ rawText }: ExamQuestionListProps) {
 }
 
 // ============================================================================
-// Document-style interview questions (renders structured data with Markdown)
+// QuestionDocument — 结构化面试题文档组件
+// 将 InterviewQuestion[] 数组组装成 Markdown 后渲染，支持导出 PDF（window.print）
 // ============================================================================
 
 function QuestionDocument({
-  questions,
-  summary,
-  candidateName,
+  questions,      // 结构化面试题数组
+  summary,         // AI 返回的面试考察重点
+  candidateName,   // 候选人姓名（文档标题用）
 }: {
   questions: InterviewQuestion[];
   summary: string;
   candidateName?: string;
 }) {
-  const documentRef = useRef<HTMLDivElement>(null);
+  const documentRef = useRef<HTMLDivElement>(null); // PDF 导出时读取 innerHTML
 
-
-
+  // 导出 PDF：新建 window → 写入完整 HTML（内联 CSS）→ 调 window.print()
   const handleExportPDF = () => {
     if (!documentRef.current) return;
 
@@ -212,37 +208,29 @@ function QuestionDocument({
         </button>
       </div>
 
-      {/* Document container */}
-      <div
-        ref={documentRef}
-        className="rounded-2xl border border-(--app-border) bg-(--app-surface)"
-      >
-        {/* Header */}
+      {/* 文档容器（PDF 导出时读取此 DOM 的 innerHTML） */}
+      <div ref={documentRef} className="rounded-2xl border border-(--app-border) bg-(--app-surface)">
+        {/* 文档标题：居中显示 "面试题" + 候选人姓名 */}
         <div className="border-b border-(--app-border) p-6 text-center">
           <h2 className="text-lg font-semibold text-(--app-text-primary)">面试题</h2>
           {candidateName && (
-            <p className="mt-1 text-sm text-(--app-text-secondary)">
-              候选人：{candidateName}
-            </p>
+            <p className="mt-1 text-sm text-(--app-text-secondary)">候选人：{candidateName}</p>
           )}
         </div>
 
-        {/* Questions list - render as Markdown */}
+        {/* 面试题列表 — 将 questions 数组拼接成 Markdown 后渲染 */}
         <div className="p-6">
-          {/* Summary section - 总结概括风格 */}
+          {/* 面试考察重点摘要区（蓝色背景突出显示） */}
           {summary && (
             <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-5 dark:border-blue-900 dark:bg-blue-950/30">
               <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-blue-700 dark:text-blue-300">
-                <Sparkles className="h-4 w-4" />
-                面试考察重点
+                <Sparkles className="h-4 w-4" />面试考察重点
               </h3>
-              <div className="text-sm leading-relaxed text-blue-800 dark:text-blue-200 whitespace-pre-wrap">
-                {summary}
-              </div>
+              <div className="text-sm leading-relaxed text-blue-800 dark:text-blue-200 whitespace-pre-wrap">{summary}</div>
             </div>
           )}
 
-          {/* Questions */}
+          {/* 面试题 Markdown 渲染：## 面试题 + N 个 ### 题目 X */}
           <div className="prose prose-sm max-w-none dark:prose-invert">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{`
 ## 面试题
@@ -291,17 +279,19 @@ interface ResumeSelectorProps {
 
 const ACCEPT_TYPES = ".pdf,.doc,.docx";
 
-function ResumeSelector({
-  resumes,
-  selectedResume,
-  onSelect,
-  onUploadClick,
-  loading,
-}: ResumeSelectorProps) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const ref = useRef<HTMLDivElement>(null);
+// ============================================================================
+// ResumeSelector — 简历选择下拉组件
+// 点击按钮展开下拉面板：搜索框 + 上传入口 + 简历列表
+// ============================================================================
 
+function ResumeSelector({
+  resumes, selectedResume, onSelect, onUploadClick, loading,
+}: ResumeSelectorProps) {
+  const [open, setOpen] = useState(false);    // 下拉展开/收起
+  const [search, setSearch] = useState("");    // 搜索关键词
+  const ref = useRef<HTMLDivElement>(null);    // 组件根节点引用
+
+  // 点击组件外部 → 关闭下拉
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
@@ -312,12 +302,14 @@ function ResumeSelector({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // 前端搜索：姓名或邮箱模糊匹配
   const filtered = resumes.filter(
     (r) =>
       r.name.toLowerCase().includes(search.toLowerCase()) ||
       (r.email ?? "").toLowerCase().includes(search.toLowerCase()),
   );
 
+  // 根据文件扩展名返回不同颜色图标
   const getFileIcon = (filename: string | null) => {
     const ext = filename?.split(".").pop()?.toLowerCase();
     if (ext === "pdf") return <FileText className="h-4 w-4 text-red-500" />;
@@ -466,6 +458,7 @@ function UploadModal({
     e.target.value = "";
   };
 
+  // 拖拽文件到上传区域：阻止默认行为（避免浏览器打开文件），取第一个文件
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
@@ -580,27 +573,35 @@ function UploadModal({
 // Main Component
 // ============================================================================
 
+// ============================================================================
+// InterviewQuestions — AI 面试题生成主组件
+// ============================================================================
+
 export default function InterviewQuestions() {
   const navigate = useNavigate();
 
-  const [resumes, setResumes] = useState<Resume[]>([]);
-  const [loadingResumes, setLoadingResumes] = useState(false);
-  const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
-  const [showUpload, setShowUpload] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  // --- 简历相关状态 ---
+  const [resumes, setResumes] = useState<Resume[]>([]);           // 简历列表
+  const [loadingResumes, setLoadingResumes] = useState(false);    // 简历加载中
+  const [selectedResume, setSelectedResume] = useState<Resume | null>(null); // 当前选中简历
+  const [showUpload, setShowUpload] = useState(false);            // 上传弹窗
+  const [uploading, setUploading] = useState(false);              // 上传中
 
-  const [aiConfigs, setAiConfigs] = useState<AiConfig[]>([]);
-  const [selectedAiConfigId, setSelectedAiConfigId] = useState<number | null>(null);
+  // --- AI 配置 ---
+  const [aiConfigs, setAiConfigs] = useState<AiConfig[]>([]);    // 可用 AI 配置列表
+  const [selectedAiConfigId, setSelectedAiConfigId] = useState<number | null>(null); // 当前选用 AI 配置
 
-  const [customFocus, setCustomFocus] = useState("");
-  const [showFocusInput, setShowFocusInput] = useState(false);
-  const [questionCount, setQuestionCount] = useState(5);
+  // --- 生成配置 ---
+  const [customFocus, setCustomFocus] = useState("");             // 自定义考察重点
+  const [showFocusInput, setShowFocusInput] = useState(false);    // 展开/收起考察重点输入框
+  const [questionCount, setQuestionCount] = useState(5);         // 生成题目数量（默认 5 道）
 
-  const [generating, setGenerating] = useState(false);
-  const [questions, setQuestions] = useState<InterviewQuestion[]>([]);
-  const [summary, setSummary] = useState("");
+  // --- 生成结果 ---
+  const [generating, setGenerating] = useState(false);            // 生成中
+  const [questions, setQuestions] = useState<InterviewQuestion[]>([]); // 结构化面试题
+  const [summary, setSummary] = useState("");                     // AI 返回的考察重点摘要
 
-  // Load resumes list
+  // 加载简历列表（初始化 + 上传成功后刷新）
   const loadResumes = async () => {
     setLoadingResumes(true);
     try {
@@ -613,31 +614,34 @@ export default function InterviewQuestions() {
     }
   };
 
-  // Load AI configs
+  // 加载 AI 配置列表，自动选默认配置
   const loadAiConfigs = async () => {
     try {
       const configs = await getAiConfigs();
       setAiConfigs(configs);
       const defaultConfig = configs.find((c) => c.isDefault) || configs[0];
       if (defaultConfig) {
-        setSelectedAiConfigId(defaultConfig.id);
+        setSelectedAiConfigId(defaultConfig.id); // 自动选默认
       }
     } catch {
       toast.error("加载 AI 配置失败，请检查设置");
     }
   };
 
+  // 页面挂载时并行加载简历和 AI 配置
   useEffect(() => {
     loadResumes();
     loadAiConfigs();
   }, []);
 
+  // 选择简历 → 清空之前的结果（避免新旧数据混淆）
   const handleSelectResume = async (resume: Resume) => {
     setSelectedResume(resume);
     setQuestions([]);
     setSummary("");
   };
 
+  // 上传成功后：选中新简历 + 清空结果 + 刷新列表
   const handleUploadSuccess = (resume: Resume) => {
     setSelectedResume(resume);
     setQuestions([]);
@@ -645,38 +649,30 @@ export default function InterviewQuestions() {
     loadResumes();
   };
 
+  // ===== 核心：生成面试题 =====
   const handleGenerate = async () => {
-    if (!selectedResume) {
-      toast.error("请先选择简历");
-      return;
-    }
-    if (!selectedAiConfigId) {
-      toast.error("请先选择 AI 配置");
-      return;
-    }
-    if (!questionCount || questionCount < 1) {
-      toast.error("请设置合理的题目数量");
-      return;
-    }
+    // 前置校验：简历 + AI 配置 + 题目数量
+    if (!selectedResume) { toast.error("请先选择简历"); return; }
+    if (!selectedAiConfigId) { toast.error("请先选择 AI 配置"); return; }
+    if (!questionCount || questionCount < 1) { toast.error("请设置合理的题目数量"); return; }
 
     setGenerating(true);
-    setQuestions([]);
+    setQuestions([]);   // 清空旧结果
     setSummary("");
     try {
+      // 调 AI API：简历 ID + 自定义重点 + AI 配置 + 题目数量
       const result = await generateInterviewQuestions({
         resumeId: selectedResume.id,
-        customFocus: customFocus.trim() || undefined,
+        customFocus: customFocus.trim() || undefined, // 空字符串不传
         aiConfigId: selectedAiConfigId,
         questionCount,
       });
-      // 优先使用结构化数据，兜底从 raw summary 中提取题目
+      // 优先使用结构化数据 questions[]，兜底用 extractQuestionsFromRaw 从 Markdown 提取
       const extractedQuestions = result.questions.length > 0
         ? result.questions
         : extractQuestionsFromRaw(result.summary);
       setQuestions(extractedQuestions);
-      // summary 已经是纯文本（后端已分离）
       setSummary(result.summary || "");
-      console.log("summaryText", result.summary);
       if (extractedQuestions.length > 0) {
         toast.success(`生成成功，共 ${extractedQuestions.length} 道面试题`);
       } else {
@@ -689,46 +685,39 @@ export default function InterviewQuestions() {
     }
   };
 
+  // 复制全部题目到剪贴板（格式：考察重点 + 编号列表）
   const handleCopyAll = () => {
     const blocks = [
       summary ? `面试考察重点：\n${summary}\n` : "",
-      ...questions.map(
-        (q, i) =>
-          `${i + 1}. 【${q.category}】${q.question}`,
-      ),
+      ...questions.map((q, i) => `${i + 1}. 【${q.category}】${q.question}`),
     ].filter(Boolean);
     navigator.clipboard.writeText(blocks.join("\n\n")).then(() => {
       toast.success("已复制到剪贴板");
     });
   };
 
-  const handleRegenerate = () => {
-    handleGenerate();
-  };
+  // 重新生成
+  const handleRegenerate = () => { handleGenerate(); };
 
-  /** 将面试题数据编码为 URL-safe base64 并拼接分享链接 */
+  // 构建分享链接：JSON → encodeURIComponent → btoa → base64url 安全字符
   const buildShareUrl = () => {
-    const payload: Record<string, unknown> = {
-      questions,
-      summary,
-    };
+    const payload: Record<string, unknown> = { questions, summary };
     if (selectedResume) {
       payload.candidateName = selectedResume.name;
+      // 简历预览只截前 200 字符（避免 URL 过长）
       payload.resumePreview = selectedResume.parsedContent
-        ? selectedResume.parsedContent.slice(0, 200)
-        : undefined;
+        ? selectedResume.parsedContent.slice(0, 200) : undefined;
     }
     const json = JSON.stringify(payload);
+    // base64url 编码：+ → -, / → _, 去掉末尾 =
     const encoded = btoa(unescape(encodeURIComponent(json)))
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/, "");
+      .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
     return `${window.location.origin}/share/${encoded}`;
   };
 
+  // 分享：优先调 Web Share API（移动端原生分享面板），不可用时降级为复制链接
   const handleShare = async () => {
     const url = buildShareUrl();
-    // 优先尝试 Web Share API（移动端），降级为复制链接
     if (navigator.share) {
       try {
         await navigator.share({
@@ -737,11 +726,9 @@ export default function InterviewQuestions() {
           url,
         });
         return;
-      } catch {
-        // 用户取消分享，直接复制链接
-      }
+      } catch { /* 用户取消分享，降级复制链接 */ }
     }
-    // 降级：复制链接
+    // 降级：复制分享链接到剪贴板
     navigator.clipboard.writeText(url).then(() => {
       toast.success("分享链接已复制，可直接发送给面试官");
     });
@@ -773,7 +760,7 @@ export default function InterviewQuestions() {
         )}
       </div>
 
-      {/* Step 1: Resume Selection */}
+      {/* ===== 步骤 1：选择简历 ===== */}
       <div className="rounded-2xl border border-(--app-border) bg-(--app-surface) p-5">
         <div className="mb-4 flex items-center gap-2">
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-(--app-primary) text-xs font-semibold text-white">
@@ -790,7 +777,7 @@ export default function InterviewQuestions() {
         />
       </div>
 
-      {/* Step 2: Configuration */}
+      {/* ===== 步骤 2：配置选项（仅在选中简历后显示） ===== */}
       {selectedResume && (
         <div className="rounded-2xl border border-(--app-border) bg-(--app-surface) p-5">
           <div className="mb-4 flex items-center gap-2">
@@ -914,7 +901,7 @@ export default function InterviewQuestions() {
         </div>
       )}
 
-      {/* Generating skeleton */}
+      {/* ===== 生成中骨架：蓝色提示卡片 + 旋转动画 ===== */}
       {generating && (
         <div className="rounded-2xl border border-blue-200 bg-blue-50 p-8 text-center dark:border-blue-900 dark:bg-blue-950/20">
           <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-blue-500" />
@@ -927,7 +914,7 @@ export default function InterviewQuestions() {
         </div>
       )}
 
-      {/* Results — show when done generating (even if only raw summary came back) */}
+      {/* ===== 结果区：生成完成后显示（有 questions 或 summary 即可） ===== */}
       {!generating && (questions.length > 0 || summary) && (
         <>
           {/* Stats bar */}
@@ -1008,7 +995,7 @@ export default function InterviewQuestions() {
         </>
       )}
 
-      {/* Empty state */}
+      {/* ===== 空状态：未生成、未选择简历时的初始提示 ===== */}
       {!generating && questions.length === 0 && !selectedResume && (
         <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-(--app-border) py-20">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-(--app-bg)">

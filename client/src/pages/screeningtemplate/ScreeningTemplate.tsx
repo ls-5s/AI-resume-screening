@@ -43,8 +43,11 @@ import {
   duplicateTemplate,
 } from "../../api/screeningTemplate";
 
-// ─── 条件预览 ──────────────────────────────────────────────────
+// ============================================================================
+// 条件预览工具函数 — 将 PreFilterConfig 对象转为可读的 UI 文字
+// ============================================================================
 
+// 单个条件胶囊："React, 3年 · 关键词" 格式
 function ConditionPill({ label, value }: { label: string; value: string }) {
   return (
     <span className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-(--app-primary-soft) px-3 py-1 text-xs font-medium text-(--app-primary) ring-1 ring-(--app-border)">
@@ -55,7 +58,9 @@ function ConditionPill({ label, value }: { label: string; value: string }) {
   );
 }
 
+// 条件摘要（卡片内预览用）：将配置转为胶囊列表，空条件显示"无过滤条件"
 function ConditionSummary({ config }: { config: PreFilterConfig }) {
+  // 空条件 → 直接返回斜体提示
   if (isEmptyPreFilter(config)) {
     return (
       <span className="text-xs italic text-(--app-text-muted)">
@@ -63,7 +68,9 @@ function ConditionSummary({ config }: { config: PreFilterConfig }) {
       </span>
     );
   }
+  // 逐个字段检查，非空/非默认值的才生成胶囊
   const pills: { label: string; value: string }[] = [];
+  // 关键词：超过 3 个时截断展示前 3 个 + "等N个"
   if (config.keywords.trim()) {
     const kws = config.keywords
       .split(/[,，\s\n]+/)
@@ -75,12 +82,15 @@ function ConditionSummary({ config }: { config: PreFilterConfig }) {
         : kws.join(", ");
     pills.push({ label: "关键词", value: preview });
   }
+  // AND 模式才显示标签（OR 是默认，不显示）
   if (config.keywordMode === "and") {
     pills.push({ label: "匹配", value: "AND" });
   }
+  // 最低分有值才显示
   if (config.minScore != null) {
     pills.push({ label: "最低分", value: `${config.minScore}分` });
   }
+  // 日期起/止有值才显示
   if (config.dateFrom.trim()) {
     pills.push({ label: "导入从", value: config.dateFrom });
   }
@@ -96,6 +106,7 @@ function ConditionSummary({ config }: { config: PreFilterConfig }) {
   );
 }
 
+// 条件单行摘要（卡片列表用）："React, 3年 · 全部满足 · 最低分 60 · 导入从 2025-01-01" 格式
 function getConditionSummaryLine(config: PreFilterConfig): string {
   if (isEmptyPreFilter(config)) {
     return "无过滤条件（全部通过）";
@@ -127,9 +138,10 @@ function getConditionSummaryLine(config: PreFilterConfig): string {
   return parts.join(" · ");
 }
 
+// 模板日期格式化：ISO 字符串 → "2025年6月28日"
 function formatTemplateDateZh(iso: string): string {
   const d = parseServerDate(iso);
-  if (!d) return "—";
+  if (!d) return "—"; // 无效日期回退
   return d.toLocaleDateString("zh-CN", {
     year: "numeric",
     month: "long",
@@ -137,7 +149,13 @@ function formatTemplateDateZh(iso: string): string {
   });
 }
 
-// ─── 单弹窗内：预筛选表单（与 AI 筛选页 PreFilterModal 字段一致）────────
+// ============================================================================
+// PreFilterEditorFields — 预筛选条件表单（4 个字段，与 AI 筛选页 PreFilterModal 一致）
+//   1. 关键词（textarea，逗号/空格/换行分隔）
+//   2. 匹配模式（满足任一 OR / 全部满足 AND，两个按钮切换）
+//   3. 最低匹配分（number input，0-100，不填不限制）
+//   4. 导入时间范围（两个 date input：起 / 止）
+// ============================================================================
 
 function PreFilterEditorFields({
   config,
@@ -268,7 +286,11 @@ function PreFilterEditorFields({
   );
 }
 
-// ─── 模板编辑器：单弹窗（标题区 + 模版名称 + 预筛选条件）──────────────
+// ============================================================================
+// EditorModal — 新建/编辑模板弹窗
+// 结构：标题栏 → 模板名称输入框 → 预筛选条件（PreFilterEditorFields）→ 底部按钮（清空/取消/保存）
+// 打开时自动聚焦名称输入框，Esc 关闭，点击遮罩关闭
+// ============================================================================
 
 type EditorMode = "create" | "edit";
 
@@ -287,50 +309,55 @@ function EditorModal({
   onClose,
   onSave,
 }: EditorModalProps) {
+  // 初始值：编辑模式 → 从 initial 读取 / 新建模式 → 空字符串
   const [name, setName] = useState(() =>
     mode === "edit" && initial ? initial.name : "",
   );
+  // 初始值：编辑模式 → 深拷贝 initial.config / 新建模式 → 默认空配置
   const [config, setConfig] = useState<PreFilterConfig>(() =>
     mode === "edit" && initial ? { ...initial.config } : getDefaultPreFilter(),
   );
-  const [saving, setSaving] = useState(false);
-  const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const [saving, setSaving] = useState(false); // 保存中禁用按钮
+  const nameInputRef = useRef<HTMLInputElement | null>(null); // 名称输入框 DOM 引用
 
+  // 弹窗打开时：绑定 Esc 关闭 + 锁定 body 滚动 + 自动聚焦名称输入框
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onClose(); // Esc 关闭
     };
     document.addEventListener("keydown", onKeyDown);
     const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    requestAnimationFrame(() => nameInputRef.current?.focus());
+    document.body.style.overflow = "hidden"; // 锁定背景滚动
+    requestAnimationFrame(() => nameInputRef.current?.focus()); // 等待 DOM 渲染后聚焦
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previousOverflow;
+      document.body.style.overflow = previousOverflow; // 恢复背景滚动
     };
   }, [open, onClose]);
 
+  // mode 或 initial 变化时重新初始化表单（打开新建/编辑时触发）
   useEffect(() => {
     if (mode === "edit" && initial) {
       setName(initial.name);
-      setConfig({ ...initial.config });
+      setConfig({ ...initial.config }); // 浅拷贝防止污染原数据
     } else {
       setName("");
       setConfig(getDefaultPreFilter());
     }
   }, [mode, initial]);
 
+  // 保存：校验 → 调 onSave 父级回调 → 关闭弹窗
   const handleSave = async () => {
     if (!name.trim()) {
       toast.error("请输入模版名称");
-      nameInputRef.current?.focus();
+      nameInputRef.current?.focus(); // 校验失败聚焦到名称框
       return;
     }
     setSaving(true);
     try {
-      await onSave(name.trim(), config);
-      onClose();
+      await onSave(name.trim(), config); // 父级负责调 API
+      onClose(); // 成功后关闭
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "保存失败";
       toast.error(msg);
@@ -339,14 +366,17 @@ function EditorModal({
     }
   };
 
+  // Enter 键快捷保存
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") void handleSave();
   };
 
+  // 清空条件恢复到默认空配置
   const handleClearConditions = () => {
     setConfig(getDefaultPreFilter());
   };
 
+  // 未打开时不渲染任何 DOM
   if (!open) return null;
 
   return (
@@ -359,11 +389,14 @@ function EditorModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
+      {/* 半透明遮罩 + 毛玻璃效果 */}
       <div
         className="absolute inset-0 bg-(--app-overlay) backdrop-blur-sm"
         aria-hidden
       />
+      {/* 弹窗主体：移动端从底部弹出（rounded-t-2xl），桌面端居中（rounded-2xl） */}
       <div className="relative flex max-h-[min(90vh,640px)] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-(--app-border) bg-(--app-surface) shadow-(--app-shadow) sm:rounded-2xl">
+        {/* 标题栏：图标 + 标题/副标题 + 关闭按钮 */}
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-(--app-border-subtle) bg-(--app-surface-raised)/80 px-4 py-3.5 sm:px-5">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-(--app-primary) to-(--app-primary-hover) text-white shadow-md shadow-(--app-primary)/25">
@@ -416,29 +449,21 @@ function EditorModal({
           </div>
         </div>
 
+        {/* 底部按钮栏：清空（左）/ 取消（中）/ 保存（右，ml-auto 推到最右） */}
         <div className="flex shrink-0 flex-wrap gap-2 border-t border-(--app-border-subtle) bg-(--app-surface-raised)/90 px-4 py-3.5 sm:px-5">
-          <button
-            type="button"
-            onClick={handleClearConditions}
-            disabled={saving}
-            className="rounded-xl border border-(--app-border) bg-(--app-surface) px-4 py-2.5 text-sm font-medium text-(--app-text-primary) shadow-sm transition-colors hover:bg-(--app-surface-raised) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--app-border-strong) disabled:opacity-50"
-          >
+          {/* 清空条件按钮：恢复到默认空配置 */}
+          <button type="button" onClick={handleClearConditions} disabled={saving}
+            className="rounded-xl border border-(--app-border) bg-(--app-surface) px-4 py-2.5 text-sm font-medium text-(--app-text-primary) shadow-sm transition-colors hover:bg-(--app-surface-raised) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--app-border-strong) disabled:opacity-50">
             清空
           </button>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="rounded-xl border border-(--app-border) bg-(--app-surface) px-4 py-2.5 text-sm font-medium text-(--app-text-primary) shadow-sm transition-colors hover:bg-(--app-surface-raised) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--app-border-strong) disabled:opacity-50"
-          >
+          {/* 取消按钮：关闭弹窗不保存 */}
+          <button type="button" onClick={onClose} disabled={saving}
+            className="rounded-xl border border-(--app-border) bg-(--app-surface) px-4 py-2.5 text-sm font-medium text-(--app-text-primary) shadow-sm transition-colors hover:bg-(--app-surface-raised) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--app-border-strong) disabled:opacity-50">
             取消
           </button>
-          <button
-            type="button"
-            onClick={() => void handleSave()}
-            disabled={saving}
-            className="ml-auto inline-flex items-center gap-2 rounded-xl bg-(--app-primary) px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-(--app-primary)/25 transition-colors hover:bg-(--app-primary-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--app-ring-strong) focus-visible:ring-offset-2 focus-visible:ring-offset-(--app-surface) disabled:cursor-not-allowed disabled:opacity-60"
-          >
+          {/* 保存按钮：saving 时显示旋转动画，按钮文字根据 mode 切换 */}
+          <button type="button" onClick={() => void handleSave()} disabled={saving}
+            className="ml-auto inline-flex items-center gap-2 rounded-xl bg-(--app-primary) px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-(--app-primary)/25 transition-colors hover:bg-(--app-primary-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--app-ring-strong) focus-visible:ring-offset-2 focus-visible:ring-offset-(--app-surface) disabled:cursor-not-allowed disabled:opacity-60">
             {saving && (
               <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
             )}
@@ -450,7 +475,10 @@ function EditorModal({
   );
 }
 
-// ─── 条件预览弹窗 ────────────────────────────────────────────────
+// ============================================================================
+// TemplatePreviewModal — 条件预览弹窗（点击卡片上的"点击预览"触发）
+// 显示模板名称 + 条件摘要（胶囊列表），Esc 关闭
+// ============================================================================
 
 function TemplatePreviewModal({
   template,
@@ -461,6 +489,7 @@ function TemplatePreviewModal({
   open: boolean;
   onClose: () => void;
 }) {
+  // 绑定 Esc 关闭
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -470,51 +499,40 @@ function TemplatePreviewModal({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [open, onClose]);
 
+  // 未打开或无效模板时不渲染
   if (!open || !template) return null;
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="tpl-preview-title"
+      role="dialog" aria-modal="true" aria-labelledby="tpl-preview-title"
       onMouseDown={(e) => {
+        // 点击遮罩关闭
         if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className="absolute inset-0 bg-(--app-overlay) backdrop-blur-sm"
-        aria-hidden
-      />
+      }}>
+      {/* 半透明遮罩 */}
+      <div className="absolute inset-0 bg-(--app-overlay) backdrop-blur-sm" aria-hidden />
+      {/* 弹窗主体 */}
       <div className="relative w-full max-w-md rounded-t-2xl border border-(--app-border) bg-(--app-surface) p-5 shadow-(--app-shadow) sm:rounded-2xl">
+        {/* 标题区：名称 + 关闭按钮 */}
         <div className="mb-4 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs text-(--app-text-muted)">模版名称</p>
-            <h2
-              id="tpl-preview-title"
-              className="mt-0.5 truncate text-lg font-semibold text-(--app-text-primary)"
-            >
+            <h2 id="tpl-preview-title" className="mt-0.5 truncate text-lg font-semibold text-(--app-text-primary)">
               {template.name}
             </h2>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="shrink-0 rounded-xl p-2 text-(--app-text-secondary) transition-colors hover:bg-(--app-surface-raised) hover:text-(--app-text-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--app-ring)"
-            title="关闭"
-          >
+          <button type="button" onClick={onClose} title="关闭"
+            className="shrink-0 rounded-xl p-2 text-(--app-text-secondary) transition-colors hover:bg-(--app-surface-raised) hover:text-(--app-text-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--app-ring)">
             <X className="h-5 w-5" aria-hidden />
           </button>
         </div>
-        <p className="mb-2 text-xs font-medium text-(--app-text-secondary)">
-          预筛条件
-        </p>
+        {/* 条件摘要：使用 ConditionSummary 渲染胶囊列表 */}
+        <p className="mb-2 text-xs font-medium text-(--app-text-secondary)">预筛条件</p>
         <ConditionSummary config={template.config} />
-        <button
-          type="button"
-          onClick={onClose}
-          className="mt-6 w-full rounded-xl bg-(--app-primary) py-2.5 text-sm font-semibold text-white transition-colors hover:bg-(--app-primary-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--app-ring-strong)"
-        >
+        {/* 关闭按钮 */}
+        <button type="button" onClick={onClose}
+          className="mt-6 w-full rounded-xl bg-(--app-primary) py-2.5 text-sm font-semibold text-white transition-colors hover:bg-(--app-primary-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--app-ring-strong)">
           关闭
         </button>
       </div>
@@ -522,7 +540,9 @@ function TemplatePreviewModal({
   );
 }
 
-// ─── 模板卡片（列表项视觉参考设计稿）──────────────────────────────
+// ============================================================================
+// 模板卡片组件 — TemplateCardSkeleton / TemplateCardIconButton / TemplateCard
+// ============================================================================
 
 interface TemplateCardProps {
   template: ScreeningTemplate;
@@ -557,6 +577,7 @@ function TemplateCardIconButton({
   );
 }
 
+// 模板卡片骨架屏（loading 时 6 张）
 function TemplateCardSkeleton() {
   return (
     <div className="overflow-hidden rounded-2xl border border-(--app-ai-border) bg-(--app-surface) p-5 shadow-(--app-shadow-sm)">
@@ -597,44 +618,41 @@ function TemplateCardSkeleton() {
   );
 }
 
+// 模板卡片：右上角蓝色三角装饰 + 图标/名称/日期 + 条件摘要 + 操作区
+// 操作按钮：编辑 / 复制 / 设为默认（非默认时显示）/ 删除 + 底部：预览 + 去使用
 function TemplateCard({
-  template,
-  onEdit,
-  onDuplicate,
-  onDelete,
-  onSetDefault,
-  onApply,
+  template, onEdit, onDuplicate, onDelete, onSetDefault, onApply,
 }: TemplateCardProps) {
+  // 预览弹窗开关
   const [previewOpen, setPreviewOpen] = useState(false);
+  // 条件单行文本（用于中间摘要区）
   const summaryLine = getConditionSummaryLine(template.config);
+  // 中文日期
   const createdZh = formatTemplateDateZh(template.createdAt);
 
   return (
     <>
       <article className="group relative overflow-hidden rounded-2xl border border-(--app-ai-border) bg-(--app-surface) p-5 shadow-(--app-shadow-sm) transition-shadow hover:shadow-(--app-shadow-primary)">
-        <div
-          className="pointer-events-none absolute right-0 top-0 size-0 border-l-22 border-l-transparent border-t-22 border-t-(--app-primary)"
-          aria-hidden
-        />
+        {/* 右上角纯 CSS 蓝色三角装饰 */}
+        <div className="pointer-events-none absolute right-0 top-0 size-0 border-l-22 border-l-transparent border-t-22 border-t-(--app-primary)" aria-hidden />
 
+        {/* 第一行：图标 + 名称/默认标签/日期 + 操作按钮组 */}
         <div className="relative flex gap-4 pr-6">
+          {/* 左侧图标：蓝紫渐变背景 + 邮件图标 */}
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-linear-to-b from-(--app-primary) to-(--app-primary-hover) text-white shadow-md shadow-(--app-primary)/25">
             <Mail className="h-5 w-5" strokeWidth={2} aria-hidden />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
+              {/* 名称 + 默认标签 + 日期 */}
               <div className="min-w-0">
                 <p className="text-xs text-(--app-text-muted)">模板名称</p>
                 <div className="mt-0.5 flex flex-wrap items-center gap-2">
-                  <h3 className="truncate text-base font-bold text-(--app-text-primary)">
-                    {template.name}
-                  </h3>
+                  <h3 className="truncate text-base font-bold text-(--app-text-primary)">{template.name}</h3>
+                  {/* 默认标签：仅 isDefault=true 时显示 */}
                   {template.isDefault && (
                     <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-(--app-warning-soft) px-2 py-0.5 text-[10px] font-bold text-(--app-warning) ring-1 ring-(--app-border)">
-                      <Star
-                        className="h-2.5 w-2.5 fill-(--app-warning)"
-                        aria-hidden
-                      />
+                      <Star className="h-2.5 w-2.5 fill-(--app-warning)" aria-hidden />
                       默认
                     </span>
                   )}
@@ -644,35 +662,22 @@ function TemplateCard({
                   {createdZh}
                 </div>
               </div>
+              {/* 右侧操作按钮：编辑 / 复制 / 设为默认(仅非默认时显示) / 删除 */}
               <div className="flex shrink-0 items-center gap-0.5">
-                <TemplateCardIconButton
-                  label="编辑模版"
-                  onClick={() => onEdit(template)}
-                >
+                <TemplateCardIconButton label="编辑模版" onClick={() => onEdit(template)}>
                   <Pencil className="h-[18px] w-[18px]" strokeWidth={1.75} />
                 </TemplateCardIconButton>
-                <TemplateCardIconButton
-                  label="复制模版"
-                  onClick={() => onDuplicate(template)}
-                >
+                <TemplateCardIconButton label="复制模版" onClick={() => onDuplicate(template)}>
                   <Copy className="h-[18px] w-[18px]" strokeWidth={1.75} />
                 </TemplateCardIconButton>
+                {/* 当前已是默认 → 不显示"设为默认"按钮 */}
                 {!template.isDefault && (
-                  <TemplateCardIconButton
-                    label="设为默认模版"
-                    onClick={() => onSetDefault(template)}
-                  >
-                    <StarOff
-                      className="h-[18px] w-[18px]"
-                      strokeWidth={1.75}
-                    />
+                  <TemplateCardIconButton label="设为默认模版" onClick={() => onSetDefault(template)}>
+                    <StarOff className="h-[18px] w-[18px]" strokeWidth={1.75} />
                   </TemplateCardIconButton>
                 )}
-                <TemplateCardIconButton
-                  label="删除模版"
-                  onClick={() => onDelete(template)}
-                  className="hover:bg-(--app-danger-soft) hover:text-(--app-danger)"
-                >
+                <TemplateCardIconButton label="删除模版" onClick={() => onDelete(template)}
+                  className="hover:bg-(--app-danger-soft) hover:text-(--app-danger)">
                   <Trash2 className="h-[18px] w-[18px]" strokeWidth={1.75} />
                 </TemplateCardIconButton>
               </div>
@@ -680,6 +685,7 @@ function TemplateCard({
           </div>
         </div>
 
+        {/* 第二行：条件摘要（最多 2 行，超出省略号） */}
         <div className="relative mt-5 min-w-0">
           <p className="text-xs text-(--app-text-muted)">条件概要</p>
           <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-(--app-text-primary)">
@@ -689,51 +695,61 @@ function TemplateCard({
 
         <hr className="relative my-5 border-0 border-t border-(--app-border-subtle)" />
 
+        {/* 第三行：底部操作区 — 预览 + 去使用 */}
         <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <button
-            type="button"
-            onClick={() => setPreviewOpen(true)}
-            className="inline-flex items-center gap-1.5 self-start rounded-lg text-sm text-(--app-text-secondary) transition-colors hover:text-(--app-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--app-ring) focus-visible:ring-offset-2 focus-visible:ring-offset-(--app-surface)"
-          >
+          {/* 点击预览 → 打开 TemplatePreviewModal */}
+          <button type="button" onClick={() => setPreviewOpen(true)}
+            className="inline-flex items-center gap-1.5 self-start rounded-lg text-sm text-(--app-text-secondary) transition-colors hover:text-(--app-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--app-ring) focus-visible:ring-offset-2 focus-visible:ring-offset-(--app-surface)">
             <Eye className="h-4 w-4 shrink-0" aria-hidden />
             点击预览
           </button>
-          <button
-            type="button"
-            onClick={() => onApply(template)}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-(--app-primary) px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-(--app-primary)/30 transition-colors hover:bg-(--app-primary-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--app-ring-strong) focus-visible:ring-offset-2 focus-visible:ring-offset-(--app-surface)"
-          >
+          {/* 去使用 → localStorage 写入模板 ID → 跳转 AI 筛选页 */}
+          <button type="button" onClick={() => onApply(template)}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-(--app-primary) px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-(--app-primary)/30 transition-colors hover:bg-(--app-primary-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--app-ring-strong) focus-visible:ring-offset-2 focus-visible:ring-offset-(--app-surface)">
             <Send className="h-4 w-4 shrink-0" aria-hidden />
             去使用
           </button>
         </div>
       </article>
 
-      <TemplatePreviewModal
-        template={template}
-        open={previewOpen}
-        onClose={() => setPreviewOpen(false)}
-      />
+      {/* 预览弹窗：状态由 TemplateCard 内部管理（previewOpen），不通过父级 */}
+      <TemplatePreviewModal template={template} open={previewOpen} onClose={() => setPreviewOpen(false)} />
     </>
   );
 }
 
-// ─── 主页面 ─────────────────────────────────────────────────────
+// ============================================================================
+// ScreeningTemplate — 筛选模板管理主页面（路由: /app/screening-template）
+//
+// ## 页面结构
+//   标题栏（新建按钮）→ 模板卡片网格（3 列）
+//
+// ## 核心交互
+//   新建/编辑 → EditorModal（模板名称 + 4 项筛选条件）
+//   复制 → duplicateTemplate API（名称加 " (副本)" 后缀）
+//   设为默认 → setDefaultTemplate API
+//   删除 → 内联确认弹窗（非 ConfirmModal 组件）
+//   去使用 → localStorage 写入模板 ID → navigate 跳转 AI 筛选页
+//     （AiScreening 的 init useEffect 会读取并应用此模板）
+// ============================================================================
 
 export default function ScreeningTemplate() {
   const navigate = useNavigate();
-  const [templates, setTemplates] = useState<ScreeningTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [editorMode, setEditorMode] = useState<EditorMode>("create");
-  const [editingTemplate, setEditingTemplate] = useState<
-    ScreeningTemplate | undefined
-  >();
-  const [confirmDelete, setConfirmDelete] = useState<ScreeningTemplate | null>(
-    null,
-  );
 
+  // --- 数据状态 ---
+  const [templates, setTemplates] = useState<ScreeningTemplate[]>([]); // 模板列表
+  const [loading, setLoading] = useState(true);                          // 加载中
+  const [error, setError] = useState<string | null>(null);              // 加载错误
+
+  // --- 编辑弹窗 ---
+  const [editorOpen, setEditorOpen] = useState(false);                   // 弹窗开关
+  const [editorMode, setEditorMode] = useState<EditorMode>("create");    // 新建/编辑模式
+  const [editingTemplate, setEditingTemplate] = useState<ScreeningTemplate | undefined>();
+
+  // --- 删除确认（内联弹窗，非全局 ConfirmModal） ---
+  const [confirmDelete, setConfirmDelete] = useState<ScreeningTemplate | null>(null);
+
+  // 刷新模板列表（useCallback 稳定引用）
   const refresh = useCallback(async () => {
     try {
       const list = await loadTemplates();
@@ -744,44 +760,44 @@ export default function ScreeningTemplate() {
     }
   }, []);
 
+  // 初始化加载
   useEffect(() => {
     setLoading(true);
     refresh().finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 打开新建弹窗
   const handleCreate = () => {
     setEditingTemplate(undefined);
     setEditorMode("create");
     setEditorOpen(true);
   };
 
+  // 打开编辑弹窗
   const handleEdit = (t: ScreeningTemplate) => {
     setEditingTemplate(t);
     setEditorMode("edit");
     setEditorOpen(true);
   };
 
+  // 保存模板：新建 → createTemplate / 编辑 → updateTemplate → 刷新列表
   const handleSave = async (name: string, config: PreFilterConfig) => {
     try {
       if (editorMode === "create") {
         await createTemplate(name, config);
         toast.success("模版创建成功");
       } else if (editingTemplate) {
-        const updated = await updateTemplate(editingTemplate.id, {
-          name,
-          config,
-        });
+        const updated = await updateTemplate(editingTemplate.id, { name, config });
         setEditingTemplate(updated);
         toast.success("模版已保存");
       }
       await refresh();
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "保存失败";
-      toast.error(msg);
+      toast.error(e instanceof Error ? e.message : "保存失败");
     }
   };
 
+  // 复制模板：名称加 " (副本)"
   const handleDuplicate = async (t: ScreeningTemplate) => {
     try {
       await duplicateTemplate(t.id, `${t.name} (副本)`);
@@ -792,8 +808,10 @@ export default function ScreeningTemplate() {
     }
   };
 
+  // 点击删除 → 弹出确认弹窗
   const handleDelete = (t: ScreeningTemplate) => setConfirmDelete(t);
 
+  // 确认删除
   const confirmDeleteTemplate = async () => {
     if (!confirmDelete) return;
     try {
@@ -806,12 +824,15 @@ export default function ScreeningTemplate() {
     }
   };
 
+  // 设为默认模板
   const handleSetDefault = async (t: ScreeningTemplate) => {
     await setDefaultTemplate(t.id);
     toast.success(`已将「${t.name}」设为默认模版`);
     await refresh();
   };
 
+  // 去使用：localStorage 传参 → 跳转 AI 筛选页
+  // AiScreening 的 init useEffect 在挂载时会读取 localStorage 中的模板 ID
   const handleApply = (t: ScreeningTemplate) => {
     localStorage.setItem("active-screening-template", String(t.id));
     toast.success(`已将「${t.name}」设为当前筛选条件`, {
@@ -854,75 +875,62 @@ export default function ScreeningTemplate() {
           </div>
         </header>
 
-        {/* Content */}
+        {/* ===== 内容区：四态顺序判断（loading → error → empty → data） ===== */}
         {loading ? (
+          /* 态1: 加载中 → 6 张骨架卡片 */
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <TemplateCardSkeleton key={i} />
             ))}
           </div>
         ) : error ? (
+          /* 态2: 加载失败 → 错误信息 + 重新加载按钮 */
           <div className="flex flex-col items-center justify-center rounded-2xl border border-(--app-danger)/30 bg-(--app-danger-soft) px-6 py-16 text-center">
-            <p className="text-sm font-medium text-(--app-danger)">
-              {error}
-            </p>
-            <button
-              type="button"
+            <p className="text-sm font-medium text-(--app-danger)">{error}</p>
+            <button type="button"
               onClick={() => {
-                setLoading(true);
+                setLoading(true);   // 重新进入 loading 态
                 setError(null);
                 refresh().finally(() => setLoading(false));
               }}
-              className="mt-3 rounded-xl border border-(--app-border) bg-(--app-surface) px-4 py-2 text-xs font-medium text-(--app-danger) shadow-sm hover:bg-(--app-danger-soft) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--app-danger)/40"
-            >
+              className="mt-3 rounded-xl border border-(--app-border) bg-(--app-surface) px-4 py-2 text-xs font-medium text-(--app-danger) shadow-sm hover:bg-(--app-danger-soft) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--app-danger)/40">
               重新加载
             </button>
           </div>
         ) : templates.length === 0 ? (
+          /* 态3: 无模板 → 引导创建（虚线边框 + 图标 + 文案 + 创建按钮） */
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-(--app-border) bg-(--app-surface-raised)/50 px-6 py-24 text-center ring-1 ring-inset ring-(--app-border-subtle)">
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-(--app-surface) shadow-sm ring-1 ring-(--app-border)">
-              <Hash
-                className="h-7 w-7 text-(--app-text-muted)"
-                strokeWidth={1.25}
-              />
+              <Hash className="h-7 w-7 text-(--app-text-muted)" strokeWidth={1.25} />
             </div>
-            <p className="text-sm font-medium text-(--app-text-primary)">
-              还没有筛选模版
-            </p>
+            <p className="text-sm font-medium text-(--app-text-primary)">还没有筛选模版</p>
             <p className="mt-1.5 max-w-[280px] text-xs text-(--app-text-secondary)">
               创建第一个模版，保存你的常用筛选条件组合
             </p>
-            <button
-              type="button"
-              onClick={handleCreate}
-              className="mt-6 rounded-full bg-(--app-primary) px-5 py-2.5 text-xs font-semibold text-white shadow-sm shadow-(--app-primary)/30 transition-colors hover:bg-(--app-primary-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--app-ring-strong) focus-visible:ring-offset-2 focus-visible:ring-offset-(--app-bg)"
-            >
+            <button type="button" onClick={handleCreate}
+              className="mt-6 rounded-full bg-(--app-primary) px-5 py-2.5 text-xs font-semibold text-white shadow-sm shadow-(--app-primary)/30 transition-colors hover:bg-(--app-primary-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--app-ring-strong) focus-visible:ring-offset-2 focus-visible:ring-offset-(--app-bg)">
               创建第一个模版
             </button>
           </div>
         ) : (
+          /* 态4: 有数据 → 计数 + 响应式卡片网格（1列/2列/3列） */
           <div>
             <p className="mb-3 text-sm text-(--app-text-secondary)">
               共 {templates.length} 个模板
             </p>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {templates.map((t) => (
-              <TemplateCard
-                key={t.id}
-                template={t}
-                onEdit={handleEdit}
-                onDuplicate={handleDuplicate}
-                onDelete={handleDelete}
-                onSetDefault={handleSetDefault}
-                onApply={handleApply}
-              />
+              <TemplateCard key={t.id} template={t}
+                onEdit={handleEdit} onDuplicate={handleDuplicate}
+                onDelete={handleDelete} onSetDefault={handleSetDefault}
+                onApply={handleApply} />
             ))}
             </div>
           </div>
         )}
       </div>
 
-      {/* 仅打开时挂载 + key 保证每次打开都重新挂载 */}
+      {/* ===== 编辑弹窗：仅打开时挂载，key 保证每次打开都重新初始化状态 ===== */}
       {editorOpen && (
         <EditorModal
           key={`${editorMode}-${editingTemplate?.id ?? "new"}`}
@@ -934,41 +942,36 @@ export default function ScreeningTemplate() {
         />
       )}
 
-      {/* Delete confirm */}
+      {/* ===== 删除确认弹窗（内联实现，非全局 ConfirmModal） ===== */}
+      {/* 为什么不用 ConfirmModal：此页面需要显示模板名称 + 额外提示信息 */}
       {confirmDelete && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          role="alertdialog"
-          aria-modal="true"
-          aria-label="确认删除"
-        >
-          <div
-            className="absolute inset-0 bg-(--app-overlay) backdrop-blur-sm"
-            aria-hidden
-          />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="alertdialog" aria-modal="true" aria-label="确认删除">
+          {/* 遮罩：点击不关闭（需要用户明确点击取消/确认） */}
+          <div className="absolute inset-0 bg-(--app-overlay) backdrop-blur-sm" aria-hidden />
+          {/* 弹窗主体 */}
           <div className="relative w-full max-w-sm rounded-2xl border border-(--app-border) bg-(--app-surface) p-6 shadow-(--app-shadow)">
+            {/* 红色删除图标 */}
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-(--app-danger-soft) ring-1 ring-(--app-border)">
               <Trash2 className="h-6 w-6 text-(--app-danger)" />
             </div>
+            {/* 确认文案：包含模板名称 */}
             <h3 className="text-base font-semibold text-(--app-text-primary)">
               删除模版「{confirmDelete.name}」？
             </h3>
             <p className="mt-2 text-sm text-(--app-text-secondary)">
               此操作不可撤销。已引用的位置将保留引用，但不会再自动更新。
             </p>
+            {/* 按钮区：取消（关闭弹窗）/ 确认删除（调 API） */}
             <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirmDelete(null)}
-                className="rounded-xl border border-(--app-border) bg-(--app-surface) px-4 py-2.5 text-sm font-medium text-(--app-text-primary) shadow-sm transition-colors hover:bg-(--app-surface-raised) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--app-border-strong)"
-              >
+              {/* 取消 → 关闭弹窗（setConfirmDelete(null)） */}
+              <button type="button" onClick={() => setConfirmDelete(null)}
+                className="rounded-xl border border-(--app-border) bg-(--app-surface) px-4 py-2.5 text-sm font-medium text-(--app-text-primary) shadow-sm transition-colors hover:bg-(--app-surface-raised) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--app-border-strong)">
                 取消
               </button>
-              <button
-                type="button"
-                onClick={confirmDeleteTemplate}
-                className="rounded-xl bg-(--app-danger) px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-(--app-danger)/20 transition-colors hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--app-danger)/50 focus-visible:ring-offset-2 focus-visible:ring-offset-(--app-surface)"
-              >
+              {/* 确认删除 → 调 confirmDeleteTemplate → API + 刷新列表 */}
+              <button type="button" onClick={confirmDeleteTemplate}
+                className="rounded-xl bg-(--app-danger) px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-(--app-danger)/20 transition-colors hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--app-danger)/50 focus-visible:ring-offset-2 focus-visible:ring-offset-(--app-surface)">
                 确认删除
               </button>
             </div>

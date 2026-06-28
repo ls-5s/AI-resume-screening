@@ -949,37 +949,29 @@ export function AiScreening() {
                     <label htmlFor="aiscreening-template" className="sr-only">
                       筛选模版
                     </label>
-                    {/* 筛选模板下拉：切换模板时自动应用对应的筛选条件 */}
+                    {/* 筛选模板下拉：value 三种情况 - 有激活模板显示 ID / 空条件显示 "" / 自定义条件显示 "__custom__" */}
                     <select
-                      id="aiscreening-template"
-                      title="选择筛选模版"
+                      id="aiscreening-template" title="选择筛选模版"
                       value={
                         activeTemplateId != null
-                          ? String(activeTemplateId)
+                          ? String(activeTemplateId)         // 有匹配的模板 → 显示模板 ID
                           : isEmptyPreFilter(preFilterConfig)
-                            ? ""
-                            : "__custom__"
+                            ? ""                             // 无筛选条件 → 显示 "无模版（清空条件）"
+                            : "__custom__"                  // 有自定义条件但不匹配任何模板 → 显示 "自定义"
                       }
                       onChange={(e) => {
                         const v = e.target.value;
-                        if (v === "__custom__") {
-                          setActiveTemplateId(null);
-                          return;
-                        }
-                        if (v === "") {
-                          setActiveTemplateId(null);
-                          setPreFilterConfig(getDefaultPreFilter());
-                          void loadResumes();
-                          return;
-                        }
+                        // 分支1: 选"自定义" → 保留当前条件，清除模板关联
+                        if (v === "__custom__") { setActiveTemplateId(null); return; }
+                        // 分支2: 选"无模版" → 清空条件 + 全量加载
+                        if (v === "") { setActiveTemplateId(null); setPreFilterConfig(getDefaultPreFilter()); void loadResumes(); return; }
+                        // 分支3: 选具体模板 → 应用模板的筛选条件 + 加载对应简历
                         const id = Number(v);
                         const tpl = screeningTemplates.find((t) => t.id === id);
                         if (!tpl) return;
                         setActiveTemplateId(id);
-                        setPreFilterConfig({ ...tpl.config });
-                        void loadResumes(
-                          isEmptyPreFilter(tpl.config) ? undefined : tpl.config,
-                        );
+                        setPreFilterConfig({ ...tpl.config }); // 浅拷贝防止污染
+                        void loadResumes(isEmptyPreFilter(tpl.config) ? undefined : tpl.config);
                         toast.success(`已选用「${tpl.name}」`);
                       }}
                       className="h-8 max-w-full min-w-0 flex-1 rounded-lg border border-(--app-ai-border) bg-(--app-surface) px-2 text-xs font-medium text-(--app-ai-text) shadow-sm focus:border-(--app-primary) focus:outline-none focus:ring-2 focus:ring-(--app-ai-border) sm:max-w-44 sm:flex-none"

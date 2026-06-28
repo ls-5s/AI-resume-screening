@@ -67,40 +67,52 @@ function SkeletonCard({ index }: { index: number }) {
   );
 }
 
+// ============================================================================
+// EmailTemplateList — 邮件模板管理组件
+//
+// 页面结构：
+//   顶部：模板计数 + 新建按钮
+//   中部：3 列卡片网格（每页 9 张），点击卡片展开底部预览面板
+//   底部：预览面板（模板名称/主题/正文全貌）+ 分页条
+//
+// 交互逻辑：
+//   - 点击卡片 → 同时设置 selectedTemplate（高亮）和 previewTemplate（预览面板）
+//   - 点击编辑 → 打开 Modal，填好 formData
+//   - 点击删除 → 弹出 ConfirmModal
+//   - 翻页时如果选中模板不在新页，自动选中新页第一项
+// ============================================================================
+
 export function EmailTemplateList({
   onRefresh,
   onUseTemplate,
 }: EmailTemplateListProps) {
-  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] =
-    useState<EmailTemplate | null>(null);
-  const [previewTemplate, setPreviewTemplate] = useState<EmailTemplate | null>(
-    null,
-  );
-  const [currentPage, setCurrentPage] = useState(1);
+  // --- 数据状态 ---
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);     // 全部模板
+  const [loading, setLoading] = useState(false);                         // 加载中
 
-  // 模板弹窗状态
-  const [showModal, setShowModal] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(
-    null,
-  );
-  const [formData, setFormData] = useState<CreateEmailTemplateData>({
+  // --- 选中与预览 ---
+  const [selectedTemplate, setSelectedTemplate] =                      // 当前高亮的卡片（控制边框样式）
+    useState<EmailTemplate | null>(null);
+  const [previewTemplate, setPreviewTemplate] = useState<EmailTemplate | null>(null); // 底部预览面板显示的内容
+
+  const [currentPage, setCurrentPage] = useState(1);                    // 当前页码
+
+  // --- 新建/编辑弹窗状态 ---
+  const [showModal, setShowModal] = useState(false);                    // 弹窗开关
+  const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null); // null=新建, 有值=编辑
+  const [formData, setFormData] = useState<CreateEmailTemplateData>({  // 表单受控数据
     name: "",
     subject: "",
     body: "",
   });
 
-  // 删除确认弹窗
+  // --- 删除确认弹窗 ---
   const [deleteConfirm, setDeleteConfirm] = useState<{
     show: boolean;
     template: EmailTemplate | null;
-  }>({
-    show: false,
-    template: null,
-  });
+  }>({ show: false, template: null });
 
-  // 加载模板
+  // 加载全部模板列表
   const loadTemplates = async () => {
     setLoading(true);
     try {
@@ -117,29 +129,26 @@ export function EmailTemplateList({
     loadTemplates();
   }, []);
 
-  // 默认选中第一个模板
+  // 首次加载后自动选中第一个模板（用于激活预览面板）
   useEffect(() => {
     if (templates.length > 0 && !selectedTemplate) {
       setSelectedTemplate(templates[0]);
     }
   }, [templates, selectedTemplate]);
 
-  // 分页
+  // ===== 分页逻辑 =====
   const totalPages = Math.max(1, Math.ceil(templates.length / PAGE_SIZE));
   const startIndex = (currentPage - 1) * PAGE_SIZE;
-  const paginatedTemplates = templates.slice(
-    startIndex,
-    startIndex + PAGE_SIZE,
-  );
+  const paginatedTemplates = templates.slice(startIndex, startIndex + PAGE_SIZE);
 
-  // 数据变少时若当前页超出范围，则回到最后一页
+  // 删除模板导致当前页为空时，回退到最后一页
   useEffect(() => {
     if (templates.length > 0 && currentPage > totalPages) {
       setCurrentPage(totalPages);
     }
   }, [templates.length, totalPages, currentPage]);
 
-  // 切换页时若当前选中项不在本页，则选中本页第一项
+  // 翻页时，如果之前选中的模板不在新页中 → 自动选新页第一条
   useEffect(() => {
     if (templates.length === 0) return;
     const start = (currentPage - 1) * PAGE_SIZE;
@@ -154,7 +163,7 @@ export function EmailTemplateList({
     }
   }, [currentPage, templates, selectedTemplate]);
 
-  // 打开弹窗
+  // 打开新建/编辑弹窗：传入 template → 编辑模式（预填数据）；无参数 → 新建模式（空白表单）
   const openModal = (template?: EmailTemplate) => {
     if (template) {
       setEditingTemplate(template);
@@ -179,7 +188,7 @@ export function EmailTemplateList({
     setEditingTemplate(null);
   };
 
-  // 提交表单
+  // 提交表单：新建 → createEmailTemplate / 编辑 → updateEmailTemplate
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -197,7 +206,7 @@ export function EmailTemplateList({
     }
   };
 
-  // 删除模板
+  // 确认删除：调 API → 如果删的是当前选中模板则清除选中 → 刷新列表
   const handleDelete = async () => {
     if (!deleteConfirm.template) return;
     try {
@@ -226,7 +235,7 @@ export function EmailTemplateList({
 
   return (
     <div>
-      {/* 卡片网格区域 */}
+      {/* ===== 三态内容区：loading 骨架 / 空状态引导 / 卡片网格 ===== */}
       {loading ? (
         <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -260,7 +269,7 @@ export function EmailTemplateList({
         </div>
       ) : (
         <>
-          {/* 操作栏 */}
+          {/* 操作栏：模板总数 + 新建按钮 */}
           <div className="mb-5 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-sm text-(--app-text-secondary)">
@@ -281,13 +290,14 @@ export function EmailTemplateList({
             </button>
           </div>
 
-          {/* 卡片网格 */}
+          {/* 卡片网格：每页 9 张（3 列 × 3 行），点击选中并展开预览 */}
           <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {paginatedTemplates.map((template, index) => {
               const isSelected = selectedTemplate?.id === template.id;
               return (
                 <div
                   key={template.id}
+                  // 点击卡片 → 高亮选中 + 底部展示预览面板
                   onClick={() => {
                     setSelectedTemplate(template);
                     setPreviewTemplate(template);
@@ -420,7 +430,7 @@ export function EmailTemplateList({
             })}
           </div>
 
-          {/* 分页 */}
+          {/* 分页条：只在超过 1 页时显示，包含页码按钮 + 上下页箭头 */}
           {totalPages > 1 && (
             <div className="mb-8 flex items-center justify-between rounded-2xl border border-(--app-border) bg-(--app-surface) px-5 py-3 shadow-(--app-shadow-sm) ring-1 ring-(--app-border-subtle)">
               <span className="text-sm text-(--app-text-secondary)">
@@ -468,7 +478,7 @@ export function EmailTemplateList({
         </>
       )}
 
-      {/* 预览面板：独立浮层面板，Dashboard 风格 */}
+      {/* ===== 底部预览面板：卡片网格下方，展示选中模板的完整信息 ===== */}
       {previewTemplate && (
         <div className="mb-8 overflow-hidden rounded-3xl border border-(--app-border) bg-(--app-surface) shadow-(--app-shadow-sm) ring-1 ring-(--app-border-subtle)">
           {/* 预览面板头部 */}
@@ -529,9 +539,9 @@ export function EmailTemplateList({
             </div>
           </div>
 
-          {/* 预览内容 */}
+          {/* 预览面板内容：三列摘要（名称/创建时间/更新时间）+ 主题 + 正文 */}
           <div className="p-6">
-            {/* 邮件信息摘要 */}
+            {/* 三列信息摘要 */}
             <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="rounded-xl bg-(--app-primary-soft)/60 px-4 py-3 ring-1 ring-inset ring-(--app-primary)/10">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-(--app-primary)/80 mb-1.5">
@@ -598,7 +608,7 @@ export function EmailTemplateList({
         </div>
       )}
 
-      {/* 模板编辑弹窗 — Dashboard 风格 */}
+      {/* ===== 新建/编辑弹窗：名称 + 主题 + 正文 三字段 ===== */}
       <Modal
         isOpen={showModal}
         onClose={closeModal}
@@ -639,7 +649,7 @@ export function EmailTemplateList({
         }
       >
         <form id="template-form" onSubmit={handleSubmit} className="space-y-5">
-          {/* 模板名称 */}
+          {/* 模板名称（必填） */}
           <div>
             <label className="mb-2 block text-sm font-semibold text-(--app-text-secondary)">
               模板名称 <span className="text-(--app-danger)">*</span>
@@ -656,7 +666,7 @@ export function EmailTemplateList({
             />
           </div>
 
-          {/* 邮件主题 */}
+          {/* 邮件主题（必填，支持 {{name}} 等变量占位） */}
           <div>
             <label className="mb-2 block text-sm font-semibold text-(--app-text-secondary)">
               邮件主题 <span className="text-(--app-danger)">*</span>
@@ -673,7 +683,7 @@ export function EmailTemplateList({
             />
           </div>
 
-          {/* 邮件正文 */}
+          {/* 邮件正文（必填，支持变量替换和多行文本） */}
           <div>
             <label className="mb-2 block text-sm font-semibold text-(--app-text-secondary)">
               邮件正文 <span className="text-(--app-danger)">*</span>
@@ -691,7 +701,7 @@ export function EmailTemplateList({
         </form>
       </Modal>
 
-      {/* 删除确认弹窗 */}
+      {/* ===== 删除确认弹窗：deleteConfirm.show 为 true 时显示 ===== */}
       <ConfirmModal
         isOpen={deleteConfirm.show}
         onClose={() => setDeleteConfirm({ show: false, template: null })}
