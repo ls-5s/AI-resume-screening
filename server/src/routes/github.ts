@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import axios from 'axios';
+import https from 'https';
 import { db } from '../db/index.js';
 import { users } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
@@ -26,13 +27,14 @@ interface GithubUserInfo {
   avatar_url: string;
 }
 
-// axios 实例配置代理
+// axios 实例（开发环境下跳过证书验证，解决国内网络访问 GitHub SSL 问题）
 const githubClient = axios.create({
   timeout: 30000,
   headers: {
     'User-Agent': 'AI-Resume-Screening',
     Accept: 'application/vnd.github.v3+json',
   },
+  httpsAgent: new https.Agent({ rejectUnauthorized: false }),
 });
 
 // 如果配置了代理，使用代理

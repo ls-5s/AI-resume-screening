@@ -447,15 +447,6 @@ export function ProfileSettings() {
         </div>
       </div>
 
-      {/* Help text */}
-      {!isEditing && (
-        <div className="rounded-2xl border border-dashed border-(--app-border) bg-(--app-surface-raised)/40 p-4">
-          <p className="flex items-center gap-2 text-sm text-(--app-text-secondary)">
-            <AlertCircle className="h-4 w-4 shrink-0 text-(--app-text-muted)" />
-            如需修改邮箱或其他信息，请联系管理员处理。
-          </p>
-        </div>
-      )}
     </div>
   );
 }

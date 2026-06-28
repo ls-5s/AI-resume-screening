@@ -9,6 +9,13 @@ import type {
   PendingInvite,
 } from "../types/team";
 
+// 创建团队
+export const createTeam = async (
+  data: { name: string; description?: string }
+): Promise<Team> => {
+  return instance.post("/v1/team/create", data) as Promise<Team>;
+};
+
 // 获取团队信息
 export const getTeam = async (): Promise<Team> => {
   return instance.get("/v1/team") as Promise<Team>;

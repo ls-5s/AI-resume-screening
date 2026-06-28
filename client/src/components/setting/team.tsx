@@ -18,8 +18,10 @@ import {
 } from "lucide-react";
 import toast from "../../utils/toast";
 import { SettingSkeleton } from "./SettingSkeleton";
-import type { TeamMember, MemberRole, InviteLink, PendingInvite } from "../../types/team";
+import type { Team, TeamMember, MemberRole, InviteLink, PendingInvite } from "../../types/team";
 import {
+  getTeam,
+  createTeam as createTeamApi,
   getTeamMembers,
   getCurrentUserRole,
   createInviteLink as createInviteLinkApi,
@@ -253,6 +255,92 @@ function usePendingInvites(onComplete: () => void): UsePendingInvitesReturn {
     handleApprove,
     handleReject,
   };
+}
+
+// ============================================================================
+// CreateTeamForm
+// ============================================================================
+
+function CreateTeamForm({ onCreated }: { onCreated: () => void }) {
+  const [teamName, setTeamName] = useState("");
+  const [description, setDescription] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  const handleCreate = async () => {
+    if (!teamName.trim()) {
+      toast.error("请输入团队名称");
+      return;
+    }
+    setCreating(true);
+    try {
+      await createTeamApi({ name: teamName.trim(), description: description.trim() || undefined });
+      toast.success("团队创建成功");
+      onCreated();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "创建团队失败";
+      toast.error(msg);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border border-(--app-border) bg-(--app-surface) p-8">
+      <div className="mx-auto max-w-md text-center">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-linear-to-br from-(--app-primary) to-(--app-accent)">
+          <Users className="h-8 w-8 text-white" />
+        </div>
+        <h2 className="mb-2 text-xl font-semibold text-(--app-text-primary)">创建你的团队</h2>
+        <p className="mb-6 text-sm text-(--app-text-secondary)">
+          创建一个团队后，你可以邀请同事加入，共享简历和 AI 配置
+        </p>
+
+        <div className="mb-4 text-left">
+          <label className="mb-1.5 block text-sm font-medium text-(--app-text-primary)">
+            团队名称 <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={teamName}
+            onChange={(e) => setTeamName(e.target.value)}
+            placeholder="例如：XX 科技招聘团队"
+            className="w-full rounded-xl border border-(--app-border) bg-(--app-bg) px-4 py-2.5 text-sm text-(--app-text-primary) placeholder:text-(--app-text-muted) focus:border-(--app-primary) focus:outline-none focus:ring-2 focus:ring-(--app-ring)"
+          />
+        </div>
+
+        <div className="mb-6 text-left">
+          <label className="mb-1.5 block text-sm font-medium text-(--app-text-primary)">
+            团队描述（可选）
+          </label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="简单介绍一下你的团队..."
+            rows={3}
+            className="w-full rounded-xl border border-(--app-border) bg-(--app-bg) px-4 py-2.5 text-sm text-(--app-text-primary) placeholder:text-(--app-text-muted) focus:border-(--app-primary) focus:outline-none focus:ring-2 focus:ring-(--app-ring)"
+          />
+        </div>
+
+        <button
+          onClick={() => void handleCreate()}
+          disabled={creating || !teamName.trim()}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-(--app-primary) to-(--app-accent) px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {creating ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              创建中...
+            </>
+          ) : (
+            <>
+              <Users className="h-4 w-4" />
+              创建团队
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 // ============================================================================
@@ -692,6 +780,47 @@ function PendingInvitesSection({
 // ============================================================================
 
 export function TeamSettings() {
+  const [checkingTeam, setCheckingTeam] = useState(true);
+  const [hasTeam, setHasTeam] = useState(false);
+
+  // 先检查用户是否有团队
+  useEffect(() => {
+    const checkTeam = async () => {
+      try {
+        const team = await getTeam();
+        setHasTeam(team.hasTeam ?? false);
+      } catch {
+        setHasTeam(false);
+      } finally {
+        setCheckingTeam(false);
+      }
+    };
+    void checkTeam();
+  }, []);
+
+  // 创建团队成功后刷新页面
+  const handleTeamCreated = () => {
+    window.location.reload();
+  };
+
+  if (checkingTeam) {
+    return <SettingSkeleton rows={4} message="加载团队信息..." />;
+  }
+
+  // 没有团队 → 显示创建团队表单
+  if (!hasTeam) {
+    return <CreateTeamForm onCreated={handleTeamCreated} />;
+  }
+
+  // 有团队 → 显示团队管理 UI
+  return <TeamManagement />;
+}
+
+// ============================================================================
+// TeamManagement — 团队管理（有团队后显示）
+// ============================================================================
+
+function TeamManagement() {
   const {
     members,
     currentUserId,
