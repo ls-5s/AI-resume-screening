@@ -29,11 +29,26 @@ export async function registerUser({ username, email, password }: RegisterParams
   const hashedPassword = await bcrypt.hash(password, 10);
 
   // 3. 插入用户
-  const result = await db.insert(users).values({
-    username,
-    email,
-    password: hashedPassword,
-  });
+  try {
+    const result = await db.insert(users).values({
+      username,
+      email,
+      password: hashedPassword,
+    });
+  } catch (dbErr) {
+    const msg = dbErr instanceof Error ? dbErr.message : String(dbErr);
+    const cause = dbErr instanceof Error ? (dbErr as any).cause : undefined;
+    console.error("[register] 数据库插入失败:", msg);
+    if (cause) console.error("[register] 底层错误:", cause);
+    // 透传数据库错误，方便排查
+    if (msg.includes("no such table")) {
+      throw new Error("数据库表未创建，请重启服务端以自动建表");
+    }
+    if (msg.includes("UNIQUE constraint failed")) {
+      throw new Error("邮箱已被注册");
+    }
+    throw new Error(`注册失败: ${msg}`);
+  }
 
   // 获取刚插入的用户ID（MySQL 使用 lastInsertId）
   const [newUser] = await db.select({ id: users.id })

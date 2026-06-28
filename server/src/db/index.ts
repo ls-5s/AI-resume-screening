@@ -2,12 +2,12 @@ import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "./schema";
 
-const databaseUrl = process.env.DATABASE_URL?.trim();
 const tursoUrl = process.env.TURSO_DATABASE_URL?.trim();
 const tursoToken = process.env.TURSO_AUTH_TOKEN?.trim();
+const databaseUrl = process.env.DATABASE_URL?.trim();
 
-// 优先使用 DATABASE_URL（支持本地 SQLite），其次使用 Turso
-const dbUrl = databaseUrl || tursoUrl;
+// 优先使用 Turso，其次使用 DATABASE_URL（本地 SQLite file: 路径）
+const dbUrl = tursoUrl || databaseUrl;
 
 if (!dbUrl) {
   throw new Error(
@@ -17,7 +17,7 @@ if (!dbUrl) {
 
 const client = createClient({
   url: dbUrl,
-  authToken: databaseUrl ? undefined : tursoToken, // SQLite 不需要 token
+  authToken: tursoUrl ? tursoToken : undefined, // Turso 需要 token，本地 SQLite 不需要
 });
 
 export const db = drizzle(client, { schema });
@@ -38,6 +38,19 @@ export async function testConnection(): Promise<boolean> {
 export async function ensureTables(): Promise<void> {
   // 仅本地 tsx 开发时需要自动建表
   if (process.env.NODE_ENV === "production" || process.env.VERCEL) return;
+
+  // 诊断：先查一下现有表
+  try {
+    const tables = await client.execute(
+      "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+    );
+    console.log("[ensureTables] 现有表:", tables.rows.map((r) => r.name));
+    // 诊断 users 表结构
+    const cols = await client.execute("PRAGMA table_info(users)");
+    console.log("[ensureTables] users 列:", cols.rows.map((r: any) => `${r.name}(${r.type})`));
+  } catch (e) {
+    console.warn("[ensureTables] 无法查询现有表:", e);
+  }
 
   const migrations = [
     // users 表（其他表都依赖它）
@@ -172,11 +185,21 @@ export async function ensureTables(): Promise<void> {
     `CREATE INDEX IF NOT EXISTS team_invite_team_id_idx ON team_invites(team_id)`,
     `CREATE INDEX IF NOT EXISTS team_invite_token_idx ON team_invites(token)`,
     `CREATE INDEX IF NOT EXISTS team_invite_email_idx ON team_invites(invitee_email)`,
+    // 补丁：为旧版 users 表补加 github_id / github_username 列
+    // 注意：Turso 不支持 ALTER TABLE ADD COLUMN ... UNIQUE，所以 UNIQUE 约束只能通过重建表实现
+    // 这俩列允许为 NULL，对功能无影响
+    `ALTER TABLE users ADD COLUMN github_id TEXT`,
+    `ALTER TABLE users ADD COLUMN github_username TEXT`,
   ];
 
   for (const sql of migrations) {
     try {
       await client.execute(sql);
+      // 提取表名用于日志
+      const tableMatch = sql.match(/CREATE TABLE IF NOT EXISTS\s+(\w+)/);
+      if (tableMatch) {
+        console.log(`[ensureTables] 表已就绪: ${tableMatch[1]}`);
+      }
     } catch (err: unknown) {
       // 忽略 "table already exists" / "no such column" 等非致命错误
       const msg = err instanceof Error ? err.message : String(err);
