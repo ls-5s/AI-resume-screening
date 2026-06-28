@@ -1,3 +1,8 @@
+/**
+ * 简历列表页 (路由: /app/resumes)
+ * 简历搜索、筛选、排序、状态管理
+ */
+
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import toast from "../../utils/toast";

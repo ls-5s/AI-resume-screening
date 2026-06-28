@@ -1,3 +1,8 @@
+/**
+ * 设置页 (路由: /app/settings)
+ * 标签页：个人资料 / AI 配置 / 邮箱配置 / 团队管理
+ */
+
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Bot, Mail, User, Users } from "lucide-react";

@@ -1,3 +1,8 @@
+/**
+ * 预筛选弹窗
+ * 手动设置筛选条件（关键词、评分阈值等）进行预筛选
+ */
+
 import { useEffect } from "react";
 import { Filter, X } from "lucide-react";
 import type { PreFilterConfig } from "./preFilterUtils";

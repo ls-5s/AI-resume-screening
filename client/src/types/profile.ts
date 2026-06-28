@@ -1,3 +1,8 @@
+/**
+ * 个人资料类型定义
+ * 用户资料更新请求参数接口
+ */
+
 export interface Profile {
   id: number;
   username: string;

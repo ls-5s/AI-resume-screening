@@ -1,3 +1,8 @@
+/**
+ * AI 筛选设置弹窗
+ * 配置 AI 模型、岗位要求、筛选参数
+ */
+
 import { useEffect } from "react";
 import { Loader2, Sparkles, X, Briefcase } from "lucide-react";
 import type { AiConfig } from "../../types/ai";

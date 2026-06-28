@@ -1,3 +1,8 @@
+/**
+ * 类型导出汇总
+ * Express Request 扩展（req.user）、全局类型声明
+ */
+
 import { Request, Response, NextFunction } from 'express';
 
 export interface ApiResponse<T = unknown> {

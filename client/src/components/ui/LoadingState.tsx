@@ -1,3 +1,8 @@
+/**
+ * 加载状态组件
+ * 数据加载中的旋转动画 + 加载文字
+ */
+
 import { Loader2 } from "lucide-react";
 
 interface LoadingStateProps {

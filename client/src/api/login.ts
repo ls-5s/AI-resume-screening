@@ -1,3 +1,8 @@
+/**
+ * 登录注册 API
+ * 邮箱登录、注册、Token 刷新
+ */
+
 import instance from "../utils/http";
 import type { UserInfo, LoginData, RegisterData, RefreshTokenResponse } from "../types/login";
 

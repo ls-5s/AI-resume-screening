@@ -1,3 +1,10 @@
+/**
+ * 仪表盘与活动路由
+ * GET  /v1/dashboard/stats - 仪表盘统计数据
+ * GET  /v1/activities      - 分页活动日志
+ * POST /v1/activity         - 记录活动
+ */
+
 import express, { Request, Response, Router } from "express";
 import {
   getDashboardStats,

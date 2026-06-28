@@ -1,3 +1,8 @@
+/**
+ * 团队协作路由
+ * 团队 CRUD、成员管理、角色变更、邀请链接、申请审批
+ */
+
 import { Router, Request, Response } from "express";
 import type { Router as RouterType } from "express";
 import { authenticate } from "../middleware/auth.js";

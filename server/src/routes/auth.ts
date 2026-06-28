@@ -1,3 +1,8 @@
+/**
+ * GitHub OAuth 路由
+ * GET  /v1/auth/github/authorize - 获取 GitHub 授权 URL（含 anti-CSRF state）
+ */
+
 import { Router, Request, Response } from 'express';
 import type { Router as RouterType } from 'express';
 import crypto from 'crypto';

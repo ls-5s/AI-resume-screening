@@ -1,3 +1,8 @@
+/**
+ * 主题状态管理 (Zustand)
+ * 明/暗主题切换，状态持久化到 localStorage
+ */
+
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 

@@ -1,3 +1,8 @@
+/**
+ * Toast 消息提示组件
+ * 全局消息通知，支持 success/error/warning/info 类型和自动关闭
+ */
+
 import { CheckCircle, XCircle, AlertCircle, Info } from "lucide-react";
 import { useState, useEffect, type ReactElement } from "react";
 import { toastState } from "../utils/toast";

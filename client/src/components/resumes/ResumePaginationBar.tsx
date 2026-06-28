@@ -1,3 +1,8 @@
+/**
+ * 分页栏组件
+ * 简历列表底部分页控件
+ */
+
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;

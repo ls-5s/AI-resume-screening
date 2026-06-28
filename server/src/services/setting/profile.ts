@@ -1,3 +1,9 @@
+/**
+ * 个人资料服务
+ * getProfile - 获取用户资料
+ * updateProfile - 更新用户名/头像
+ */
+
 import { db } from '../../db/index.js';
 import { users } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';

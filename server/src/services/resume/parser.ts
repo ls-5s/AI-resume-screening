@@ -1,3 +1,9 @@
+/**
+ * 简历文件解析服务
+ * parseDocument - 将 PDF（pdf-parse）/ DOCX（mammoth）解析为纯文本
+ * getFileType - 根据文件名返回类型
+ */
+
 import fs from 'fs';
 import path from 'path';
 import mammoth from 'mammoth';

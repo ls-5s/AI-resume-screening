@@ -1,3 +1,8 @@
+/**
+ * UserInfo 用户信息组件
+ * 显示当前用户头像和用户名
+ */
+
 import { useState, useEffect } from "react";
 import { LogOut } from "lucide-react";
 import { Link } from "react-router-dom";

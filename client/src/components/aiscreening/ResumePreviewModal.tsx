@@ -1,3 +1,8 @@
+/**
+ * 简历预览弹窗
+ * 全屏预览简历内容，包含 AI 评分和维度分析
+ */
+
 import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, Loader2 } from "lucide-react";
 import mammoth from "mammoth";

@@ -1,3 +1,8 @@
+/**
+ * 邮件模板 API
+ * 模板的增删改查接口
+ */
+
 import instance from "../utils/http";
 import type {
   EmailTemplate,

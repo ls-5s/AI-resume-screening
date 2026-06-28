@@ -1,3 +1,8 @@
+/**
+ * AI 推理内容组件
+ * 展示 AI 对候选人各维度的评估理由和详细分析
+ */
+
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";

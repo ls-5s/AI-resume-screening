@@ -1,3 +1,8 @@
+/**
+ * 状态反馈组件
+ * 操作结果的全局提示（加载中/成功/失败/警告）
+ */
+
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 
 interface TestResult {

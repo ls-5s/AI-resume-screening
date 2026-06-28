@@ -1,3 +1,8 @@
+/**
+ * 认证 API
+ * GitHub OAuth 授权登录、获取当前用户信息
+ */
+
 import instance from "../utils/http";
 
 interface GithubUser {

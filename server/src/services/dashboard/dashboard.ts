@@ -1,3 +1,10 @@
+/**
+ * 仪表盘服务
+ * getDashboardStats - 统计简历总数/各状态数/今日新增/本周趋势/最近活动
+ * listActivities - 分页查询活动日志
+ * createActivity - 插入活动记录
+ */
+
 import { db } from "../../db/index.js";
 import { resumes, activities } from "../../db/schema.js";
 import { eq, and, sql, desc } from "drizzle-orm";

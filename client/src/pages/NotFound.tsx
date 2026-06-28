@@ -1,3 +1,8 @@
+/**
+ * 404 页面
+ * 路由未匹配时显示的页面
+ */
+
 import { Link } from "react-router-dom";
 import { Home } from "lucide-react";
 

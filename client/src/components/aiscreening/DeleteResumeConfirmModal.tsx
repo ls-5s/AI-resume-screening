@@ -1,3 +1,8 @@
+/**
+ * 删除简历确认弹窗
+ * 二次确认删除操作，防止误删
+ */
+
 import * as Dialog from "@radix-ui/react-dialog";
 import { Trash2, X } from "lucide-react";
 

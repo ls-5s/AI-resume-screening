@@ -1,3 +1,8 @@
+/**
+ * 登录页 (路由: /)
+ * 登录/注册双标签切换 + GitHub OAuth 入口
+ */
+
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useLoginStore } from "../../store/Login";

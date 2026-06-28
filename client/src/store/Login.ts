@@ -1,3 +1,8 @@
+/**
+ * 登录状态管理 (Zustand)
+ * 存储用户 token、用户信息，提供登录/登出/初始化方法
+ */
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 

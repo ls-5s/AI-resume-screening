@@ -1,3 +1,8 @@
+/**
+ * AI 筛选主组件
+ * AI 筛选页面的核心逻辑：候选人列表、筛选面板、评分展示
+ */
+
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import toast from "../../utils/toast";

@@ -1,3 +1,8 @@
+/**
+ * 设置页骨架屏
+ * 设置页面加载时的占位动画
+ */
+
 interface SettingSkeletonProps {
   rows?: number;
   message?: string;

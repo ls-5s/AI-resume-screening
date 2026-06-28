@@ -1,3 +1,8 @@
+/**
+ * 仪表盘 API
+ * 获取统计数据、活动日志
+ */
+
 import instance from "../utils/http";
 import type {
   DashboardStats,

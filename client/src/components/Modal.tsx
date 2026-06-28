@@ -1,3 +1,8 @@
+/**
+ * Modal 弹窗组件
+ * 通用模态框，支持标题、内容、确认/取消按钮、自定义尺寸
+ */
+
 import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 

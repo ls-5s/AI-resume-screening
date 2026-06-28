@@ -1,3 +1,12 @@
+/**
+ * AI 配置与筛选服务
+ * AI 配置 CRUD（API Key AES 加密存储）
+ * testAiConfig - 测试 AI API 连接（支持 OpenAI 兼容 / 阿里云 DashScope）
+ * screenResumeWithAi - 单份简历 AI 7 维评分
+ * batchScreenResumesWithAi - 批量 AI 筛选
+ * generateInterviewQuestions - AI 生成面试题
+ */
+
 import { db } from "../../db/index";
 import { aiConfigs, resumes } from "../../db/schema";
 import type { AiConfig } from "../../db/schema";

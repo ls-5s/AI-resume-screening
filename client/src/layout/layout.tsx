@@ -1,3 +1,8 @@
+/**
+ * Layout 主布局组件
+ * 侧边栏导航 + 顶栏 + 内容区，支持折叠、主题切换、用户信息
+ */
+
 import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import {

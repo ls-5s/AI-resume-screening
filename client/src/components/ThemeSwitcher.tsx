@@ -1,3 +1,8 @@
+/**
+ * ThemeSwitcher 主题切换组件
+ * 明/暗主题切换按钮，状态持久化到 Zustand store
+ */
+
 import { motion, LayoutGroup } from "framer-motion";
 import { Sun, Moon } from "lucide-react";
 import { useThemeStore, type ThemeMode } from "../store/theme";

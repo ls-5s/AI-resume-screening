@@ -1,3 +1,8 @@
+/**
+ * 邮件发送 API
+ * 获取收件人列表、批量发送邮件、发送统计
+ */
+
 import instance from "../utils/http";
 import type { EmailConfig, CreateEmailConfigData, UpdateEmailConfigData, TestEmailConfigResult } from "../types/email";
 

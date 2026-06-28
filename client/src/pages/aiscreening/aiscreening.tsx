@@ -1,3 +1,8 @@
+/**
+ * AI 智能筛选页 (路由: /app/aiscreening)
+ * AI 驱动的简历筛选：上传岗位要求、AI 评分、结果排序
+ */
+
 import { AiScreening } from "../../components/aiscreening/AiScreening";
 
 /**

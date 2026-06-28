@@ -1,3 +1,10 @@
+/**
+ * 登录注册路由
+ * POST /v1/login   - 邮箱密码登录
+ * POST /v1/register - 用户名邮箱密码注册
+ * POST /v1/refresh  - 刷新 Token
+ */
+
 import { Router, Request, Response } from 'express';
 import type { Router as RouterType } from 'express';
 import { loginUser, refreshToken } from '../services/login/login.js';

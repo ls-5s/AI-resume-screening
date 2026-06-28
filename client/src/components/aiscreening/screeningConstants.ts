@@ -1,3 +1,8 @@
+/**
+ * AI 筛选常量配置
+ * 评分维度定义、默认筛选条件、颜色映射等
+ */
+
 export const SCREENING_STATUS_META = {
   pending: {
     badge: "bg-(--app-ai-soft) text-(--app-primary) border border-(--app-ai-border)",

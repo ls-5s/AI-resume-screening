@@ -1,3 +1,11 @@
+/**
+ * 设置相关路由（个人资料 / 邮箱配置 / AI 配置 / AI 筛选）
+ * 个人资料：GET/PUT /v1/profile
+ * 邮箱配置：CRUD /v1/emails + POST /v1/emails/:id/test
+ * AI 配置：CRUD /v1/ai + POST /v1/ai/test
+ * AI 筛选：POST /v1/ai/screen、/v1/ai/batch-screen、/v1/ai/interview-questions
+ */
+
 import { Router, Request, Response } from 'express';
 import type { Router as RouterType } from 'express';
 import { authenticate } from '../middleware/auth.js';

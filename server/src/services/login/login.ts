@@ -1,3 +1,9 @@
+/**
+ * 登录服务
+ * loginUser - 邮箱密码验证、JWT Token 签发（Access 7天 + Refresh 30天）
+ * refreshToken - 验证 Refresh Token 并签发新 Token 对
+ */
+
 import { users } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';

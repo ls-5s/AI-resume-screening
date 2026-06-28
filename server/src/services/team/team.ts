@@ -1,3 +1,10 @@
+/**
+ * 团队协作服务
+ * 团队 CRUD、成员角色管理（Owner/Admin/Member）
+ * 基于 Token 的邀请链接系统：创建邀请、申请加入、审批/拒绝
+ * 团队可见性：getUserVisibleTeamIds 确定用户可见的简历范围
+ */
+
 import { db } from "../../db/index.js";
 import { teams, teamMembers, users, teamInvites } from "../../db/schema.js";
 import { eq, and, inArray } from "drizzle-orm";

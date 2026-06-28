@@ -1,3 +1,7 @@
+/**
+ * 仪表盘组件导出
+ */
+
 export { StatCardList } from "./StatCard";
 export { default as ActivityList } from "./ActivityList";
 export { default as QuickActions } from "./QuickActions";

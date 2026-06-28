@@ -1,3 +1,8 @@
+/**
+ * 邮件模板类型定义
+ * 模板数据结构接口
+ */
+
 // 邮件模板类型定义
 
 export interface EmailTemplate {

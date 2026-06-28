@@ -1,3 +1,8 @@
+/**
+ * 邮箱配置类型定义
+ * IMAP/SMTP 配置、发送请求参数接口
+ */
+
 export interface EmailConfig {
   id: number;
   userId: number;

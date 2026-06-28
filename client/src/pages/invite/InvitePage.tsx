@@ -1,3 +1,8 @@
+/**
+ * 团队邀请页 (路由: /invite/:token)
+ * 通过邀请链接查看团队信息并申请加入
+ */
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Users, Clock, Loader2, AlertCircle, CheckCircle } from "lucide-react";

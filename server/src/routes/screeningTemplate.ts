@@ -1,3 +1,8 @@
+/**
+ * 筛选模板路由
+ * CRUD /v1/screening-templates + 复制 (/:id/duplicate) + 设为默认 (/:id/set-default)
+ */
+
 import express, { Request, Response, Router } from "express";
 import { db } from "../db/index.js";
 import { screeningTemplates } from "../db/schema.js";

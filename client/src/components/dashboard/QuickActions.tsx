@@ -1,3 +1,8 @@
+/**
+ * 快捷操作组件
+ * 仪表盘常用操作入口（上传简历、AI 筛选等）
+ */
+
 import { Link } from "react-router-dom";
 import {
   LayoutDashboard,

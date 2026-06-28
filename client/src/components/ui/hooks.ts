@@ -1,3 +1,8 @@
+/**
+ * UI 自定义 Hooks
+ * 通用的 UI 状态管理 hooks（如 useToggle、useDebounce）
+ */
+
 import { useMemo, useCallback } from "react";
 
 /**

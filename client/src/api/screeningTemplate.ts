@@ -1,3 +1,8 @@
+/**
+ * 筛选模板 API
+ * 模板的增删改查、设为默认、复制
+ */
+
 import instance from "../utils/http";
 import type { PreFilterConfig } from "../components/aiscreening/preFilterUtils";
 import type {

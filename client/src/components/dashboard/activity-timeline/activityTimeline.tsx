@@ -1,3 +1,8 @@
+/**
+ * 活动时间线组件
+ * 以时间线形式展示用户操作历史
+ */
+
 import { useNavigate } from "react-router-dom";
 import type { Activity } from "../../../types/dashboard";
 import { formatRelativeTime } from "../../../utils/format";

@@ -1,3 +1,7 @@
+/**
+ * pdf-parse 模块类型声明
+ */
+
 declare module 'pdf-parse' {
   interface PDFData {
     numpages: number;

@@ -1,3 +1,8 @@
+/**
+ * 筛选模板管理页 (路由: /app/screening-template)
+ * 筛选条件模板的创建、编辑、复制、删除、设为默认
+ */
+
 import {
   useState,
   useCallback,

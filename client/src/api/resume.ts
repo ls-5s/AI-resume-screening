@@ -1,3 +1,8 @@
+/**
+ * 简历 API
+ * 简历上传、列表查询、详情、状态更新、删除、邮箱导入
+ */
+
 import instance from "../utils/http";
 import type { Resume, UploadResumeParams, ImportFromEmailParams, ImportFromEmailResult } from "../types/resume";
 

@@ -1,3 +1,8 @@
+/**
+ * 筛选面板组件
+ * 关键词搜索、评分范围、状态筛选、排序方式
+ */
+
 import React, { type ChangeEvent } from "react";
 import { Search, ChevronDown, SlidersHorizontal } from "lucide-react";
 import { Input } from "../../ui/input";

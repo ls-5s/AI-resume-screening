@@ -1,3 +1,8 @@
+/**
+ * Toast 工具
+ * 全局消息提示的调用方法封装
+ */
+
 export type ToastType = "success" | "error" | "warning" | "info";
 
 const TOAST_DURATION_MS = 3200;

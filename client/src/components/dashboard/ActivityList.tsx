@@ -1,3 +1,8 @@
+/**
+ * 活动列表组件
+ * 展示用户最近的操作日志列表
+ */
+
 import { FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Activity } from "../../types/dashboard";

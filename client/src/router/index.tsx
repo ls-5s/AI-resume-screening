@@ -1,3 +1,8 @@
+/**
+ * 路由配置
+ * 定义所有页面路由、懒加载、认证守卫 requireAuth
+ */
+
 import { createBrowserRouter, redirect } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import Layout from "../layout/layout";

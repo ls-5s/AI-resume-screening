@@ -1,3 +1,8 @@
+/**
+ * 筛选模板类型定义
+ * 模板数据结构、筛选条件配置接口
+ */
+
 import type { PreFilterConfig } from "../components/aiscreening/preFilterUtils";
 
 /** 筛选模板（与后端 screening_templates 对齐） */

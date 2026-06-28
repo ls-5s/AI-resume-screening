@@ -1,3 +1,8 @@
+/**
+ * 注册服务
+ * registerUser - 检查邮箱唯一性、bcrypt 加密密码、插入用户记录
+ */
+
 import { db } from '../../db/index.js';
 import { users } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';

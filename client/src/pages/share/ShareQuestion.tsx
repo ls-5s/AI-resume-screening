@@ -1,3 +1,8 @@
+/**
+ * 面试题分享页 (路由: /share/:data)
+ * 外部查看 AI 生成的面试题，无需登录
+ */
+
 import { useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import {

@@ -1,3 +1,9 @@
+/**
+ * 邮件模板与发送服务
+ * 模板 CRUD、SMTP 批量发送、收件人查询、发送统计
+ * 支持模板变量替换：{{name}}、{{email}}、{{phone}}
+ */
+
 import { db } from '../../db/index.js';
 import { emailTemplates, emailConfigs, resumes, activities } from '../../db/schema.js';
 import { eq, and, desc, isNotNull, isNull, inArray, like, gte, lt, sql } from 'drizzle-orm';

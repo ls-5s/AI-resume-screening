@@ -1,3 +1,8 @@
+/**
+ * 面试题 Markdown 格式化
+ * 将 AI 生成的面试题 JSON 转换为 Markdown 文本
+ */
+
 import type { InterviewQuestion } from "../types/ai";
 
 const VALID_DIFFICULTIES = ["基础", "中等", "进阶"] as const;

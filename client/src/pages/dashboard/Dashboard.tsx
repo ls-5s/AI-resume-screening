@@ -1,3 +1,8 @@
+/**
+ * 仪表盘页 (路由: /app)
+ * 数据总览：统计卡片、本周趋势图、近期活动、快捷操作
+ */
+
 import { useState, useEffect } from "react";
 import { getDashboardStats } from "../../api/dashboard";
 import type { DashboardStats } from "../../types/dashboard";

@@ -1,3 +1,8 @@
+/**
+ * 简历类型定义
+ * 简历数据结构、上传参数、列表查询参数接口
+ */
+
 import type { AiDimensionScores } from "./ai";
 
 // 简历类型

@@ -1,3 +1,8 @@
+/**
+ * 统计卡片组件
+ * 单个统计指标展示（总数/通过/待处理等），含图标和数值
+ */
+
 import { FileText, Clock, CheckCircle, X } from "lucide-react";
 import type { DashboardStats } from "../../types/dashboard";
 

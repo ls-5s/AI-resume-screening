@@ -1,3 +1,8 @@
+/**
+ * 卡片网格组件
+ * 响应式卡片网格布局容器
+ */
+
 import type { ReactNode } from "react";
 
 interface CardGridProps {

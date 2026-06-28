@@ -1,3 +1,14 @@
+/**
+ * 简历管理路由
+ * POST   /v1/resume/upload          - 上传并解析简历文件
+ * GET    /v1/resumes                - 查询简历列表（支持筛选、搜索、分页）
+ * GET    /v1/resume/:id             - 获取简历详情
+ * DELETE /v1/resume/:id             - 删除简历及其文件
+ * PUT    /v1/resume/:id/status      - 更新简历状态
+ * POST   /v1/resume/import-from-email - 从邮箱 IMAP 导入简历
+ * POST   /v1/resume/batch-status    - 批量更新简历状态
+ */
+
 import express, { Request, Response, Router } from "express";
 import path from "path";
 import fs from "fs";

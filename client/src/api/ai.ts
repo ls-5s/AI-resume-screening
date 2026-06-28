@@ -1,3 +1,8 @@
+/**
+ * AI 相关 API
+ * 包含 AI 筛选、面试题生成、AI 配置 CRUD 接口
+ */
+
 import instance from "../utils/http";
 import type { AiConfig, UpdateAiConfigData, CreateAiConfigData, AiScreeningResult, BatchScreenResult, InterviewQuestionResult } from "../types/ai";
 

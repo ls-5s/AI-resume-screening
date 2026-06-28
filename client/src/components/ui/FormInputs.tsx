@@ -1,3 +1,8 @@
+/**
+ * 表单输入组件集合
+ * 统一样式的输入框、下拉框、文本域
+ */
+
 import { useId } from "react";
 import { Eye, EyeOff } from "lucide-react";
 

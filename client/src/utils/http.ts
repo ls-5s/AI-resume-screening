@@ -1,3 +1,8 @@
+/**
+ * HTTP 请求封装
+ * 基于 fetch 的请求客户端，自动携带 JWT Token，统一错误处理
+ */
+
 import axios, {
   type AxiosInstance,
   type AxiosError,

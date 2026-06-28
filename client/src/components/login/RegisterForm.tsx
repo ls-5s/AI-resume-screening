@@ -1,3 +1,8 @@
+/**
+ * 注册表单组件
+ * 用户名 + 邮箱 + 密码注册，表单校验
+ */
+
 import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { Eye, EyeOff, AlertCircle } from "lucide-react";

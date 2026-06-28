@@ -1,3 +1,8 @@
+/**
+ * GitHub 登录路由
+ * POST /v1/auth/github/login - 用 GitHub 用户数据直接登录/注册，返回 JWT Token
+ */
+
 import { Router, Request, Response } from 'express';
 import type { Router as RouterType } from 'express';
 import crypto from 'crypto';

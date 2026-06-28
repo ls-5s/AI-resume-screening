@@ -1,3 +1,15 @@
+/**
+ * 邮件模板与群发路由
+ * GET    /v1/email-templates     - 模板列表
+ * GET    /v1/email-templates/:id - 模板详情
+ * POST   /v1/email-templates     - 创建模板
+ * PUT    /v1/email-templates/:id - 更新模板
+ * DELETE /v1/email-templates/:id - 删除模板
+ * GET    /v1/email-send-stats    - 发送统计
+ * GET    /v1/email-recipients    - 收件人列表
+ * POST   /v1/emails/send         - 批量发送邮件
+ */
+
 import { Router, Request, Response } from "express";
 import type { Router as RouterType } from "express";
 import { authenticate } from "../middleware/auth.js";

@@ -1,3 +1,8 @@
+/**
+ * Drawer 抽屉组件
+ * 通用侧边抽屉面板，支持标题、关闭回调和自定义内容
+ */
+
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";

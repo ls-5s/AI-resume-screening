@@ -1,3 +1,9 @@
+/**
+ * 数据库连接与初始化
+ * 创建 Turso/libSQL 客户端和 Drizzle ORM 实例
+ * 提供连接测试、自动建表（ensureTables）、表结构补丁迁移
+ */
+
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "./schema";

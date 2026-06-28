@@ -1,3 +1,8 @@
+/**
+ * 邮件模板列表组件
+ * 模板的 CRUD 操作界面
+ */
+
 import { useState, useEffect } from "react";
 import { Modal, ConfirmModal } from "../../components/Modal";
 import { parseServerDate } from "../../utils/format";

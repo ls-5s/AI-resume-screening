@@ -1,3 +1,8 @@
+/**
+ * 仪表盘服务（别名导出）
+ * 从 dashboard/dashboard.ts 导出 getDashboardStats、listActivities、createActivity
+ */
+
 import { db } from '../db/index.js';
 import { resumes, activities } from '../db/schema.js';
 import { eq, sql, desc } from 'drizzle-orm';

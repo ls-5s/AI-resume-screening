@@ -1,3 +1,8 @@
+/**
+ * 设置相关类型
+ * 邮箱配置、AI 配置的输入和响应类型
+ */
+
 // 邮箱配置相关类型
 
 export interface EmailConfigInput {

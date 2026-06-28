@@ -1,3 +1,8 @@
+/**
+ * 团队类型定义
+ * 团队、成员、邀请、申请等数据结构接口
+ */
+
 export interface Team {
   id: number;
   name: string;

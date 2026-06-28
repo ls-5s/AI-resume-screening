@@ -1,3 +1,8 @@
+/**
+ * 团队设置组件
+ * 创建/编辑团队、成员管理、邀请审批
+ */
+
 import { useState, useEffect, useCallback } from "react";
 import {
   Users,

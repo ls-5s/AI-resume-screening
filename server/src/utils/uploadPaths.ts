@@ -1,3 +1,8 @@
+/**
+ * 上传路径工具
+ * getUploadsRoot - 获取简历文件上传目录的绝对路径
+ */
+
 import fs from "fs";
 import os from "os";
 import path from "path";

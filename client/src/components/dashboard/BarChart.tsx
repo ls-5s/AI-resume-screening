@@ -1,3 +1,8 @@
+/**
+ * 柱状图组件
+ * 本周每日新增简历数量趋势图
+ */
+
 import { useId } from "react";
 import {
   BarChart,

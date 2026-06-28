@@ -1,3 +1,8 @@
+/**
+ * 全部简历页 (路由: /app/resumes/all)
+ * 全量简历列表，支持批量操作
+ */
+
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import toast from "../../utils/toast";

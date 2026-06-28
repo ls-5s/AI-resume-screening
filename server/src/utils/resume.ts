@@ -1,3 +1,8 @@
+/**
+ * 简历工具函数
+ * 简历相关通用处理方法
+ */
+
 import path from 'path';
 import multer, { FileFilterCallback } from 'multer';
 import express from 'express';

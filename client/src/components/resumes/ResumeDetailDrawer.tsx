@@ -1,3 +1,8 @@
+/**
+ * 简历详情抽屉
+ * 侧边栏展示简历完整信息、解析内容、AI 评分
+ */
+
 import { Loader2, FileText, Eye, Calendar, FileCheck } from "lucide-react";
 import toast from "../../utils/toast";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "../Drawer";

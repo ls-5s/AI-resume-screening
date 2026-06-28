@@ -1,3 +1,8 @@
+/**
+ * UI 常量配置
+ * 按钮样式、颜色、尺寸等全局 UI 常量
+ */
+
 // 共享主题常量
 
 export const THEME_COLORS = {

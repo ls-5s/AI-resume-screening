@@ -1,3 +1,7 @@
+/**
+ * 简历组件导出
+ */
+
 export { ResumeList } from "./ResumeList";
 export {
   ResumePaginationBar,

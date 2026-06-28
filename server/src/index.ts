@@ -1,3 +1,9 @@
+/**
+ * 服务端入口
+ * 创建 Express 应用，注册中间件（CORS/JSON 解析）、挂载路由、全局错误处理
+ * 本地开发时启动 HTTP 服务器并自动建表，生产环境导出 Vercel Serverless Handler
+ */
+
 // 本地开发：先于 db 加载，将 server/.env 注入 process.env（Vercel 上无 .env 文件时不影响已有环境变量）
 import "./loadEnv.js";
 import express, { Application, Request, Response, NextFunction } from "express";

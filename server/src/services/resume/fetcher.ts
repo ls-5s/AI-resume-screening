@@ -1,3 +1,10 @@
+/**
+ * 简历邮件抓取服务
+ * fetchEmailsWithAttachments - 通过 IMAP 连接邮箱，搜索含简历附件的邮件
+ * saveAttachmentToResume - 保存附件到磁盘并创建简历记录
+ * testImapConnection - 测试 IMAP 连接
+ */
+
 // 使用 require 进行手动导入
 const Imap = require('imap');
 import { simpleParser } from 'mailparser';

@@ -1,3 +1,8 @@
+/**
+ * 个人资料设置组件
+ * 修改用户名、头像
+ */
+
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { getProfile, updateProfile } from "../../api/profile";
 import {

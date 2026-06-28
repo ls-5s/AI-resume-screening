@@ -1,3 +1,8 @@
+/**
+ * 空状态组件
+ * 数据为空时的占位提示（图标 + 文字 + 可选操作按钮）
+ */
+
 import { Plus, Shield, Mail, Bot } from "lucide-react";
 
 interface FeatureItem {

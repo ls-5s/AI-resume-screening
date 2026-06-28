@@ -1,3 +1,8 @@
+/**
+ * AI 面试题生成页 (路由: /app/interview-questions)
+ * 基于简历内容 AI 生成定制化面试问题，支持分享
+ */
+
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "../../utils/toast";

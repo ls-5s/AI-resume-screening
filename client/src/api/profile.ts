@@ -1,3 +1,8 @@
+/**
+ * 个人资料 API
+ * 获取和更新用户个人信息
+ */
+
 import instance from "../utils/http";
 import type { Profile, UpdateProfileData } from "../types/profile";
 

@@ -1,3 +1,8 @@
+/**
+ * AI 设置组件
+ * AI 供应商配置（模型、API URL、Key）、连接测试
+ */
+
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import {
   getAiConfigs,

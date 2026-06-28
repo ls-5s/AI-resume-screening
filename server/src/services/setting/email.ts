@@ -1,3 +1,9 @@
+/**
+ * 邮箱配置服务
+ * 邮箱 IMAP/SMTP 配置的 CRUD（授权码 AES 加密存储，软删除）
+ * testEmailConfig - 基础配置验证（邮箱格式、端口范围）
+ */
+
 import { db } from '../../db/index.js';
 import { emailConfigs, users } from '../../db/schema.js';
 import { eq, and } from 'drizzle-orm';
@@ -82,31 +88,6 @@ export async function createEmailConfig(
       ));
   }
 
-  // 检查邮箱是否已被其他用户使用
-  const [existing] = await db
-    .select({ id: emailConfigs.id })
-    .from(emailConfigs)
-    .where(and(
-      eq(emailConfigs.email, data.email),
-      eq(emailConfigs.isDeleted, 0)
-    ));
-
-  if (existing) {
-    // 检查是否属于当前用户
-    const [ownConfig] = await db
-      .select({ id: emailConfigs.id })
-      .from(emailConfigs)
-      .where(and(
-        eq(emailConfigs.email, data.email),
-        eq(emailConfigs.userId, userId),
-        eq(emailConfigs.isDeleted, 0)
-      ));
-    
-    if (!ownConfig) {
-      throw new Error('该邮箱已被其他用户使用');
-    }
-  }
-
   const [config] = await db
     .insert(emailConfigs)
     .values({
@@ -147,21 +128,6 @@ export async function updateEmailConfig(
         eq(emailConfigs.isDefault, 1),
         eq(emailConfigs.isDeleted, 0)
       ));
-  }
-
-  // 如果更换邮箱，检查新邮箱是否已被其他用户使用
-  if (data.email && data.email !== existing.email) {
-    const [conflict] = await db
-      .select({ id: emailConfigs.id })
-      .from(emailConfigs)
-      .where(and(
-        eq(emailConfigs.email, data.email),
-        eq(emailConfigs.isDeleted, 0)
-      ));
-
-    if (conflict) {
-      throw new Error('该邮箱已被其他用户使用');
-    }
   }
 
   // 构建更新数据

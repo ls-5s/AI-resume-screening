@@ -1,3 +1,8 @@
+/**
+ * GitHub OAuth 回调页 (路由: /auth/github/callback)
+ * 处理 GitHub 授权回调，获取 code 换取 Token 并登录
+ */
+
 import { useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useLoginStore } from "../../store/Login";

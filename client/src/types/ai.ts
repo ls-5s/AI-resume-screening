@@ -1,3 +1,8 @@
+/**
+ * AI 相关类型定义
+ * AI 配置、筛选结果、维度评分、面试题等接口
+ */
+
 export interface AiConfig {
   id: number | null;
   userId: number;

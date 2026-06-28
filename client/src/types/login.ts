@@ -1,3 +1,8 @@
+/**
+ * 登录类型定义
+ * 登录/注册请求参数、用户信息、Token 响应接口
+ */
+
 export interface UserInfo {
   id: number;
   username: string;

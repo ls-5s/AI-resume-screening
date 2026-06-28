@@ -1,3 +1,8 @@
+/**
+ * 维度匹配工具
+ * 将 AI 返回的原始维度数据转换为前端展示格式
+ */
+
 import type { AiDimensionScores } from "../../types/ai";
 
 /** 与模型分项字段一一对应，文案面向「简历上的关键板块」 */

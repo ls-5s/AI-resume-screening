@@ -1,3 +1,9 @@
+/**
+ * JWT 认证中间件
+ * 解析 Authorization 头的 Bearer Token，验证 JWT 签名
+ * 确认用户仍在数据库中存在后，将用户信息注入 req.user
+ */
+
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { db } from '../db/index.js';

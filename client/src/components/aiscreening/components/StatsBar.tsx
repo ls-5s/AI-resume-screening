@@ -1,3 +1,8 @@
+/**
+ * 统计栏组件
+ * 显示筛选结果的统计概览（各状态数量、平均分等）
+ */
+
 import React from "react";
 import { Users, CheckCircle, XCircle, Clock, TrendingUp } from "lucide-react";
 

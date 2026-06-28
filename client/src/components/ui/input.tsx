@@ -1,3 +1,8 @@
+/**
+ * Input 输入框组件
+ * 通用输入框，支持 label、placeholder、错误提示、图标
+ */
+
 import { forwardRef, type ComponentPropsWithoutRef } from "react";
 
 /** 与项目主题变量一致的基础输入框，供筛选栏等复用 */

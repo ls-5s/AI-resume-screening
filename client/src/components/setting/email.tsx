@@ -1,3 +1,8 @@
+/**
+ * 邮箱设置组件
+ * IMAP/SMTP 邮箱配置管理
+ */
+
 import { useState, useEffect, useCallback } from "react";
 import { Modal, ConfirmModal } from "../../components/Modal";
 import { 

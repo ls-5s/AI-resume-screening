@@ -1,3 +1,8 @@
+/**
+ * 活动日志页 (路由: /app/activities)
+ * 分页展示用户所有操作日志，支持滚动加载
+ */
+
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, FileText, Loader2 } from "lucide-react";

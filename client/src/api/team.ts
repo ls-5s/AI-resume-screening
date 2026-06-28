@@ -1,3 +1,8 @@
+/**
+ * 团队协作 API
+ * 团队创建、成员管理、邀请审批、角色变更
+ */
+
 import instance from "../utils/http";
 import type {
   Team,

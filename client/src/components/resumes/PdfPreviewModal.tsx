@@ -1,3 +1,8 @@
+/**
+ * PDF 预览弹窗
+ * 在弹窗中预览简历 PDF 文件
+ */
+
 import { ExternalLink } from 'lucide-react';
 import { Modal } from '../Modal';
 

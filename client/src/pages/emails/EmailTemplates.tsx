@@ -1,3 +1,8 @@
+/**
+ * 邮件管理页 (路由: /app/emails)
+ * 邮件模板管理 + 候选人收件人列表 + 批量发送
+ */
+
 import { useState, useCallback } from "react";
 import { EmailTemplateList } from "../../components/emails/EmailTemplateList";
 import { EmailSender } from "../../components/emails/EmailSender";

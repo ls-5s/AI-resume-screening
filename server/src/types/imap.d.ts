@@ -1,3 +1,7 @@
+/**
+ * imap 模块类型声明
+ */
+
 declare module 'imap' {
   export default class Imap {
     constructor(config: ImapConfig);

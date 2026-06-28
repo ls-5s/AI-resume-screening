@@ -1,3 +1,8 @@
+/**
+ * 邮件发送组件
+ * 选择收件人、模板、预览并批量发送邮件
+ */
+
 import { useState, useEffect, useRef, useId } from "react";
 import {
   Send,

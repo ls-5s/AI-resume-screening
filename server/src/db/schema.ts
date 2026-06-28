@@ -1,3 +1,10 @@
+/**
+ * 数据库 Schema 定义 (Drizzle ORM)
+ * 定义所有表结构、字段映射、表关联关系、导出 TypeScript 类型
+ * 共 10 张表：users, resumes, teams, team_members, team_invites,
+ *           email_configs, email_templates, ai_configs, activities, screening_templates
+ */
+
 import {
   sqliteTable,
   text,

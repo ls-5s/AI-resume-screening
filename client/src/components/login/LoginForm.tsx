@@ -1,3 +1,8 @@
+/**
+ * 登录表单组件
+ * 邮箱 + 密码登录，错误提示，GitHub 登录入口
+ */
+
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
