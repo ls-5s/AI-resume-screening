@@ -46,6 +46,10 @@ import { SettingSkeleton } from "./SettingSkeleton";
 // Constants
 // ============================================================================
 
+// ============================================================================
+// Constants — AI 模型预设列表
+// ============================================================================
+
 const AI_MODELS = [
   { value: "gpt-4o", label: "GPT-4o" },
   { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
@@ -54,6 +58,10 @@ const AI_MODELS = [
   { value: "claude-3-sonnet", label: "Claude 3 Sonnet" },
   { value: "deepseek-chat", label: "DeepSeek Chat" },
 ];
+
+// ============================================================================
+// Constants — AI 提示词模板预设
+// ============================================================================
 
 const PROMPT_TEMPLATES = [
   {
@@ -135,12 +143,14 @@ const PROMPT_TEMPLATES = [
   },
 ];
 
+// 新建配置时使用的默认提示词（取第一个模板）
 const defaultPrompt = PROMPT_TEMPLATES[0].value;
 
 // ============================================================================
-// Types
+// Types — 编辑表单数据 & 测试结果状态
 // ============================================================================
 
+// 编辑表单数据结构（新建和编辑共用，isNew=editingId===null 时新增）
 interface EditingConfig {
   id?: number;
   name: string;
@@ -148,9 +158,10 @@ interface EditingConfig {
   apiUrl: string;
   apiKey: string;
   prompt: string;
-  isDefault: boolean;
+  isDefault: boolean; // 是否设为默认配置（同一时间只有一个默认）
 }
 
+// 连接测试的状态机：idle → testing → success | error
 interface TestResult {
   status: "idle" | "testing" | "success" | "error";
   message: string;
@@ -166,7 +177,8 @@ const emptyConfig: EditingConfig = {
 };
 
 // ============================================================================
-// Provider Colors
+// Provider Colors — 根据 API URL 识别供应商并返回对应的品牌色
+// 用于卡片顶部渐变条、供应商 Badge、hover 效果
 // ============================================================================
 
 const providerColors: Record<
@@ -223,7 +235,8 @@ const getProviderStyle = (apiUrl: string) => {
 };
 
 // ============================================================================
-// Model Icon
+// ModelIcon — 根据 API URL 显示对应供应商的 SVG 图标
+// 匹配逻辑：URL 包含 openai/anthropic/deepseek 关键词 → 对应品牌图标
 // ============================================================================
 
 const ModelIcon = ({ apiUrl }: { apiUrl: string }) => {
@@ -292,7 +305,9 @@ const ModelIcon = ({ apiUrl }: { apiUrl: string }) => {
 };
 
 // ============================================================================
-// AI Config Card
+// AiConfigCard — 单个 AI 配置的展示卡片
+// 显示：供应商图标、配置名称/模型、API URL、提示词摘要
+// hover 时显示操作按钮（编辑、删除、设为默认）
 // ============================================================================
 
 const AiConfigCard = ({
@@ -408,32 +423,47 @@ const AiConfigCard = ({
 // Main Component
 // ============================================================================
 
+// ============================================================================
+// Main Component — AI 设置页面主体
+// ============================================================================
+
 export function AiSettings() {
-  const [configs, setConfigs] = useState<AiConfig[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [formData, setFormData] = useState<EditingConfig>(emptyConfig);
-  const [originalData, setOriginalData] = useState<EditingConfig>(emptyConfig);
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  // --- 数据状态 ---
+  const [configs, setConfigs] = useState<AiConfig[]>([]);          // 配置列表
+  const [loading, setLoading] = useState(false);                    // 列表加载中
+  const [saving, setSaving] = useState(false);                      // 表单保存中
+
+  // --- 编辑弹窗状态 ---
+  const [editingId, setEditingId] = useState<number | null>(null); // null=新建, number=编辑
+  const [formData, setFormData] = useState<EditingConfig>(emptyConfig);     // 当前表单值
+  const [originalData, setOriginalData] = useState<EditingConfig>(emptyConfig); // 原始值（用于脏检测）
+  const [showApiKey, setShowApiKey] = useState(false);              // API Key 明文/密文切换
+  const [isModalOpen, setIsModalOpen] = useState(false);            // 弹窗开关
+
+  // --- 删除确认状态 ---
+  const [deleteId, setDeleteId] = useState<number | null>(null);   // 待删除配置 ID（null=关闭弹窗）
+  const [deleting, setDeleting] = useState(false);                  // 删除中
+
+  // --- 连接测试状态 ---
   const [testResult, setTestResult] = useState<TestResult>({
     status: "idle",
     message: "",
   });
-  const [showPromptTemplates, setShowPromptTemplates] = useState(false);
-  const [activeTemplateId, setActiveTemplateId] =
-    useState<string>("resume-screening");
 
+  // --- 提示词模板下拉 ---
+  const [showPromptTemplates, setShowPromptTemplates] = useState(false); // 模板下拉展开
+  const [activeTemplateId, setActiveTemplateId] =
+    useState<string>("resume-screening");                                 // 当前选中的模板 ID
+
+  // DOM ref：表单容器（滚动定位）、取消按钮（关闭弹窗后聚焦）
   const formRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
 
+  // 派生状态：是否编辑模式、弹窗标题
   const isEditing = editingId !== null;
   const modalTitle = isEditing ? "编辑配置" : "添加配置";
 
-  // Check if form has unsaved changes
+  // 脏检测：比较表单当前值与原始快照，判断是否有未保存修改
   const isDirty = useMemo(
     () =>
       formData.name !== originalData.name ||
@@ -445,12 +475,13 @@ export function AiSettings() {
     [formData, originalData],
   );
 
+  // 当前默认配置的 ID（用于弹窗内提示"将覆盖默认配置"）
   const defaultConfigId = useMemo(() => {
     const found = configs.find((c) => c.isDefault);
     return found?.id ?? null;
   }, [configs]);
 
-  // Load configs
+  // 加载配置列表（useCallback 稳定引用，供 useEffect 和手动刷新使用）
   const loadConfigs = useCallback(async () => {
     setLoading(true);
     try {
@@ -467,10 +498,10 @@ export function AiSettings() {
     void loadConfigs();
   }, [loadConfigs]);
 
-  // Snapshot for rollback
+  // 保存编辑前的快照，用于关闭弹窗时的回滚（暂时保留，后续可配合更完善的脏检测）
   const snapshot = useRef<EditingConfig>(emptyConfig);
 
-  // Open modal for add
+  // --- 新建配置：重置表单为空配置，打开弹窗 ---
   const handleAdd = () => {
     snapshot.current = emptyConfig;
     setFormData(emptyConfig);
@@ -483,7 +514,7 @@ export function AiSettings() {
     setIsModalOpen(true);
   };
 
-  // Open modal for edit
+  // --- 编辑配置：将已有配置数据填充到表单，打开弹窗 ---
   const handleEdit = (config: AiConfig) => {
     const data: EditingConfig = {
       id: config.id || undefined,
@@ -506,7 +537,7 @@ export function AiSettings() {
     setIsModalOpen(true);
   };
 
-  // Close with dirty check
+  // --- 关闭弹窗（带脏检测）：有未保存修改时弹窗确认 ---
   const closeModal = useCallback(() => {
     if (isDirty) {
       cancelRef.current?.focus();
@@ -517,6 +548,7 @@ export function AiSettings() {
     setTestResult({ status: "idle", message: "" });
   }, [isDirty]);
 
+  // --- 应用提示词模板：将选中模板的 value 填入表单 prompt 字段 ---
   const applyTemplate = useCallback((templateId: string) => {
     const template = PROMPT_TEMPLATES.find((t) => t.id === templateId);
     if (template) {
@@ -526,7 +558,7 @@ export function AiSettings() {
     }
   }, []);
 
-  // Save config
+  // --- 保存配置：校验 → 调用新建/更新 API → 关闭弹窗 → 刷新列表 ---
   const handleSave = useCallback(async () => {
     const trimmedName = formData.name.trim();
     if (!trimmedName) {
@@ -566,7 +598,7 @@ export function AiSettings() {
     }
   }, [formData, editingId, loadConfigs]);
 
-  // Test connection
+  // --- 测试 AI API 连接：用当前表单的 model/apiUrl/apiKey 发测试请求 ---
   const handleTest = useCallback(async () => {
     if (!formData.apiUrl || !formData.apiKey) {
       setTestResult({
@@ -599,7 +631,7 @@ export function AiSettings() {
     }
   }, [formData]);
 
-  // Delete flow
+  // --- 删除流程：先设置 deleteId 弹出确认框，确认后调 API 删除 ---
   const requestDelete = useCallback((id: number) => setDeleteId(id), []);
 
   const confirmDelete = useCallback(async () => {
@@ -617,7 +649,7 @@ export function AiSettings() {
     }
   }, [deleteId, loadConfigs]);
 
-  // Set default
+  // --- 设为默认：调用 update API 将 isDefault 设为 true ---
   const handleSetDefault = useCallback(
     async (id: number) => {
       try {
@@ -631,10 +663,11 @@ export function AiSettings() {
     [loadConfigs],
   );
 
-  // Render form content
+  // --- 弹窗表单内容渲染 ---
+  // 包含：连接测试结果、默认配置警告、基本信息表单、提示词编辑区
   const renderFormContent = () => (
     <div ref={formRef} className="space-y-5">
-      {/* Test result */}
+      {/* 连接测试反馈条：idle 时隐藏，testing/success/error 时显示对应状态 */}
       <StatusFeedback
         result={testResult}
         onRetry={handleTest}
@@ -645,7 +678,7 @@ export function AiSettings() {
         }}
       />
 
-      {/* Default config warning */}
+      {/* 当前已有默认配置时，提示用户新建/编辑配置会覆盖 */}
       {defaultConfigId && !formData.isDefault && (
         <div className="flex items-start gap-3 rounded-xl border border-(--app-warning)/35 bg-(--app-warning-soft) px-4 py-3 text-sm text-(--app-warning)">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -657,7 +690,7 @@ export function AiSettings() {
         </div>
       )}
 
-      {/* Basic config */}
+      {/* 基本信息表单：配置名称、模型、API 地址、API Key、是否默认 */}
       <div className="rounded-2xl border border-(--app-border) bg-(--app-surface-raised)/80 p-5">
         <div className="grid gap-4 md:grid-cols-2">
           <FormInput
@@ -710,7 +743,7 @@ export function AiSettings() {
         </div>
       </div>
 
-      {/* Prompt section */}
+      {/* 提示词编辑区：模板选择、快速恢复默认、变量说明、复制按钮 */}
       <div className="rounded-2xl border border-(--app-border) bg-(--app-surface) p-5">
         <div className="mb-3 flex items-center justify-between">
           <label className="flex items-center gap-1 text-sm font-medium text-(--app-text-primary)">
@@ -814,9 +847,11 @@ export function AiSettings() {
     </div>
   );
 
+  // --- 主渲染 ---
+  // 三种状态：loading → 骨架屏 | 空列表 → 引导创建 | 有数据 → 卡片网格
   return (
     <div className="overflow-hidden rounded-3xl border border-(--app-border) bg-(--app-surface) shadow-(--app-shadow-sm) ring-1 ring-(--app-border-subtle)">
-      {/* Header */}
+      {/* 顶部标题栏：标题 + 配置计数 + 添加按钮 */}
       <div className="mb-6 flex items-center justify-between p-6 pb-0">
         <div>
           <h2 className="text-lg font-semibold tracking-tight text-(--app-text-primary)">
@@ -841,7 +876,7 @@ export function AiSettings() {
         </button>
       </div>
 
-      {/* Content */}
+      {/* 内容区：三种状态切换 */}
       {loading ? (
         <SettingSkeleton rows={3} message="加载 AI 配置中..." />
       ) : configs.length === 0 ? (
@@ -876,7 +911,7 @@ export function AiSettings() {
         </div>
       )}
 
-      {/* Add/Edit Modal */}
+      {/* 新建/编辑弹窗：表单内容由 renderFormContent() 渲染 */}
       <Modal
         isOpen={isModalOpen}
         onClose={closeModal}
@@ -954,7 +989,7 @@ export function AiSettings() {
         {renderFormContent()}
       </Modal>
 
-      {/* Delete Confirm Modal */}
+      {/* 删除确认弹窗：deleteId 非 null 时显示 */}
       <ConfirmModal
         isOpen={deleteId !== null}
         onClose={() => setDeleteId(null)}

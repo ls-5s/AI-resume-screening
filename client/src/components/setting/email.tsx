@@ -51,7 +51,8 @@ interface EmailFormData extends CreateEmailConfigData {
 }
 
 // ============================================================================
-// Email Provider Detection & Styling
+// Email Provider Detection — 根据邮箱域名识别服务商并返回品牌色
+// 用于卡片渐变条、Badge、图标背景
 // ============================================================================
 
 interface ProviderStyle {
@@ -114,7 +115,9 @@ const getProviderStyle = (email: string): ProviderStyle => {
 };
 
 // ============================================================================
-// Email Card Component
+// EmailCard — 单个邮箱配置的展示卡片
+// 显示：品牌渐变条、邮箱地址、服务商标识、IMAP/SMTP 服务器信息
+// hover 时显示操作按钮（设为默认、测试、编辑、删除）
 // ============================================================================
 
 const EmailCard = ({
@@ -247,31 +250,39 @@ const EmailCard = ({
 };
 
 // ============================================================================
-// Main Component
+// EmailConfigList — 邮箱配置管理主组件
+// 功能：配置列表展示（卡片网格）、新建/编辑弹窗、测试连接、删除确认、设为默认
 // ============================================================================
 
 export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
-  const [configs, setConfigs] = useState<EmailConfig[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [editingConfig, setEditingConfig] = useState<EmailConfig | null>(null);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  // --- 数据状态 ---
+  const [configs, setConfigs] = useState<EmailConfig[]>([]);     // 配置列表
+  const [loading, setLoading] = useState(false);                   // 列表加载中
 
+  // --- 弹窗状态 ---
+  const [showModal, setShowModal] = useState(false);               // 新建/编辑弹窗
+  const [editingConfig, setEditingConfig] = useState<EmailConfig | null>(null); // null=新建, 有值=编辑
+
+  // --- 删除状态 ---
+  const [deleteId, setDeleteId] = useState<number | null>(null);  // 待删除 ID（null=关闭确认弹窗）
+  const [deleting, setDeleting] = useState(false);                 // 删除中
+
+  // --- 表单状态 ---
+  const [showPassword, setShowPassword] = useState(false);         // 授权码明文/密文切换
   const [formData, setFormData] = useState<EmailFormData>({
     email: "",
     authCode: "",
-    imapHost: "imap.qq.com",
+    imapHost: "imap.qq.com",   // QQ 邮箱默认 IMAP
     imapPort: 993,
-    smtpHost: "smtp.qq.com",
+    smtpHost: "smtp.qq.com",   // QQ 邮箱默认 SMTP
     smtpPort: 465,
     isDefault: false,
   });
 
+  // 派生状态：是否编辑模式
   const isEditing = editingConfig !== null;
 
-  // Load configs
+  // --- 加载配置列表 ---
   const loadConfigs = useCallback(async () => {
     setLoading(true);
     try {
@@ -289,7 +300,7 @@ export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
     void loadConfigs();
   }, [loadConfigs]);
 
-  // Open modal
+  // --- 打开弹窗：无参数→新建 / 有参数→编辑，填充表单 ---
   const openModal = (config?: EmailConfig) => {
     if (config) {
       setEditingConfig(config);
@@ -325,12 +336,12 @@ export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
     setEditingConfig(null);
   };
 
-  // Update form field
+  // 更新表单字段（泛型约束 key 为 EmailFormData 的属性）
   const updateField = <K extends keyof EmailFormData>(key: K, value: EmailFormData[K]) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
-  // Submit form
+  // --- 提交表单：校验 → 调 create/update API → 关闭弹窗 → 刷新列表 ---
   const handleSubmit = async () => {
     if (!formData.email) {
       toast.error("请输入邮箱地址");
@@ -369,7 +380,7 @@ export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
     }
   };
 
-  // Test email config
+  // --- 测试邮箱配置连接 ---
   const handleTest = async (id: number) => {
     try {
       await testEmailConfig(id);
@@ -379,7 +390,7 @@ export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
     }
   };
 
-  // Delete config
+  // --- 确认删除：调 delete API → 关闭确认弹窗 → 刷新 ---
   const handleDelete = async () => {
     if (!deleteId) return;
     setDeleting(true);
@@ -396,7 +407,7 @@ export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
     }
   };
 
-  // Set default
+  // --- 设为默认邮箱 ---
   const handleSetDefault = async (id: number) => {
     try {
       await updateEmailConfig(id, { isDefault: true });
@@ -409,7 +420,7 @@ export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
 
   return (
     <div className="overflow-hidden rounded-3xl border border-(--app-border) bg-(--app-surface) shadow-(--app-shadow-sm) ring-1 ring-(--app-border-subtle)">
-      {/* Header */}
+      {/* 顶部标题栏：图标 + 标题 + 副标题 + 配置计数 + 添加按钮 */}
       <div className="border-b border-(--app-border) bg-(--app-surface-raised)/50 p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -443,7 +454,7 @@ export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
         </div>
       </div>
 
-      {/* Content */}
+      {/* 内容区：三种状态切换 — loading 骨架 / 空状态引导 / 卡片网格 */}
       <div className="p-6">
         {loading ? (
           <SettingSkeleton rows={3} message="加载邮箱配置中..." />
@@ -477,7 +488,7 @@ export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
         )}
       </div>
 
-      {/* Add/Edit Modal */}
+      {/* 新建/编辑弹窗：邮箱信息 + IMAP 设置 + SMTP 设置 + 默认开关 */}
       <Modal
         isOpen={showModal}
         onClose={closeModal}
@@ -512,7 +523,7 @@ export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
         }
       >
         <div className="space-y-5">
-          {/* Basic info section */}
+          {/* 邮箱信息区：邮箱地址 + 授权码 */}
           <div className="rounded-2xl border border-(--app-border) bg-(--app-surface-raised)/40 p-5">
             <div className="mb-4 flex items-center gap-2 text-sm font-medium text-(--app-text-primary)">
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-linear-to-br from-(--app-primary) to-(--app-accent) shadow-sm">
@@ -543,7 +554,7 @@ export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
             </div>
           </div>
 
-          {/* IMAP settings */}
+          {/* IMAP 接收设置：服务器地址 + 端口 */}
           <div className="rounded-2xl border border-(--app-border) bg-(--app-surface-raised)/40 p-5">
             <div className="mb-4 flex items-center gap-2 text-sm font-medium text-(--app-text-primary)">
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-linear-to-br from-(--app-primary) to-(--app-accent) shadow-sm">
@@ -570,7 +581,7 @@ export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
             </div>
           </div>
 
-          {/* SMTP settings */}
+          {/* SMTP 发送设置：服务器地址 + 端口 */}
           <div className="rounded-2xl border border-(--app-border) bg-(--app-surface-raised)/40 p-5">
             <div className="mb-4 flex items-center gap-2 text-sm font-medium text-(--app-text-primary)">
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-linear-to-br from-(--app-primary) to-(--app-accent) shadow-sm">
@@ -597,7 +608,7 @@ export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
             </div>
           </div>
 
-          {/* Default toggle */}
+          {/* 设为默认发件邮箱开关 */}
           <ToggleSwitch
             label="设为默认发件邮箱"
             description="简历通知将优先使用此邮箱发送"
@@ -607,7 +618,7 @@ export function EmailConfigList({ onRefresh }: EmailConfigListProps) {
         </div>
       </Modal>
 
-      {/* Delete Confirm Modal */}
+      {/* 删除确认弹窗：deleteId 非 null 时显示 */}
       <ConfirmModal
         isOpen={deleteId !== null}
         onClose={() => setDeleteId(null)}

@@ -21,15 +21,17 @@ import { useLoginStore } from "../../store/Login";
 import { SettingSkeleton } from "./SettingSkeleton";
 
 // ============================================================================
-// Types
+// Types — 资料数据、表单数据、useProfile 返回值
 // ============================================================================
 
+// 从服务端获取的原始资料
 interface ProfileData {
   username: string;
   email: string;
   avatar: string | null;
 }
 
+// 编辑表单的数据结构（仅 username 和 avatar 可修改）
 interface ProfileFormData {
   username: string;
   avatar: string | null;
@@ -49,18 +51,28 @@ interface UseProfileReturn {
 }
 
 // ============================================================================
-// useProfile Hook
+// useProfile Hook — 管理个人资料的获取、编辑、头像上传、保存
+// 核心能力：
+//   1. 初始化时从 API 拉取资料 → 填充表单 + 保存原始快照
+//   2. 头像上传：FileReader 转 base64 → 本地预览，保存时才发到服务端
+//   3. 保存：乐观更新（先更新 UI），失败则回滚到快照
+//   4. 同步更新 Zustand store，确保 Layout 中的头像/用户名即时刷新
 // ============================================================================
 
 function useProfile(): UseProfileReturn {
+  // 服务端返回的原始资料
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  // 当前表单值（编辑中可能未保存）
   const [formData, setFormData] = useState<ProfileFormData>({ username: "", avatar: null });
+  // 上次保存时的表单快照，用于脏检测和取消时恢复
   const [originalData, setOriginalData] = useState<ProfileFormData>({ username: "", avatar: null });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isAvatarUploading, setIsAvatarUploading] = useState(false);
+  // 暂存 FileReader 读取后的 base64，避免重复读取
   const pendingAvatarRef = useRef<string | null>(null);
 
+  // 初始化：拉取资料并同步到表单和原始快照
   useEffect(() => {
     const fetchProfile = async () => {
       setIsLoading(true);
@@ -79,15 +91,18 @@ function useProfile(): UseProfileReturn {
     void fetchProfile();
   }, []);
 
+  // 脏检测：表单数据与上次保存的快照有任何不同
   const isDirty = useMemo(
     () => formData.username !== originalData.username || formData.avatar !== originalData.avatar,
     [formData, originalData]
   );
 
+  // 更新表单字段（泛型约束 key 只能是 username 或 avatar）
   const updateField = useCallback(<K extends keyof ProfileFormData>(key: K, value: ProfileFormData[K]) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
   }, []);
 
+  // 头像文件选择处理：校验格式/大小 → FileReader 读取为 base64 → 本地预览
   const handleAvatarChange = useCallback(async (file: File) => {
     if (!file.type.startsWith("image/")) {
       toast.error("请选择图片文件");
@@ -118,6 +133,7 @@ function useProfile(): UseProfileReturn {
     }
   }, []);
 
+  // 保存资料：校验 → 乐观更新 UI → 调 API → 成功则更新 store / 失败则回滚
   const save = useCallback(async (): Promise<boolean> => {
     const trimmedUsername = formData.username.trim();
     if (!trimmedUsername) {
@@ -125,8 +141,10 @@ function useProfile(): UseProfileReturn {
       return false;
     }
 
+    // 保存前快照，失败时回滚用
     const snapshot = { username: profile?.username ?? "", avatar: profile?.avatar ?? null };
 
+    // 乐观更新：先修改本地 state，让界面即时响应
     setProfile((prev) => prev ? { ...prev, username: trimmedUsername, avatar: formData.avatar ?? prev.avatar } : null);
     setOriginalData({ username: trimmedUsername, avatar: formData.avatar });
     setIsSaving(true);
@@ -137,16 +155,19 @@ function useProfile(): UseProfileReturn {
         avatar: formData.avatar || undefined,
       });
 
+      // API 成功 → 以服务端返回为准更新本地 state
       setProfile(updated);
       setOriginalData({ username: updated.username, avatar: updated.avatar });
       setFormData({ username: updated.username, avatar: updated.avatar });
 
+      // 同步更新 Zustand store，让 Layout 等全局组件的头像/用户名即时刷新
       const setUser = useLoginStore.getState().setUser;
       setUser({ username: updated.username, avatar: updated.avatar });
 
       toast.success("个人信息已更新");
       return true;
     } catch (error: unknown) {
+      // API 失败 → 回滚到快照
       setProfile((prev) => prev ? { ...prev, username: snapshot.username, avatar: snapshot.avatar } : null);
       setOriginalData(snapshot);
       setFormData((prev) => ({ ...prev, username: snapshot.username, avatar: snapshot.avatar }));
@@ -159,6 +180,7 @@ function useProfile(): UseProfileReturn {
     }
   }, [formData, profile]);
 
+  // 放弃编辑：表单恢复到上次保存的快照
   const reset = useCallback(() => {
     setFormData({ username: originalData.username, avatar: originalData.avatar });
   }, [originalData]);
@@ -178,7 +200,7 @@ function useProfile(): UseProfileReturn {
 }
 
 // ============================================================================
-// Validation
+// useValidation — 用户名校验：非空、长度 2-20
 // ============================================================================
 
 function useValidation(username: string, isEditing: boolean) {
@@ -192,7 +214,8 @@ function useValidation(username: string, isEditing: boolean) {
 }
 
 // ============================================================================
-// Avatar Component
+// Avatar — 头像展示组件
+// 三种状态：上传中（转圈） → 有图片（img） → 无图片（首字母大写）
 // ============================================================================
 
 function Avatar({ src, name, size, isUploading }: { src: string | null; name: string; size: "sm" | "md" | "lg" | "xl"; isUploading?: boolean }) {
@@ -212,7 +235,8 @@ function Avatar({ src, name, size, isUploading }: { src: string | null; name: st
 }
 
 // ============================================================================
-// Main Component
+// ProfileSettings — 个人资料设置主组件
+// 布局：顶部头像卡片（头像 + 用户名 + 邮箱 + 编辑按钮）+ 底部信息卡（用户名 / 邮箱详情）
 // ============================================================================
 
 export function ProfileSettings() {
@@ -229,14 +253,17 @@ export function ProfileSettings() {
     reset,
   } = useProfile();
 
+  // UI 状态：是否编辑模式、头像 hover、文件 input/用户名 input 的 DOM ref
   const [isEditing, setIsEditing] = useState(false);
   const [isAvatarHovered, setIsAvatarHovered] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const usernameInputRef = useRef<HTMLInputElement>(null);
 
   const validation = useValidation(formData.username, isEditing);
+  // 用户修改了用户名且格式不合法时显示红色警告
   const hasUsernameWarning = isEditing && formData.username !== (profile?.username ?? "") && !validation.valid;
 
+  // 进入编辑模式时自动聚焦并全选用户名输入框
   useEffect(() => {
     if (isEditing && usernameInputRef.current) {
       usernameInputRef.current.focus();
@@ -244,6 +271,7 @@ export function ProfileSettings() {
     }
   }, [isEditing]);
 
+  // 文件 input onChange：取第一个文件传给 handleAvatarChange，然后清空 input 以便重复选择同一文件
   const onFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) handleAvatarChange(file);
@@ -260,6 +288,7 @@ export function ProfileSettings() {
     setIsEditing(false);
   }, [reset]);
 
+  // 切换编辑模式：有未保存修改时弹窗确认，否则直接切换
   const toggleEdit = useCallback(() => {
     if (isEditing && isDirty) {
       if (confirm("有未保存的更改，确定要取消吗？")) onCancel();
@@ -268,6 +297,7 @@ export function ProfileSettings() {
     }
   }, [isEditing, isDirty, onCancel]);
 
+  // 显示值：优先用表单值（编辑中），回退到服务端值
   const displayAvatar = formData.avatar ?? profile?.avatar ?? null;
   const displayName = formData.username || profile?.username || "未设置用户名";
 
@@ -279,12 +309,13 @@ export function ProfileSettings() {
 
   return (
     <div className="space-y-6">
-      {/* Header Card */}
+      {/* ===== 顶部头像卡片 ===== */}
       <div className="overflow-hidden rounded-3xl border border-(--app-border) bg-(--app-surface) shadow-sm transition-shadow hover:shadow-md">
+        {/* 顶部装饰渐变条 */}
         <div className="h-24 bg-linear-to-br from-(--app-primary)/10 via-(--app-primary)/10 to-indigo-500/10" />
 
         <div className="relative px-6 pb-6">
-          {/* Avatar */}
+          {/* 头像区域：绝对定位，浮在渐变条下方 */}
           <div className="absolute -top-12 left-6">
             <div
               className="relative"
@@ -323,7 +354,7 @@ export function ProfileSettings() {
             />
           </div>
 
-          {/* Actions */}
+          {/* 操作按钮区：编辑模式 → 取消+保存 / 查看模式 → 编辑资料按钮 */}
           <div className="flex justify-end pt-4">
             {isEditing ? (
               <div className="flex items-center gap-2">
@@ -354,7 +385,7 @@ export function ProfileSettings() {
             )}
           </div>
 
-          {/* User Info */}
+          {/* 用户信息：编辑模式下显示输入框+校验，查看模式下显示文本 */}
           <div className="mt-4 flex items-end justify-between">
             <div>
               {isEditing ? (
@@ -387,7 +418,7 @@ export function ProfileSettings() {
                 {profile?.email ?? "-"}
               </p>
 
-              {/* Badges */}
+              {/* 状态标签：个人账户 / 已上传头像 / 未保存更改 */}
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1 rounded-full bg-(--app-primary-soft) px-3 py-1 text-xs font-medium text-(--app-primary) ring-1 ring-inset ring-(--app-primary)/20">
                   <Shield className="h-3 w-3" />
@@ -411,7 +442,7 @@ export function ProfileSettings() {
         </div>
       </div>
 
-      {/* Info Cards */}
+      {/* ===== 底部信息卡片：用户名 / 邮箱 ===== */}
       <div className="grid gap-4 md:grid-cols-2">
         <div className="group relative rounded-2xl border border-(--app-border) bg-(--app-surface) p-4 transition-all hover:border-(--app-border-strong) hover:shadow-sm">
           <div className="flex items-start gap-3">

@@ -42,6 +42,7 @@ import {
 // Constants
 // ============================================================================
 
+// 角色配置：owner/admin/member 的显示标签、图标、颜色
 const ROLE_CONFIG: Record<
   MemberRole,
   { label: string; icon: React.ElementType; bg: string; text: string }
@@ -67,7 +68,7 @@ const ROLE_CONFIG: Record<
 };
 
 // ============================================================================
-// useTeam Hook — 业务逻辑完全隔离
+// useTeam Hook — 团队成员数据 + 邀请/移除/角色变更/离开操作
 // ============================================================================
 
 interface UseTeamReturn {
@@ -86,13 +87,18 @@ interface UseTeamReturn {
 }
 
 function useTeam(): UseTeamReturn {
+  // 团队成员列表
   const [members, setMembers] = useState<TeamMember[]>([]);
+  // 当前用户在团队中的角色（owner/admin/member）
   const [currentUserRole, setCurrentUserRole] = useState<MemberRole | null>(null);
+  // 当前用户的 userId，用于判断 "自己"
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // 邀请相关
   const [isInviting, setIsInviting] = useState(false);
   const [inviteRole, setInviteRole] = useState<"admin" | "member">("member");
 
+  // 获取成员列表和当前用户角色（并行请求）
   const fetchMembers = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -114,6 +120,7 @@ function useTeam(): UseTeamReturn {
     void fetchMembers();
   }, [fetchMembers]);
 
+  // 生成邀请链接：调 API → 返回邀请链接对象（含 URL + token）
   const handleInvite = useCallback(async () => {
     setIsInviting(true);
     try {
@@ -129,6 +136,7 @@ function useTeam(): UseTeamReturn {
     }
   }, [inviteRole]);
 
+  // 移除成员：确认 → 调 API → 从本地列表移除（乐观更新）
   const handleRemove = useCallback(
     async (memberId: number) => {
       if (!confirm("确定要移除该成员吗？")) return;
@@ -143,6 +151,7 @@ function useTeam(): UseTeamReturn {
     []
   );
 
+  // 变更角色：调 API → 用返回结果更新本地列表
   const handleRoleChange = useCallback(
     async (memberId: number, role: "admin" | "member") => {
       try {
@@ -158,6 +167,7 @@ function useTeam(): UseTeamReturn {
     []
   );
 
+  // 离开团队：确认 → 调 API → 刷新页面（清空团队上下文）
   const handleLeave = useCallback(async () => {
     if (!confirm("确定要离开团队吗？离开后将无法访问团队资源。")) return;
     try {
@@ -187,7 +197,8 @@ function useTeam(): UseTeamReturn {
 }
 
 // ============================================================================
-// usePendingInvites Hook
+// usePendingInvites Hook — 待审核加入申请的数据 + 审批/拒绝操作
+// 注意：非管理员调用 getPendingInvites 会报错，catch 中静默设为空数组
 // ============================================================================
 
 interface UsePendingInvitesReturn {
@@ -263,7 +274,8 @@ function usePendingInvites(onComplete: () => void): UsePendingInvitesReturn {
 }
 
 // ============================================================================
-// CreateTeamForm
+// CreateTeamForm — 无团队时显示的创建团队表单
+// 包含团队名称（必填）+ 描述（可选），提交后刷新页面
 // ============================================================================
 
 function CreateTeamForm({ onCreated }: { onCreated: () => void }) {
@@ -411,7 +423,9 @@ function RoleSelector({
 }
 
 // ============================================================================
-// MemberRow
+// MemberRow — 单个成员行
+// 显示：头像 + 用户名（标注"自己"）+ 邮箱 + 角色（owner 显示 Badge / 其他可选角色） + 加入日期 + 操作按钮
+// 权限：owner 可改角色和移除；admin 可移除但不能改角色；member 只读
 // ============================================================================
 
 function MemberRow({
@@ -427,12 +441,15 @@ function MemberRow({
   onRemove: (id: number) => void;
   onRoleChange: (id: number, role: "admin" | "member") => void;
 }) {
+  // 安全解析加入日期
   const validDate = member.joinedAt && !isNaN(Date.parse(member.joinedAt));
   const joinDate = validDate ? new Date(member.joinedAt).toLocaleDateString("zh-CN") : "-";
+  // 权限判断
   const isOwner = member.role === "owner";
   const isSelf = currentUserId !== null && member.userId === currentUserId;
-
+  // 只有 owner 可以修改他人角色，但不能改 owner 自己
   const canModifyRole = currentUserRole === "owner" && !isOwner;
+  // owner 和 admin 可以移除成员，但不能移除 owner
   const canRemove = (currentUserRole === "owner" || currentUserRole === "admin") && !isOwner;
 
   return (
@@ -485,7 +502,9 @@ function MemberRow({
 }
 
 // ============================================================================
-// InviteForm
+// InviteForm — 邀请成员表单
+// 非管理员：显示"仅管理员可邀请"提示
+// 管理员：选择角色（成员/管理员）→ 点击生成链接 → 显示链接 + 复制按钮
 // ============================================================================
 
 function InviteForm({
@@ -628,7 +647,8 @@ function InviteForm({
 }
 
 // ============================================================================
-// PendingInviteRow
+// PendingInviteRow — 单条待审核申请行
+// 显示：申请人首字母头像 + 姓名 + 申请角色 + 邮箱 + 申请时间 + 批准/拒绝按钮
 // ============================================================================
 
 function PendingInviteRow({
@@ -700,7 +720,8 @@ function PendingInviteRow({
 }
 
 // ============================================================================
-// PendingInvitesSection
+// PendingInvitesSection — 待审核申请区块
+// 三种状态：加载中（转圈）/ 空列表（时钟图标 + 暂无申请）/ 有数据（列表 + 批准拒绝）
 // ============================================================================
 
 function PendingInvitesSection({
@@ -781,14 +802,15 @@ function PendingInvitesSection({
 }
 
 // ============================================================================
-// TeamSettings — 主组件
+// TeamSettings — 团队设置主组件（入口）
+// 三步判断：检查中（骨架屏）→ 无团队（创建表单）→ 有团队（管理界面）
 // ============================================================================
 
 export function TeamSettings() {
   const [checkingTeam, setCheckingTeam] = useState(true);
   const [hasTeam, setHasTeam] = useState(false);
 
-  // 先检查用户是否有团队
+  // 检查当前用户是否有团队
   useEffect(() => {
     const checkTeam = async () => {
       try {
@@ -822,7 +844,8 @@ export function TeamSettings() {
 }
 
 // ============================================================================
-// TeamManagement — 团队管理（有团队后显示）
+// TeamManagement — 团队管理主界面
+// 布局：邀请表单 + 待审核申请（仅管理员可见）+ 成员列表
 // ============================================================================
 
 function TeamManagement() {
