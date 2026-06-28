@@ -3,6 +3,7 @@ import type { Router as RouterType } from "express";
 import { authenticate } from "../middleware/auth.js";
 import {
   getUserTeam,
+  createTeam,
   updateTeam,
   getTeamMembers,
   inviteMember,
@@ -50,6 +51,31 @@ router.get("/team", authenticate, async (req: Request, res: Response) => {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "获取团队信息失败";
+    res.status(400).json({ code: 400, message });
+  }
+});
+
+// 创建团队
+router.post("/team/create", authenticate, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    const { name, description } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({
+        code: 400,
+        message: "请输入团队名称",
+      });
+    }
+
+    const team = await createTeam(userId, { name: name.trim(), description });
+
+    res.status(201).json({
+      code: 200,
+      data: team,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "创建团队失败";
     res.status(400).json({ code: 400, message });
   }
 });

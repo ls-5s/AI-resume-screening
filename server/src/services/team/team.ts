@@ -65,6 +65,29 @@ async function isTeamAdmin(teamId: number, userId: number): Promise<boolean> {
 // 主函数
 // ============================================================================
 
+// 创建团队
+export async function createTeam(
+  userId: number,
+  data: { name: string; description?: string }
+): Promise<TeamInfo> {
+  // 检查用户是否已有团队
+  const existingTeam = await getUserTeam(userId);
+  if (existingTeam.id !== 0) {
+    throw new Error("你已在一个团队中，无法创建新团队");
+  }
+
+  const [team] = await db
+    .insert(teams)
+    .values({
+      name: data.name,
+      description: data.description || null,
+      ownerId: userId,
+    })
+    .returning();
+
+  return team;
+}
+
 // 获取用户所属的团队（优先返回 owner 团队，否则返回 member/admin 所属团队）
 export async function getUserTeam(userId: number): Promise<TeamInfo> {
   // 1. 首先查找用户作为 owner 的团队（owner 优先）
@@ -333,7 +356,7 @@ export async function removeMember(
     .where(
       and(
         eq(teamMembers.teamId, team.id),
-        eq(teamMembers.userId, memberId)
+        eq(teamMembers.id, memberId)
       )
     )
     .limit(1);
@@ -386,7 +409,7 @@ export async function updateMemberRole(
     .where(
       and(
         eq(teamMembers.teamId, team.id),
-        eq(teamMembers.userId, memberId)
+        eq(teamMembers.id, memberId)
       )
     )
     .limit(1);

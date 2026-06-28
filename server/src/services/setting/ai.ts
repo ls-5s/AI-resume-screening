@@ -933,7 +933,7 @@ export async function generateInterviewQuestions(
   }
 
   // 构建面试题生成提示词
-  const count = questionCount && questionCount > 0 ? questionCount : 5;
+  const count = Math.min(Math.max(1, questionCount || 5), 50);
   const customFocusSection = customFocus?.trim()
     ? `\n\n面试官重点关注方向（请加强对以下内容的考察）：\n${customFocus.trim()}`
     : "";
@@ -944,7 +944,7 @@ export async function generateInterviewQuestions(
   ${resume.parsedContent || ""}
   ${customFocusSection}
   
-  生成至少 ${count} 道面试题，覆盖以下方面（尽量每类都出题）：
+  请生成 ${count} 道面试题，覆盖以下方面（尽量每类都出题）：
   1. 项目经历深挖（考察简历中提到的项目，从背景、职责、技术细节、难点、成果等角度切入）
   2. 技术知识点（根据项目使用的技术栈，深挖原理和实践）
   3. 候选人的薄弱环节或需要验证的能力（追问验证）
@@ -966,7 +966,7 @@ export async function generateInterviewQuestions(
   - **考察要点**：...
   - **追问方向**：...
   
-  （依次列出至少${count}道题，可继续增加题目3、4、5...）
+  （依次列出${count}道题，不要多出也不要少出）
   
   注意：
   - 不要输出任何 JSON 结构或代码块。
@@ -1021,6 +1021,10 @@ export async function generateInterviewQuestions(
 
     // 解析 AI 响应
     const result = parseInterviewQuestionsResponse(aiResponse);
+    // 截断题目数量到用户指定的数量（防止 AI 多出）
+    if (result.questions.length > count) {
+      result.questions = result.questions.slice(0, count);
+    }
 
     return {
       success: true,

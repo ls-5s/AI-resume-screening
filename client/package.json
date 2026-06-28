@@ -45,6 +45,7 @@
     "vite": "^8.0.0-beta.13"
   },
   "pnpm": {
+    "onlyBuiltDependencies": ["@swc/core"],
     "overrides": {
       "vite": "^8.0.0-beta.13"
     }

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useLoginStore } from "../../store/Login";
 import toast from "../../utils/toast";
@@ -8,7 +8,6 @@ const MAX_RETRY_COUNT = 2;
 
 export default function GithubCallback() {
   const [searchParams] = useSearchParams();
-  const [isLoading, setIsLoading] = useState(true);
   const { login } = useLoginStore();
   const retryCountRef = useRef(0);
 
@@ -60,12 +59,10 @@ export default function GithubCallback() {
         }
         return;
       }
-      
+
       console.error('GitHub 登录失败:', error);
       toast.error(errorMessage || "GitHub 登录失败");
       window.location.href = "/auth/login";
-    } finally {
-      setIsLoading(false);
     }
   };
 
