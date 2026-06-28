@@ -29,12 +29,14 @@ import {
 import { ConfirmModal } from "../../components/Modal";
 import { serverDateToMs } from "../../utils/format";
 
+// 概览视图"最近导入"只显示前 3 条
 const RECENT_IMPORT_LIMIT = 3;
 
 // ============================================================================
-// Skeleton
+// 骨架屏 — loading 时占位，避免内容跳动
 // ============================================================================
 
+// 饼图骨架：模拟 ResumeStatusPieChart 的布局（标题行 + 圆形占位）
 function SkeletonPie() {
   return (
     <div className="flex min-h-[240px] animate-pulse flex-col overflow-hidden rounded-3xl border border-(--app-border) bg-(--app-surface)">
@@ -49,6 +51,7 @@ function SkeletonPie() {
   );
 }
 
+// 表格骨架：模拟 ResumeList 的 3 行数据（头像 + 姓名 + 状态标签 + 邮箱 + 时间 + 操作按钮）
 function SkeletonTable() {
   return (
     <div className="flex animate-pulse flex-col overflow-hidden rounded-3xl border border-(--app-border) bg-(--app-surface)">
@@ -81,38 +84,58 @@ function SkeletonTable() {
 }
 
 // ============================================================================
-// Main
+// Resumes — 简历管理主页面（路由: /app/resumes）
+//
+// 页面分为两种视图模式：
+//   - 概览 (overview)：饼图（左 8 栏）+ 操作面板（右 4 栏）+ 最近导入的 3 条
+//   - 全部 (all)：完整列表 + 分页
+//
+// 核心功能：
+//   1. 文件上传（拖拽/选择 → 校验格式大小 → 调 API → 记录活动）
+//   2. 邮箱导入（选择邮箱配置 → IMAP 抓取附件 → 入库）
+//   3. 查看详情（点击 → Drawer 侧滑展示完整信息）
+//   4. 删除确认（二次确认 → 调 API → 记录活动 → 刷新列表）
 // ============================================================================
 
 export default function Resumes() {
+  // URL 参数 ?action=upload 时自动打开上传弹窗（用于快捷入口跳转）
   const [searchParams, setSearchParams] = useSearchParams();
-  const [resumes, setResumes] = useState<Resume[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [viewResume, setViewResume] = useState<Resume | null>(null);
-  const [viewLoading, setViewLoading] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState<{
-    id: number;
-    name: string;
-  } | null>(null);
+
+  // --- 数据状态 ---
+  const [resumes, setResumes] = useState<Resume[]>([]);     // 全部简历
+  const [loading, setLoading] = useState(true);               // 列表加载中
+
+  // --- 上传状态 ---
+  const [uploading, setUploading] = useState(false);          // 上传中
+  const [showModal, setShowModal] = useState(false);          // 上传弹窗
+  const [selectedFile, setSelectedFile] = useState<File | null>(null); // 用户选择的文件
+
+  // --- 详情 Drawer ---
+  const [viewResume, setViewResume] = useState<Resume | null>(null); // 当前查看的简历（null=关闭）
+  const [viewLoading, setViewLoading] = useState(false);     // 详情加载中
+
+  // --- 删除确认 ---
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; name: string } | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  // 快捷入口 ?action=upload → 自动打开上传弹窗
+  // 例如：从仪表盘点击"上传简历" → 导航到 /app/resumes?action=upload → 此 effect 自动弹窗
   useEffect(() => {
     if (searchParams.get("action") === "upload") {
       setShowModal(true);
-      searchParams.delete("action");
+      searchParams.delete("action");   // 清除参数，防止刷新后再次弹窗
       setSearchParams(searchParams);
     }
   }, [searchParams, setSearchParams]);
 
+  // --- 邮箱导入状态 ---
   const [showImportModal, setShowImportModal] = useState(false);
-  const [emailConfigs, setEmailConfigs] = useState<EmailConfig[]>([]);
-  const [selectedConfigId, setSelectedConfigId] = useState<number | null>(null);
+  const [emailConfigs, setEmailConfigs] = useState<EmailConfig[]>([]);   // 可用邮箱配置
+  const [selectedConfigId, setSelectedConfigId] = useState<number | null>(null); // 选中的邮箱配置
   const [importing, setImporting] = useState(false);
   const [loadingConfigs, setLoadingConfigs] = useState(false);
 
+  // 获取全部简历列表（useCallback 稳定引用，供初始加载和手动刷新使用）
   const loadResumes = useCallback(async () => {
     setLoading(true);
     try {
@@ -126,31 +149,37 @@ export default function Resumes() {
     }
   }, []);
 
+  // 页面挂载时首次加载
   useEffect(() => {
     void loadResumes();
   }, [loadResumes]);
 
-  const [viewMode, setViewMode] = useState<"overview" | "all">("overview");
-  const [listPage, setListPage] = useState(1);
-  const [listPageSize, setListPageSize] = useState(DEFAULT_PAGE_SIZE);
+  // --- 视图模式与分页 ---
+  const [viewMode, setViewMode] = useState<"overview" | "all">("overview"); // 概览 / 全部
+  const [listPage, setListPage] = useState(1);                              // 当前页码
+  const [listPageSize, setListPageSize] = useState(DEFAULT_PAGE_SIZE);      // 每页条数
 
+  // 最近导入的前 3 份（概览视图用）
   const latestImportedResumes = useMemo(() => {
     return [...resumes]
       .sort((a, b) => serverDateToMs(b.createdAt) - serverDateToMs(a.createdAt))
       .slice(0, RECENT_IMPORT_LIMIT);
   }, [resumes]);
 
+  // 全部简历按导入时间倒序
   const allResumesSorted = useMemo(() => {
     return [...resumes].sort(
       (a, b) => serverDateToMs(b.createdAt) - serverDateToMs(a.createdAt),
     );
   }, [resumes]);
 
+  // 全部视图总分页数
   const allListTotalPages = Math.max(
     1,
     Math.ceil(allResumesSorted.length / listPageSize),
   );
 
+  // 删除条目导致当前页超出范围时，回退到最后一页
   useEffect(() => {
     if (viewMode !== "all") return;
     if (listPage > allListTotalPages) {
@@ -158,6 +187,7 @@ export default function Resumes() {
     }
   }, [viewMode, listPage, allListTotalPages]);
 
+  // 当前显示的简历：概览→最近 3 条 / 全部→分页切片
   const displayedResumes = useMemo(() => {
     if (viewMode === "overview") {
       return latestImportedResumes;
@@ -172,11 +202,13 @@ export default function Resumes() {
     listPageSize,
   ]);
 
+  // 切换每页条数时回到第一页
   const handleListPageSizeChange = (size: number) => {
     setListPageSize(size);
     setListPage(1);
   };
 
+  // 饼图所需的统计数据（total/pending/passed/rejected）
   const stats = useMemo(
     () => ({
       total: resumes.length,
@@ -187,6 +219,7 @@ export default function Resumes() {
     [resumes],
   );
 
+  // 拉取邮箱配置列表，自动选中默认配置
   const loadEmailConfigs = async () => {
     setLoadingConfigs(true);
     try {
@@ -204,11 +237,13 @@ export default function Resumes() {
     }
   };
 
+  // 打开邮箱导入弹窗并加载配置
   const handleOpenImportModal = async () => {
     setShowImportModal(true);
     await loadEmailConfigs();
   };
 
+  // 从邮箱导入简历：选中配置 → 调 API（IMAP 抓取附件并入库） → 记录活动 → 刷新列表
   const handleImportFromEmail = async () => {
     if (!selectedConfigId) {
       toast.error("请选择邮箱配置");
@@ -236,6 +271,7 @@ export default function Resumes() {
     }
   };
 
+  // 文件选择校验：只允许 PDF/DOCX/DOC 且 ≤10MB
   const handleFileChange = (file: File | null) => {
     if (!file) {
       setSelectedFile(null);
@@ -257,6 +293,7 @@ export default function Resumes() {
     setSelectedFile(file);
   };
 
+  // 上传简历：取文件名（去掉扩展名）作为简历名称 → 调 API 上传+解析 → 记录活动 → 刷新列表
   const handleUpload = async () => {
     if (!selectedFile) {
       toast.error("请选择文件");
@@ -286,10 +323,12 @@ export default function Resumes() {
     }
   };
 
+  // 点击删除 → 弹出确认框（不直接删）
   const handleDelete = (id: number, name: string) => {
     setDeleteConfirm({ id, name });
   };
 
+  // 确认删除：调 API → 记录活动日志 → 刷新列表
   const handleDeleteConfirm = async () => {
     if (!deleteConfirm) return;
     const { id, name } = deleteConfirm;
@@ -313,6 +352,7 @@ export default function Resumes() {
     }
   };
 
+  // 查看简历详情：调 API 获取完整信息 → 打开右侧 Drawer
   const handleView = async (id: number) => {
     setViewLoading(true);
     try {
@@ -337,7 +377,7 @@ export default function Resumes() {
       />
 
       <div className="mx-auto max-w-[1360px] px-4 pb-12 pt-6 sm:px-6 lg:px-8">
-        {/* 页头：与 Dashboard 完全对齐 */}
+        {/* ===== 1. 页头：标题 + 视图切换 ===== */}
         <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-(--app-text-muted)">
@@ -348,6 +388,7 @@ export default function Resumes() {
             </h1>
           </div>
           <div className="flex flex-col items-end gap-3 sm:flex-row sm:items-center sm:justify-end">
+            {/* 概览 / 全部 视图切换（类似 Segmented Control） */}
             <div
               className="inline-flex rounded-xl border border-(--app-border) bg-(--app-surface-raised)/80 p-1"
               role="group"
@@ -385,7 +426,7 @@ export default function Resumes() {
           </div>
         </header>
 
-        {/* 左图右导入：饼图 + 搜索/导入区（仅概览时显示） */}
+        {/* ===== 2. 概览视图：饼图（左 8 栏）+ 操作面板（右 4 栏） ===== */}
         {viewMode === "overview" && (
           <section
             aria-label="简历概览与操作"
@@ -436,7 +477,7 @@ export default function Resumes() {
           </section>
         )}
 
-        {/* 列表 */}
+        {/* ===== 3. 简历列表（概览 → 最近 3 条 / 全部 → 完整列表 + 分页） ===== */}
         <section
           className="overflow-hidden rounded-3xl border border-(--app-border) bg-(--app-surface) shadow-(--app-shadow-sm) ring-1 ring-(--app-border-subtle)"
           aria-label="简历列表"
@@ -484,11 +525,14 @@ export default function Resumes() {
         </section>
       </div>
 
+      {/* ===== 4. 弹窗层 ===== */}
+
+      {/* 上传简历弹窗：type="upload" → 显示文件拖拽区 + 文件名 + 上传按钮 */}
       <ResumeModal
         isOpen={showModal}
         onClose={() => {
           setShowModal(false);
-          setSelectedFile(null);
+          setSelectedFile(null);  // 关闭时清除已选文件
         }}
         type="upload"
         selectedFile={selectedFile}
@@ -497,12 +541,14 @@ export default function Resumes() {
         uploading={uploading}
       />
 
+      {/* 简历详情 Drawer：右侧滑出，显示解析内容、评分、状态 */}
       <ResumeDetailDrawer
         resume={viewResume}
         loading={viewLoading}
         onOpenChange={(open) => !open && setViewResume(null)}
       />
 
+      {/* 邮箱导入弹窗：type="import" → 显示邮箱配置选择器 + 导入按钮 */}
       <ResumeModal
         isOpen={showImportModal}
         onClose={() => {
@@ -518,6 +564,7 @@ export default function Resumes() {
         importing={importing}
       />
 
+      {/* 删除确认弹窗：deleteConfirm 非 null 时显示，确认后调 handleDeleteConfirm */}
       <ConfirmModal
         isOpen={!!deleteConfirm}
         onClose={() => setDeleteConfirm(null)}

@@ -66,8 +66,10 @@ import {
   Tooltip,
 } from "recharts";
 
+// 状态筛选类型：全部 / 待筛选 / 已通过 / 已拒绝
 type StatusFilter = "all" | "pending" | "passed" | "rejected";
 
+// 根据筛选配置找到匹配的模版 ID（通过 JSON 序列化比较）
 function findTemplateIdByConfig(
   templates: ScreeningTemplate[],
   cfg: PreFilterConfig,
@@ -88,9 +90,11 @@ const listStatusLabels = {
   rejected: STATUS_META.rejected.label,
 };
 
+// 评分圆环尺寸常量：半径 36，计算圆周长用于 strokeDasharray 动画
 const SCORE_RING_R = 36;
 const SCORE_RING_C = 2 * Math.PI * SCORE_RING_R;
 
+// 雷达图 Tooltip：悬停时显示维度名称和分值
 function MatchRadarTooltip({
   active,
   payload,
@@ -108,6 +112,8 @@ function MatchRadarTooltip({
   );
 }
 
+// 雷达图组件：展示 7 维评分
+// 如果有模型返回的分项 → 用真实数据；否则按综合分生成参考分布
 function MatchDimensionRadar({
   score,
   dimensions,
@@ -159,6 +165,8 @@ function MatchDimensionRadar({
   );
 }
 
+// 评分圆环：SVG 环形进度条 + 中间数字 + 等级标签
+// ≥80 优秀（蓝） / ≥60 良好（浅蓝） / <60 待定（浅色）
 function MatchScoreRing({ score }: { score: number }) {
   const s = Math.min(100, Math.max(0, Math.round(score)));
   const dashOffset = SCORE_RING_C - (s / 100) * SCORE_RING_C;
@@ -242,6 +250,8 @@ interface ScreeningResult {
   dimensions?: AiDimensionScores;
 }
 
+// 简历状态 ↔ AI 推荐双向映射
+// DB 用 passed/rejected/pending，AI 用 pass/reject/pending
 const mapStatusToRecommendation = (
   status: Resume["status"],
 ): "pass" | "reject" | "pending" => {
@@ -253,40 +263,77 @@ const mapStatusToRecommendation = (
 const recToStatus = (r: "pass" | "reject" | "pending"): Resume["status"] =>
   r === "pass" ? "passed" : r === "reject" ? "rejected" : "pending";
 
+// ============================================================================
+// AiScreening — AI 智能筛选主组件
+//
+// ## 页面结构
+//   左侧：候选人列表（搜索 + 状态筛选 + 表格 + 分页）
+//   右侧 Drawer：选中候选人详情（评分圆环 + 雷达图 + AI 推理 + 决策按钮）
+//
+// ## 核心数据流
+//   1. 初始化：加载模板 → 应用默认/上次激活的筛选条件 → 加载简历 → 加载 AI 配置
+//   2. 筛选：搜索框 / 状态标签 / 预筛选弹窗 → filteredResumes → sortedResumes → 分页
+//   3. AI 筛选：选中简历 → handleScreenResume → 调 API → 更新 resume + screeningResults
+//   4. 批量筛选：handleBatchScreen → 调 API → 更新所有简历 → 重新加载列表
+//   5. 状态更新：通过/拒绝/待定 → 调 API → 乐观更新 + 记录活动日志
+// ============================================================================
+
 export function AiScreening() {
-  const [resumes, setResumes] = useState<Resume[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedResumeId, setSelectedResumeId] = useState<number | null>(null);
+  // --- 数据状态 ---
+  const [resumes, setResumes] = useState<Resume[]>([]);             // 全部简历列表
+  const [loading, setLoading] = useState(true);                      // 简历加载中
+
+  // --- 选中候选人 ---
+  const [selectedResumeId, setSelectedResumeId] = useState<number | null>(null); // 当前选中候选人 ID（null=关闭 Drawer）
+
+  // --- AI 筛选结果缓存（Map<resumeId, result>，避免重复调 API） ---
   const [screeningResults, setScreeningResults] = useState<
     Map<number, ScreeningResult>
   >(new Map());
-  const [screeningResumeId, setScreeningResumeId] = useState<number | null>(
-    null,
-  );
-  const [jobRequirements, setJobRequirements] = useState("");
-  const [screeningAll, setScreeningAll] = useState(false);
-  const [jobConfigModalOpen, setJobConfigModalOpen] = useState(false);
-  const [aiConfigs, setAiConfigs] = useState<AiConfig[]>([]);
-  const [selectedAiConfigId, setSelectedAiConfigId] = useState<number | null>(
-    null,
-  );
-  const [loadingAiConfigs, setLoadingAiConfigs] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [preFilterConfig, setPreFilterConfig] =
+  const [screeningResumeId, setScreeningResumeId] = useState<number | null>(null); // 正在 AI 筛选的简历 ID（显示 loading）
+
+  // --- 岗位与 AI 配置 ---
+  const [jobRequirements, setJobRequirements] = useState("");        // 岗位要求文本
+  const [screeningAll, setScreeningAll] = useState(false);           // 批量筛选中
+  const [jobConfigModalOpen, setJobConfigModalOpen] = useState(false); // 岗位配置弹窗
+  const [aiConfigs, setAiConfigs] = useState<AiConfig[]>([]);       // 可用 AI 配置列表
+  const [selectedAiConfigId, setSelectedAiConfigId] = useState<number | null>(null); // 当前选用的 AI 配置
+  const [loadingAiConfigs, setLoadingAiConfigs] = useState(true);   // AI 配置加载中
+
+  // --- 搜索与筛选 ---
+  const [searchQuery, setSearchQuery] = useState("");                // 搜索框输入
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all"); // 状态标签筛选
+  const [preFilterConfig, setPreFilterConfig] =                      // 预筛选条件（关键词/最低分/日期范围）
     useState<PreFilterConfig>(getDefaultPreFilter);
-  const [preFilterModalOpen, setPreFilterModalOpen] = useState(false);
+  const [preFilterModalOpen, setPreFilterModalOpen] = useState(false); // 预筛选弹窗
+
+  // --- 删除确认 ---
   const [deleteConfirm, setDeleteConfirm] = useState<{
     id: number;
     name: string;
-  } | null>(null);
-  const [screeningTemplates, setScreeningTemplates] = useState<
-    ScreeningTemplate[]
-  >([]);
-  const [activeTemplateId, setActiveTemplateId] = useState<number | null>(null);
-  const [reasoningOpen, setReasoningOpen] = useState(false);
-  const [listPage, setListPage] = useState(1);
+  } | null>(null); // null=关闭弹窗
 
+  // --- 筛选模板 ---
+  const [screeningTemplates, setScreeningTemplates] = useState<ScreeningTemplate[]>([]);
+  const [activeTemplateId, setActiveTemplateId] = useState<number | null>(null); // 当前激活的模板 ID
+
+  // --- UI 状态 ---
+  const [reasoningOpen, setReasoningOpen] = useState(false);         // AI 推理区域展开/折叠
+  const [listPage, setListPage] = useState(1);                       // 候选人列表当前页码
+
+  // ===== 派生数据 =====
+
+  // ===== 第一步：预筛选过滤 =====
+  // 过滤链路：预筛选条件 → 搜索框 → 状态标签（三层 AND 叠加）
+  //
+  // 第 1 层 — 预筛选（PreFilterModal 弹窗设置）：
+  //   关键词：支持 AND/OR 两种模式，搜索范围覆盖 name/email/phone/parsedContent/summary 五个字段
+  //   最低分：过滤掉 score < minScore 的简历（未评分的保留）
+  //   日期范围：dateFrom ≤ createdAt ≤ dateTo，支持只填一端
+  //
+  // 第 2 层 — 搜索框：在姓名和邮箱中做子串匹配
+  //
+  // 第 3 层 — 状态标签按钮：只显示 pending/passed/rejected 中的一种
   const filteredResumes = useMemo(() => {
     let list = resumes;
     if (!isEmptyPreFilter(preFilterConfig)) {
@@ -345,6 +392,7 @@ export function AiScreening() {
     return list;
   }, [resumes, searchQuery, statusFilter, preFilterConfig]);
 
+  // 按评分降序排列（优先用 AI 筛选结果中的分数，其次用简历本身的 score）
   const sortedResumes = useMemo(() => {
     return [...filteredResumes].sort((a, b) => {
       const scoreA = a.score ?? screeningResults.get(a.id)?.score ?? -1;
@@ -353,6 +401,7 @@ export function AiScreening() {
     });
   }, [filteredResumes, screeningResults]);
 
+  // 评分映射表：从 screeningResults 提取 resumeId → score，传给表格组件高亮显示
   const screeningScoresMap = useMemo(() => {
     const m = new Map<number, number>();
     screeningResults.forEach((r, id) => {
@@ -375,6 +424,7 @@ export function AiScreening() {
     1,
     Math.ceil(sortedResumes.length / LIST_PAGE_SIZE),
   );
+  // 分页：每页 8 条
   const paginatedResumes = useMemo(
     () =>
       sortedResumes.slice(
@@ -389,6 +439,16 @@ export function AiScreening() {
     [resumes, selectedResumeId],
   );
 
+  // ===== 当前选中候选人的 AI 筛选结果（三级回退） =====
+  //
+  // 优先级从高到低：
+  //   1. screeningResults（内存缓存）→ 本次会话中用户手动点击"AI 筛选"或批量筛选产生的最新结果
+  //      - 如果有 dimensions 用 dimensions，否则从数据库 dimensionScores 补齐
+  //   2. 数据库 summary → 之前某次 AI 筛选的结果持久化到了 DB
+  //      - 从 selectedResume.status 反推 recommendation（passed→pass, rejected→reject）
+  //      - score 取数据库值，无则默认 50
+  //      - dimensions 从 JSON 字段 parsedContent 解析
+  //   3. null → 该简历从未被 AI 筛选过，Drawer 显示"尚未生成匹配分"
   const selectedResult = useMemo((): ScreeningResult | null => {
     if (!selectedResumeId || !selectedResume) return null;
     const dimsFromDb = parseStoredDimensionScores(
@@ -414,13 +474,17 @@ export function AiScreening() {
     return null;
   }, [selectedResumeId, selectedResume, screeningResults]);
 
+  // 筛选条件变化时重置到第一页
   useEffect(() => {
     setListPage(1);
   }, [searchQuery, statusFilter, preFilterConfig]);
+
+  // 选中候选人且有推理文本时自动展开 AI 推理区域
   useEffect(() => {
     setReasoningOpen(Boolean(selectedResult?.reasoning?.trim()));
   }, [selectedResumeId, selectedResult?.reasoning]);
 
+  // 选中的简历被删除时自动关闭 Drawer
   useEffect(() => {
     if (
       selectedResumeId != null &&
@@ -430,8 +494,30 @@ export function AiScreening() {
     }
   }, [selectedResumeId, resumes]);
 
+  // ===== 初始化流程（四步串行） =====
+  //
+  // 步骤 1 — 加载筛选模板列表
+  //   调 loadTemplates() 获取当前用户的所有模板
+  //
+  // 步骤 2 — 恢复筛选条件（优先级：localStorage > 默认模板 > 空模板）
+  //   2a. 检查 localStorage 中的 "active-screening-template" key
+  //       （由筛选模板管理页在用户点击"应用此模板"时写入）
+  //       → 读取后立即删除（一次性消费，防止刷新后反复应用）
+  //       → 调 getTemplate(id) 获取该模板的完整 config
+  //       → 如果模板已删除/加载失败 → 回退到 2b
+  //   2b. 从已加载的模板列表中找 isDefault=true 的模板
+  //       → 找到则应用其 config
+  //   2c. 没有默认模板 → 用空筛选条件（getDefaultPreFilter()）
+  //
+  // 步骤 3 — 根据筛选条件加载简历
+  //   有筛选条件 → getFilteredResumes(filters)（后端过滤）
+  //   空筛选条件 → getResumes()（全量加载）
+  //
+  // 步骤 4 — 加载 AI 配置
+  //   调 getAiConfigs() → 自动选默认配置 → 填入预设 prompt 到岗位要求
   useEffect(() => {
     const init = async () => {
+      // 1. 加载筛选模板
       let list: ScreeningTemplate[] = [];
       try {
         list = await loadTemplates();
@@ -440,32 +526,39 @@ export function AiScreening() {
       }
       setScreeningTemplates(list);
 
+      // 2. 从 localStorage 取上次激活的模板 ID（一次性消费）
       const activeId = localStorage.getItem("active-screening-template");
       localStorage.removeItem("active-screening-template");
 
+      // 辅助函数：应用配置并加载对应简历
       const applyConfig = async (
         cfg: PreFilterConfig,
         templateId: number | null,
       ) => {
         setPreFilterConfig(cfg);
         setActiveTemplateId(templateId);
+        // 空筛选条件 → 全量加载 / 有筛选条件 → 后端过滤
         if (!isEmptyPreFilter(cfg)) await loadResumes(cfg);
         else await loadResumes();
       };
 
+      // 2a. 优先恢复上次激活的模板
       if (activeId) {
         try {
           const tpl = await getTemplate(Number(activeId));
           await applyConfig(tpl.config, tpl.id);
           toast.success(`已应用模版「${tpl.name}」的筛选条件`);
         } catch {
+          // 模板可能已被删除 → 回退
           const def = list.find((t) => t.isDefault);
           if (def) await applyConfig(def.config, def.id);
           else await applyConfig(getDefaultPreFilter(), null);
         }
       } else {
+        // 2b. 用默认模板
         const def = list.find((t) => t.isDefault);
         if (def) await applyConfig(def.config, def.id);
+        // 2c. 连默认模板都没有 → 空条件
         else await applyConfig(getDefaultPreFilter(), null);
       }
       await loadAiConfigs();
@@ -473,14 +566,17 @@ export function AiScreening() {
     void init();
   }, []);
 
+  // 加载 AI 配置列表：自动选中默认配置 → 如果有预设 prompt 则填入岗位要求
   const loadAiConfigs = async () => {
     try {
       setLoadingAiConfigs(true);
       const configs = await getAiConfigs();
       setAiConfigs(configs);
       if (configs.length > 0) {
+        // 优先选默认配置，否则取第一个
         const defaultConfig = configs.find((c) => c.isDefault) || configs[0];
         setSelectedAiConfigId(defaultConfig.id);
+        // 如果 AI 配置中有预设提示词，直接填入岗位要求
         if (defaultConfig.prompt) setJobRequirements(defaultConfig.prompt);
       }
     } catch (error) {
@@ -490,6 +586,7 @@ export function AiScreening() {
     }
   };
 
+  // 加载简历列表：有筛选条件 → 调过滤接口 / 无条件 → 全量加载
   const loadResumes = async (
     filters?: Parameters<typeof getFilteredResumes>[0],
   ) => {
@@ -547,6 +644,7 @@ export function AiScreening() {
     );
   };
 
+  // 更新简历状态（通过/拒绝/待定）并记录活动日志
   const handleUpdateStatus = async (
     resumeId: number,
     status: "pending" | "passed" | "rejected",
@@ -588,6 +686,22 @@ export function AiScreening() {
     }
   };
 
+  // ===== 单份 AI 筛选（Drawer 中点击"AI 筛选"按钮触发） =====
+  //
+  // 完整链路：
+  //   1. 前置校验：岗位要求非空 ∧ AI 配置已选择（否则弹 toast 提示）
+  //   2. 设置 screeningResumeId → 按钮显示 loading 转圈
+  //   3. 调 screenResumeWithAi({ resumeId, jobRequirements, aiConfigId })
+  //      后端收到请求后：
+  //        a. 从 DB 查简历的 parsedContent
+  //        b. 从 DB 查 AI 配置（model/apiUrl/apiKey/prompt）
+  //        c. 将简历内容 + 岗位要求 + 提示词组合 → 发 HTTP 请求到 AI API
+  //        d. AI 返回 { recommendation: "pass"|"reject"|"pending", score: 0-100, reasoning: "...", dimensions?: {...} }
+  //        e. 将 score/reasoning/dimensions 写回 DB
+  //   4. 更新 resumes state：将该简历的 summary/status/score/dimensionScores 更新
+  //   5. 更新 screeningResults（内存缓存）：下次选中同一份时直接读缓存，不再调 API
+  //   6. 记录活动日志（logActivity type="screening"）
+  //   7. finally 中清除 screeningResumeId → 按钮恢复
   const handleScreenResume = async (resumeId: number) => {
     if (!jobRequirements.trim()) {
       toast.error("请输入岗位要求");
@@ -599,30 +713,33 @@ export function AiScreening() {
     }
     const resume = resumes.find((r) => r.id === resumeId);
     try {
-      setScreeningResumeId(resumeId);
+      setScreeningResumeId(resumeId); // 按钮 loading 状态
       const result = await screenResumeWithAi({
         resumeId,
         jobRequirements,
         aiConfigId: selectedAiConfigId,
       });
+      // 用 AI 返回结果更新简历列表中的该条记录
       setResumes((prev) =>
         prev.map((r) =>
           r.id === resumeId
             ? {
                 ...r,
                 summary: result.reasoning,
-                status: recToStatus(result.recommendation),
+                status: recToStatus(result.recommendation), // "pass" → "passed"
                 score: result.score,
                 dimensionScores: result.dimensions ?? r.dimensionScores ?? null,
               }
             : r,
         ),
       );
+      // 缓存到内存 Map，后续切换候选人时直接读
       setScreeningResults((prev) => {
         const newMap = new Map(prev);
         newMap.set(resumeId, { ...result, resumeId, resume });
         return newMap;
       });
+      // 记录活动（失败不影响主流程，静默处理）
       await logActivity({
         type: "screening",
         resumeId,
@@ -633,10 +750,27 @@ export function AiScreening() {
       console.error("AI筛选失败:", error);
       toast.error("AI 筛选失败，请重试");
     } finally {
-      setScreeningResumeId(null);
+      setScreeningResumeId(null); // 恢复按钮
     }
   };
 
+  // ===== 批量 AI 筛选（岗位配置弹窗中点击"批量筛选"触发） =====
+  //
+  // 与单份筛选的关键区别：
+  //   - 对当前排序后列表中的所有简历逐一调用 AI（后端串行处理）
+  //   - 结果以数组形式返回 [{ resumeId, success, result? }]
+  //   - 只更新成功的（item.success=true && item.result 存在），失败的保留原样
+  //   - 全部完成后重新 loadResumes() 拉取最新数据
+  //
+  // 完整链路：
+  //   1. 前置校验：岗位要求 + AI 配置 + 列表非空
+  //   2. setScreeningAll(true) → 弹窗中按钮显示 loading
+  //   3. 调 batchScreenResumesWithAi({ resumeIds, jobRequirements, aiConfigId })
+  //   4. 遍历 results 数组，对每条成功的结果：
+  //      a. 更新 resumes state（同时更新 screeningResults Map）
+  //      b. 记录活动日志（批量 Promise.all，失败不阻塞）
+  //   5. 重新加载完整简历列表（确保数据与服务端一致）
+  //   6. finally 中 setScreeningAll(false)
   const handleBatchScreen = async () => {
     if (!jobRequirements.trim()) {
       toast.error("请输入岗位要求");
@@ -658,12 +792,13 @@ export function AiScreening() {
         jobRequirements,
         aiConfigId: selectedAiConfigId,
       });
+      // 批量更新 resumes：只更新 API 返回成功的条目
       setResumes((prev) =>
         prev.map((r) => {
           const item = results.find(
             (res) => res.resumeId === r.id && res.success && res.result,
           );
-          if (!item || !item.result) return r;
+          if (!item || !item.result) return r; // 失败的保留原样
           return {
             ...r,
             summary: item.result.reasoning,
@@ -674,6 +809,7 @@ export function AiScreening() {
           };
         }),
       );
+      // 批量更新内存缓存 screeningResults
       setScreeningResults((prev) => {
         const newMap = new Map(prev);
         results.forEach((item) => {
@@ -688,6 +824,7 @@ export function AiScreening() {
         });
         return newMap;
       });
+      // 批量记录活动（并行，不阻塞主流程）
       await Promise.all(
         results
           .filter((item) => item.success && item.result)
@@ -701,7 +838,7 @@ export function AiScreening() {
             });
           }),
       );
-      await loadResumes();
+      await loadResumes(); // 重新拉取确保数据一致
     } catch (error) {
       console.error("批量筛选失败:", error);
       toast.error("批量筛选失败，请重试");
@@ -762,12 +899,14 @@ export function AiScreening() {
         }
       />
 
+      {/* 浅蓝色氛围背景 */}
       <div
         className="pointer-events-none absolute inset-0 -z-10 bg-(--app-ai-bg)"
         aria-hidden
       />
 
       <div className="mx-auto flex min-h-0 w-full max-w-[1360px] flex-1 flex-col px-4 pb-12 pt-6 sm:px-6 lg:px-8">
+        {/* ===== 页面标题栏：AI Screening 标签 + 标题 + 操作说明 + 岗位配置按钮 ===== */}
         <header className="mb-6 flex flex-col gap-4 sm:mb-7 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -784,6 +923,7 @@ export function AiScreening() {
               评分与推荐理由，一键决策通过或拒绝。
             </p>
           </div>
+          {/* 岗位与 AI 配置按钮：打开 AiScreeningSettingsModal */}
           <button
             type="button"
             onClick={() => setJobConfigModalOpen(true)}
@@ -799,6 +939,7 @@ export function AiScreening() {
         >
           <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
             <aside className="flex min-h-0 min-w-0 flex-1 flex-col border-r border-(--app-ai-border)/80 bg-linear-to-b from-(--app-ai-soft)/50 to-(--app-surface)/40">
+              {/* ===== 候选人列表头部：标题 + 模板下拉 + 筛选条件按钮 + 计数 ===== */}
               <div className="shrink-0 border-b border-(--app-ai-border)/90 px-4 pb-3 pt-4">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <h2 className="text-sm font-bold tracking-tight text-(--app-ai-text)">
@@ -808,6 +949,7 @@ export function AiScreening() {
                     <label htmlFor="aiscreening-template" className="sr-only">
                       筛选模版
                     </label>
+                    {/* 筛选模板下拉：切换模板时自动应用对应的筛选条件 */}
                     <select
                       id="aiscreening-template"
                       title="选择筛选模版"
@@ -892,6 +1034,7 @@ export function AiScreening() {
                 </div>
               </div>
 
+              {/* ===== 状态筛选按钮组：全部 / 待筛选 / 已通过 / 已拒绝 ===== */}
               <div
                 className="shrink-0 border-b border-(--app-ai-border)/90 bg-(--app-surface)/30 px-3 py-2"
                 role="group"
@@ -943,6 +1086,7 @@ export function AiScreening() {
                 </div>
               </div>
 
+              {/* ===== 列表内容区：loading 骨架 / 空状态 / 候选人表格 ===== */}
               <div className="min-h-0 flex-1 overflow-hidden px-0 py-0">
                 {loading ? (
                   <div
@@ -1019,6 +1163,7 @@ export function AiScreening() {
                 )}
               </div>
 
+              {/* ===== 分页栏：仅在非 loading 且有数据时显示 ===== */}
               {!loading && filteredResumes.length > 0 && (
                 <div className="flex shrink-0 items-center justify-between gap-2 border-t border-(--app-ai-border)/90 bg-(--app-surface)/90 px-3 py-2.5 backdrop-blur-sm">
                   <span className="text-[11px] tabular-nums text-(--app-ai-text)/45">
@@ -1054,6 +1199,7 @@ export function AiScreening() {
               )}
             </aside>
 
+            {/* ===== 右侧 Drawer：选中候选人详情 ===== */}
             <Drawer
               open={Boolean(selectedResume)}
               onOpenChange={(open) => {
@@ -1061,6 +1207,7 @@ export function AiScreening() {
               }}
             >
               <DrawerContent className="flex h-dvh max-h-dvh w-full max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+                {/* 屏幕阅读器专用标题，视觉隐藏 */}
                 <DrawerHeader className="sr-only">
                   <DrawerTitle>
                     {selectedResume
@@ -1070,6 +1217,7 @@ export function AiScreening() {
                 </DrawerHeader>
                 {selectedResume ? (
                   <>
+                    {/* === Drawer 顶栏：候选人姓名 + 状态标签 + 导入时间 + 操作按钮 === */}
                     <div className="sticky top-0 z-10 shrink-0 border-b border-(--app-ai-border) bg-(--app-surface)/80 px-4 py-4 pr-14 shadow-(--app-shadow-sm) backdrop-blur-md sm:px-6 sm:pr-14">
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div className="min-w-0">
@@ -1131,8 +1279,10 @@ export function AiScreening() {
                         </div>
                       </div>
                     </div>
+                    {/* === Drawer 主体：匹配度卡片 + AI 推理卡片 === */}
                     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
                       <div className="mx-auto max-w-3xl space-y-5">
+                        {/* 匹配度卡片：评分圆环 + 7 维雷达图 */}
                         <div className="min-w-0 rounded-2xl border border-(--app-ai-border) bg-(--app-ai-soft)/40 p-5 shadow-sm backdrop-blur-sm">
                           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-(--app-ai-text)">
                             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-(--app-surface) ring-1 ring-(--app-ai-border)">
@@ -1180,6 +1330,7 @@ export function AiScreening() {
                           )}
                         </div>
 
+                        {/* AI 评估理由卡片：可折叠展开/收起 */}
                         <div className="overflow-hidden rounded-2xl border border-(--app-ai-border) bg-(--app-surface)/80 shadow-sm backdrop-blur-sm">
                           <button
                             type="button"
@@ -1209,6 +1360,7 @@ export function AiScreening() {
                         </div>
                       </div>
                     </div>
+                    {/* === Drawer 底栏：决策按钮（待定 / 拒绝 / 通过） === */}
                     <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-(--app-ai-border) bg-(--app-surface)/80 px-4 py-3 shadow-(--app-shadow-sm) backdrop-blur-md sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:px-6">
                       <button
                         type="button"

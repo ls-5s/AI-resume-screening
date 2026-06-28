@@ -19,8 +19,10 @@ import {
 import { ConfirmModal } from "../../components/Modal";
 import { serverDateToMs } from "../../utils/format";
 
+// 状态下拉筛选类型：全部 / 待筛选 / 已通过 / 已拒绝
 type StatusFilter = "all" | "pending" | "passed" | "rejected";
 
+// 状态筛选下拉框的选项列表
 const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "全部状态" },
   { value: "pending", label: "待筛选" },
@@ -28,6 +30,7 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "rejected", label: "已拒绝" },
 ];
 
+// 表格骨架：6 行数据占位（头像 + 姓名 + 状态 + 邮箱 + 时间 + 操作）
 function SkeletonAllTable() {
   return (
     <div className="flex animate-pulse flex-col overflow-hidden rounded-3xl border border-zinc-200/70 bg-white">
@@ -59,21 +62,38 @@ function SkeletonAllTable() {
   );
 }
 
+// ============================================================================
+// ResumesAll — 全部简历页面（路由: /app/resumes/all）
+//
+// 与 Resumes.tsx（概览页）的区别：
+//   - 无饼图/操作面板，纯列表视图
+//   - 支持关键词搜索（姓名/邮箱/电话）+ 状态下拉筛选
+//   - 完整分页（可切换每页条数）
+//   - 查看详情 Drawer + 删除确认
+// ============================================================================
+
 export default function ResumesAll() {
-  const [resumes, setResumes] = useState<Resume[]>([]);
-  const [loading, setLoading] = useState(true);
+  // --- 数据状态 ---
+  const [resumes, setResumes] = useState<Resume[]>([]);       // 全部简历
+  const [loading, setLoading] = useState(true);                 // 加载中
+
+  // --- 分页 ---
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
-  const [keyword, setKeyword] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+
+  // --- 搜索与筛选 ---
+  const [keyword, setKeyword] = useState("");                   // 关键词搜索
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all"); // 状态筛选
+
+  // --- 详情 Drawer ---
   const [viewResume, setViewResume] = useState<Resume | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState<{
-    id: number;
-    name: string;
-  } | null>(null);
+
+  // --- 删除确认 ---
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; name: string } | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  // 获取全部简历列表（useCallback 稳定引用，供初始加载和操作后刷新）
   const loadResumes = useCallback(async () => {
     setLoading(true);
     try {
@@ -87,42 +107,51 @@ export default function ResumesAll() {
     }
   }, []);
 
+  // 页面挂载时首次加载
   useEffect(() => {
     void loadResumes();
   }, [loadResumes]);
 
+  // 按导入时间倒序排列
   const sortedResumes = useMemo(() => {
     return [...resumes].sort(
       (a, b) => serverDateToMs(b.createdAt) - serverDateToMs(a.createdAt),
     );
   }, [resumes]);
 
+  // 前端筛选：关键词匹配（姓名/邮箱/电话） AND 状态下拉
+  // 注意：全在这里做前端筛选，不走后端，数据量小时效率最高
   const filteredResumes = useMemo(() => {
     const kw = keyword.trim().toLowerCase();
     return sortedResumes.filter((r) => {
+      // 关键词为空 → 全部通过；否则姓名字段/邮箱/电话任一包含即匹配
       const matchKeyword =
         !kw ||
         r.name.toLowerCase().includes(kw) ||
         (r.email && r.email.toLowerCase().includes(kw)) ||
         (r.phone && r.phone.includes(keyword.trim()));
+      // 状态筛选：all → 全部通过；否则严格匹配
       const matchStatus =
         statusFilter === "all" || r.status === statusFilter;
       return matchKeyword && matchStatus;
     });
   }, [sortedResumes, keyword, statusFilter]);
 
+  // 分页：计算总页数 + 当前页数据切片
   const totalPages = Math.max(1, Math.ceil(filteredResumes.length / pageSize));
   const paginatedResumes = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredResumes.slice(start, start + pageSize);
   }, [filteredResumes, currentPage, pageSize]);
 
+  // 筛选结果变少导致当前页超出范围时回退到最后一页
   useEffect(() => {
     if (currentPage > totalPages) {
       setCurrentPage(Math.max(1, totalPages));
     }
   }, [currentPage, totalPages]);
 
+  // 搜索/筛选条件变化时重置到第一页
   useEffect(() => {
     setCurrentPage(1);
   }, [keyword, statusFilter]);
@@ -133,10 +162,12 @@ export default function ResumesAll() {
     setCurrentPage(1);
   };
 
+  // 点击删除 → 弹出确认框（二次确认，不直接删）
   const handleDelete = (id: number, name: string) => {
     setDeleteConfirm({ id, name });
   };
 
+  // 确认删除：调 API → 记录活动日志 → 关闭弹窗 → 刷新列表
   const handleDeleteConfirm = async () => {
     if (!deleteConfirm) return;
     const { id, name } = deleteConfirm;
@@ -160,6 +191,7 @@ export default function ResumesAll() {
     }
   };
 
+  // 查看简历详情：调 API 获取完整信息 → 打开右侧 Drawer
   const handleView = async (id: number) => {
     setViewLoading(true);
     try {
@@ -188,6 +220,7 @@ export default function ResumesAll() {
       />
 
       <div className="mx-auto max-w-[1360px] px-4 pb-12 pt-6 sm:px-6 lg:px-8">
+        {/* ===== 1. 页头：标题 + 返回概览链接 + 简历总数 + 日期 ===== */}
         <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">
@@ -197,6 +230,7 @@ export default function ResumesAll() {
               <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 sm:text-[1.75rem]">
                 全部简历
               </h1>
+              {/* 返回概览页的链接 */}
               <Link
                 to="/app/resumes"
                 className="text-sm font-semibold text-sky-600 no-underline transition-colors hover:text-sky-700"
@@ -208,6 +242,7 @@ export default function ResumesAll() {
               共 {resumes.length.toLocaleString()} 份，按导入时间从新到旧排列
             </p>
           </div>
+          {/* 当前日期 */}
           <time
             dateTime={now.toISOString()}
             className="text-sm tabular-nums text-zinc-500"
@@ -216,10 +251,12 @@ export default function ResumesAll() {
           </time>
         </header>
 
+        {/* ===== 2. 简历表格：搜索 + 状态筛选 + 列表 + 分页 ===== */}
         <section
           className="overflow-hidden rounded-3xl border border-zinc-200/70 bg-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06)]"
           aria-label="全部简历列表"
         >
+          {/* 表格头部：统计信息 + 搜索框 + 状态下拉 */}
           <div className="flex flex-col gap-4 border-b border-zinc-100/80 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-base font-semibold tracking-tight text-zinc-900">
@@ -232,7 +269,9 @@ export default function ResumesAll() {
                   : ""}
               </p>
             </div>
+            {/* 搜索 + 筛选：横向排列，响应式换行 */}
             <div className="flex flex-wrap items-center gap-2">
+              {/* 关键词搜索框：搜索图标在左侧绝对定位 */}
               <div className="relative">
                 <Search
                   className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
@@ -247,6 +286,7 @@ export default function ResumesAll() {
                   aria-label="搜索简历"
                 />
               </div>
+              {/* 状态下拉选择器 */}
               <select
                 value={statusFilter}
                 onChange={(e) =>
@@ -264,6 +304,7 @@ export default function ResumesAll() {
             </div>
           </div>
 
+          {/* 表格内容：loading → 骨架 / 有数据 → 列表+分页 */}
           {loading ? (
             <SkeletonAllTable />
           ) : (
@@ -273,6 +314,7 @@ export default function ResumesAll() {
                 loading={loading}
                 onView={handleView}
                 onDelete={handleDelete}
+                // 有简历但全被筛选掉 → 显示"暂无匹配"；真正的空库 → 默认空状态
                 emptyTitle={
                   resumes.length > 0 && filteredResumes.length === 0
                     ? "暂无匹配"
@@ -296,12 +338,16 @@ export default function ResumesAll() {
         </section>
       </div>
 
+      {/* ===== 3. 弹窗层 ===== */}
+
+      {/* 简历详情 Drawer：右侧滑出 */}
       <ResumeDetailDrawer
         resume={viewResume}
         loading={viewLoading}
         onOpenChange={(open) => !open && setViewResume(null)}
       />
 
+      {/* 删除确认弹窗：deleteConfirm 非 null 时显示 */}
       <ConfirmModal
         isOpen={!!deleteConfirm}
         onClose={() => setDeleteConfirm(null)}

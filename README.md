@@ -26,6 +26,20 @@
 - 兼容 OpenAI 格式和阿里云通义千问原生格式
 - **前端**: `client/src/pages/aiscreening/aiscreening.tsx` `client/src/components/aiscreening/` `client/src/api/ai.ts`
 - **后端**: `server/src/routes/setting.ts` `server/src/services/setting/ai.ts`
+- **组件目录**:
+  - `AiScreening.tsx` — 主组件：候选人列表 + 右侧详情 Drawer（评分圆环、雷达图、AI 推理）
+  - `AiScreeningSettingsModal.tsx` — 岗位要求与 AI 配置弹窗
+  - `AiReasoningContent.tsx` — AI 评估理由 Markdown 渲染
+  - `PreFilterModal.tsx` — 预筛选条件弹窗（关键词、最低分、日期范围）
+  - `DeleteResumeConfirmModal.tsx` — 删除简历二次确认弹窗
+  - `ResumePreviewModal.tsx` — 简历文件预览弹窗
+  - `screeningConstants.ts` — 状态元数据（颜色、标签、图标）
+  - `matchDimensions.ts` — 7 维评分数据解析与雷达图数据转换
+  - `preFilterUtils.ts` — 预筛选条件的默认值、空判断、序列化
+  - `components/CandidateCard.tsx` — 候选人卡片视图
+  - `components/FilterPanel.tsx` — 列表筛选与搜索面板
+  - `components/ScreeningCandidateTable.tsx` — 候选人表格（含排序、选中、操作）
+  - `components/StatsBar.tsx` — 筛选结果统计栏（各状态计数、平均分）
 
 ### 4. AI 面试题生成
 - 根据简历内容生成定制化面试问题
